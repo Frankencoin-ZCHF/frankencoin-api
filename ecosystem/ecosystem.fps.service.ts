@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT, VIEM_CONFIG } from 'api.config';
 import { ApiEcosystemFpsInfo } from './ecosystem.fps.types';
-import { ABIS, ADDRESS } from 'contracts';
 import { gql } from '@apollo/client/core';
 import { formatUnits } from 'viem';
+import { ADDRESS } from '@frankencoin/zchf/exports/address.config';
+import { EquityABI } from '@frankencoin/zchf/exports/abis/Equity';
 
 @Injectable()
 export class EcosystemFpsService {
@@ -22,12 +23,12 @@ export class EcosystemFpsService {
 
 		const fetchedPrice = await VIEM_CONFIG.readContract({
 			address: addr,
-			abi: ABIS.EquityABI,
+			abi: EquityABI,
 			functionName: 'price',
 		});
 		const fetchedTotalSupply = await VIEM_CONFIG.readContract({
 			address: addr,
-			abi: ABIS.EquityABI,
+			abi: EquityABI,
 			functionName: 'totalSupply',
 		});
 
