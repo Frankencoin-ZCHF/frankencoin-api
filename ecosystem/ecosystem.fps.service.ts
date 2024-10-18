@@ -3,8 +3,8 @@ import { PONDER_CLIENT, VIEM_CONFIG } from 'api.config';
 import { ApiEcosystemFpsInfo } from './ecosystem.fps.types';
 import { gql } from '@apollo/client/core';
 import { formatUnits } from 'viem';
-import { ADDRESS } from '@frankencoin/zchf/exports/address.config';
-import { EquityABI } from '@frankencoin/zchf/exports/abis/Equity';
+import { ADDRESS } from '@frankencoin/zchf';
+import { EquityABI } from '@frankencoin/zchf';
 
 @Injectable()
 export class EcosystemFpsService {
