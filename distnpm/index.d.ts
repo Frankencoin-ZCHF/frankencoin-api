@@ -311,6 +311,7 @@ type PositionQueryV2 = {
     collateralSymbol: string;
     collateralDecimals: number;
     collateralBalance: string;
+    limitForPosition: string;
     limitForClones: string;
     availableForClones: string;
     availableForMinting: string;
