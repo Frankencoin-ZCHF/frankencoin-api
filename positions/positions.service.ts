@@ -349,7 +349,7 @@ export class PositionsService {
 			const am = (mintingDate[idx] as PromiseFulfilledResult<bigint>).value;
 
 			const limitForPosition = (b * BigInt(p.price)) / BigInt(10 ** p.zchfDecimals);
-			const availableForPosition = limitForPosition - BigInt(p.minted);
+			const availableForPosition = limitForPosition - m;
 
 			const entry: PositionQueryV2 = {
 				version: 2,
@@ -385,6 +385,7 @@ export class PositionsService {
 				collateralDecimals: p.collateralDecimals,
 				collateralBalance: typeof b === 'bigint' ? b.toString() : p.collateralBalance,
 
+				limitForPosition: limitForPosition.toString(),
 				limitForClones: p.limitForClones,
 				availableForClones: typeof ac === 'bigint' ? ac.toString() : p.availableForClones,
 				availableForMinting: typeof am === 'bigint' ? am.toString() : p.availableForMinting,

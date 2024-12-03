@@ -75,6 +75,7 @@ export type PositionQueryV2 = {
 	collateralDecimals: number;
 	collateralBalance: string;
 
+	limitForPosition: string;
 	limitForClones: string;
 	availableForClones: string;
 	availableForMinting: string;
