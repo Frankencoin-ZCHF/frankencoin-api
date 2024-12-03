@@ -205,7 +205,7 @@ export class PositionsService {
 				collateralName: p.collateralName,
 				collateralSymbol: p.collateralSymbol,
 				collateralDecimals: p.collateralDecimals,
-				collateralBalance: typeof b === 'bigint' ? b.toString() : p.position,
+				collateralBalance: typeof b === 'bigint' ? b.toString() : p.collateralBalance,
 
 				limitForPosition: p.limitForPosition,
 				limitForClones: p.limitForClones,
@@ -285,6 +285,8 @@ export class PositionsService {
 		const list: PositionsQueryObjectArray = {};
 		const balanceOfDataPromises: Promise<bigint>[] = [];
 		const mintedDataPromises: Promise<bigint>[] = [];
+		const availableForClonesDataPromises: Promise<bigint>[] = [];
+		const availableForMintingDataPromises: Promise<bigint>[] = [];
 
 		const leadrate: number = await VIEM_CONFIG.readContract({
 			address: ADDRESS[CONFIG.chain.id].savings,
@@ -305,7 +307,6 @@ export class PositionsService {
 				})
 			);
 
-			// TODO: is this solved in V2?
 			// fetch minted - See issue #11
 			// https://github.com/Frankencoin-ZCHF/frankencoin-api/issues/11
 			mintedDataPromises.push(
@@ -315,16 +316,40 @@ export class PositionsService {
 					functionName: 'minted',
 				})
 			);
+
+			// make highly available, instead of relying on indexer state
+			// https://github.com/Frankencoin-ZCHF/frankencoin-dapp/issues/144
+			availableForClonesDataPromises.push(
+				VIEM_CONFIG.readContract({
+					address: p.original,
+					abi: PositionV2ABI,
+					functionName: 'availableForClones',
+				})
+			);
+			availableForMintingDataPromises.push(
+				VIEM_CONFIG.readContract({
+					address: p.position,
+					abi: PositionV2ABI,
+					functionName: 'availableForMinting',
+				})
+			);
 		}
 
 		// await for contract calls
 		const balanceOfData = await Promise.allSettled(balanceOfDataPromises);
 		const mintedData = await Promise.allSettled(mintedDataPromises);
+		const clonesDate = await Promise.allSettled(availableForClonesDataPromises);
+		const mintingDate = await Promise.allSettled(availableForMintingDataPromises);
 
 		for (let idx = 0; idx < items.length; idx++) {
 			const p = items[idx] as PositionQueryV2;
 			const b = (balanceOfData[idx] as PromiseFulfilledResult<bigint>).value;
 			const m = (mintedData[idx] as PromiseFulfilledResult<bigint>).value;
+			const ac = (clonesDate[idx] as PromiseFulfilledResult<bigint>).value;
+			const am = (mintingDate[idx] as PromiseFulfilledResult<bigint>).value;
+
+			const limitForPosition = (b * BigInt(p.price)) / BigInt(10 ** p.zchfDecimals);
+			const availableForPosition = limitForPosition - BigInt(p.minted);
 
 			const entry: PositionQueryV2 = {
 				version: 2,
@@ -358,11 +383,12 @@ export class PositionsService {
 				collateralName: p.collateralName,
 				collateralSymbol: p.collateralSymbol,
 				collateralDecimals: p.collateralDecimals,
-				collateralBalance: typeof b === 'bigint' ? b.toString() : p.position,
+				collateralBalance: typeof b === 'bigint' ? b.toString() : p.collateralBalance,
 
 				limitForClones: p.limitForClones,
-				availableForClones: p.availableForClones,
-				availableForMinting: p.availableForMinting,
+				availableForClones: typeof ac === 'bigint' ? ac.toString() : p.availableForClones,
+				availableForMinting: typeof am === 'bigint' ? am.toString() : p.availableForMinting,
+				availableForPosition: availableForPosition.toString(),
 				minted: typeof m === 'bigint' ? m.toString() : p.minted,
 			};
 

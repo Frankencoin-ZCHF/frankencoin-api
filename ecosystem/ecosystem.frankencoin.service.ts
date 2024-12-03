@@ -47,9 +47,9 @@ export class EcosystemFrankencoinService {
 				id: CONFIG.chain.id,
 			},
 			price: {
-				usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price.usd,
+				usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
 			},
-			fps: this.fpsService.getEcosystemFpsInfo().values,
+			fps: this.fpsService.getEcosystemFpsInfo()?.values,
 			tvl: this.collService.getCollateralStats()?.totalValueLocked ?? {},
 			...this.ecosystemFrankencoin,
 		};

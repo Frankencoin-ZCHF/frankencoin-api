@@ -78,6 +78,7 @@ export type PositionQueryV2 = {
 	limitForClones: string;
 	availableForClones: string;
 	availableForMinting: string;
+	availableForPosition: string;
 	minted: string;
 };
 

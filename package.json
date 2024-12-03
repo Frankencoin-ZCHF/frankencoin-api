@@ -1,8 +1,11 @@
 {
 	"name": "@frankencoin/api",
-	"version": "0.2.4",
+	"version": "0.2.5",
 	"private": false,
 	"license": "MIT",
+	"main": "./distnpm/index.js",
+	"module": "./distnpm/index.mjs",
+	"types": "./distnpm/index.d.ts",
 	"homepage": "https://api.frankencoin.com",
 	"repository": {
 		"url": "git+https://github.com/frankencoin-ZCHF/frankencoin-api.git"
@@ -11,16 +14,18 @@
 		"build": "nest build",
 		"format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
 		"start": "nest start --entryFile api.main.js",
+		"dev": "yarn install && nest start --watch --entryFile api.main.js",
 		"start:dev": "yarn install && nest start --watch --entryFile api.main.js",
 		"start:debug": "nest start --debug --watch --entryFile api.main.js",
 		"start:prod": "node dist/api.main.js",
-		"publish": "npm publish --access public",
 		"lint": "eslint \"{src,apis,libs,test}/**/*.ts\" --fix",
 		"test": "jest",
 		"test:watch": "jest --watch",
 		"test:cov": "jest --coverage",
 		"test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-		"test:e2e": "jest --config ./test/jest-e2e.json"
+		"test:e2e": "jest --config ./test/jest-e2e.json",
+		"npm:build": "npx tsup --tsconfig exports/tsconfig.json exports/index.ts",
+		"npm:publish": "npm publish --access public"
 	},
 	"dependencies": {
 		"@apollo/client": "^3.10.5",
@@ -64,6 +69,7 @@
 		"ts-loader": "^9.4.3",
 		"ts-node": "^10.9.1",
 		"tsconfig-paths": "^4.2.0",
+		"tsup": "^8.3.5",
 		"typescript": "^5.1.3"
 	},
 	"jest": {
