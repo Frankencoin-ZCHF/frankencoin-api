@@ -25,6 +25,6 @@ export class SavingsCoreController {
 		const keywords: string[] = ['0', 'all', 'zero', 'zeroAddress', zeroAddress];
 		if (keywords.includes(address)) address = zeroAddress;
 		if (!isAddress(address)) address = zeroAddress;
-		return await this.savings.getUserTables(address as Address);
+		return await this.savings.getUserTable(address as Address);
 	}
 }
