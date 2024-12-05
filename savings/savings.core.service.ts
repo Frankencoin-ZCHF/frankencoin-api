@@ -16,9 +16,9 @@ export class SavingsCoreService {
 	) {}
 
 	getInfo(): ApiSavingsInfo {
-		const totalSavedRaw = this.fc.getEcosystemFrankencoinKeyValues()['Savings:TotalSaved']?.amount || 0n;
-		const totalInterestRaw = this.fc.getEcosystemFrankencoinKeyValues()['Savings:TotalInterestCollected']?.amount || 0n;
-		const totalWithdrawnRaw = this.fc.getEcosystemFrankencoinKeyValues()['Savings:TotalWithdrawn']?.amount || 0n;
+		const totalSavedRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalSaved']?.amount || 0n;
+		const totalInterestRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalInterestCollected']?.amount || 0n;
+		const totalWithdrawnRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalWithdrawn']?.amount || 0n;
 		const rate = this.lead.getInfo().rate;
 
 		const totalSaved: number = parseFloat(formatUnits(totalSavedRaw, 18));
