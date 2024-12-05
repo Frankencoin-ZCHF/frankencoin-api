@@ -7,6 +7,7 @@ import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.ser
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { PositionsService } from 'positions/positions.service';
 import { PricesService } from 'prices/prices.service';
+import { SavingsCoreService } from 'savings/savings.core.service';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 import { TelegramService } from 'telegram/telegram.service';
 import { Chain } from 'viem';
@@ -33,7 +34,8 @@ export class ApiService {
 		private readonly fps: EcosystemFpsService,
 		private readonly challenges: ChallengesService,
 		private readonly telegram: TelegramService,
-		private readonly leadrate: SavingsLeadrateService
+		private readonly leadrate: SavingsLeadrateService,
+		private readonly savings: SavingsCoreService
 	) {
 		setTimeout(() => this.updateBlockheight(), 100);
 	}
@@ -52,6 +54,7 @@ export class ApiService {
 			this.fps.updateFpsInfo(),
 			this.leadrate.updateLeadrateRates(),
 			this.leadrate.updateLeadrateProposals(),
+			this.savings.updateZeroAddressTable(),
 			this.challenges.updateChallengeV1s(),
 			this.challenges.updateChallengeV2s(),
 			this.challenges.updateBidV1s(),

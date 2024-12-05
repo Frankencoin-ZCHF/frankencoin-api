@@ -9,6 +9,7 @@ import { PONDER_CLIENT } from 'api.config';
 @Injectable()
 export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
+	private fetchedZeroAddressTable: ApiSavingsUserTable;
 
 	constructor(
 		private readonly fc: EcosystemFrankencoinService,
@@ -38,7 +39,17 @@ export class SavingsCoreService {
 		};
 	}
 
-	async getUserTables(userAddress: Address, limit: number = 8): Promise<ApiSavingsUserTable> {
+	async getUserTable(userAddress: Address, limit: number = 8): Promise<ApiSavingsUserTable> {
+		if (userAddress == zeroAddress) return this.fetchedZeroAddressTable;
+		return this.fetchUserTable(userAddress, limit);
+	}
+
+	async updateZeroAddressTable(limit: number = 8) {
+		this.logger.debug('Updating savings zeroAddress table');
+		this.fetchedZeroAddressTable = await this.fetchUserTable(zeroAddress, limit);
+	}
+
+	async fetchUserTable(userAddress: Address, limit: number = 8): Promise<ApiSavingsUserTable> {
 		const user: Address = userAddress == zeroAddress ? zeroAddress : (userAddress.toLowerCase() as Address);
 		const savedFetched = await PONDER_CLIENT.query({
 			fetchPolicy: 'no-cache',

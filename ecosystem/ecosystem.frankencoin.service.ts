@@ -63,6 +63,10 @@ export class EcosystemFrankencoinService {
 		};
 	}
 
+	getKeyValueItem(key: string) {
+		return this.ecosystemFrankencoinKeyValues?.[key];
+	}
+
 	async updateEcosystemKeyValues() {
 		this.logger.debug('Updating EcosystemKeyValues');
 		const ecosystem = await PONDER_CLIENT.query({
