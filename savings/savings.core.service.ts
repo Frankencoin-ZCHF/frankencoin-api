@@ -16,16 +16,16 @@ export class SavingsCoreService {
 	) {}
 
 	getInfo(): ApiSavingsInfo {
-		const totalSavedRaw = this.fc.getEcosystemFrankencoinKeyValues()['Savings:TotalSaved']?.amount || 0n;
-		const totalInterestRaw = this.fc.getEcosystemFrankencoinKeyValues()['Savings:TotalInterestCollected']?.amount || 0n;
-		const totalWithdrawnRaw = this.fc.getEcosystemFrankencoinKeyValues()['Savings:TotalWithdrawn']?.amount || 0n;
+		const totalSavedRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalSaved']?.amount || 0n;
+		const totalInterestRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalInterestCollected']?.amount || 0n;
+		const totalWithdrawnRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalWithdrawn']?.amount || 0n;
 		const rate = this.lead.getInfo().rate;
 
 		const totalSaved: number = parseFloat(formatUnits(totalSavedRaw, 18));
 		const totalInterest: number = parseFloat(formatUnits(totalInterestRaw, 18));
 		const totalWithdrawn: number = parseFloat(formatUnits(totalWithdrawnRaw, 18));
 
-		const totalSupply: number = this.fc.getEcosystemFrankencoinInfo().total.supply;
+		const totalSupply: number = this.fc.getEcosystemFrankencoinInfo()?.total?.supply || 1; // @dev: make available. Safer for division
 		const ratioOfSupply: number = totalSaved / totalSupply;
 
 		return {
