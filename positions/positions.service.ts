@@ -248,6 +248,7 @@ export class PositionsService {
 							denied
 							closed
 							original
+							parent
 
 							minimumCollateral
 							riskPremiumPPM
@@ -366,6 +367,7 @@ export class PositionsService {
 				denied: p.denied,
 				closed: p.closed,
 				original: getAddress(p.original),
+				parent: getAddress(p.parent),
 
 				minimumCollateral: p.minimumCollateral,
 				annualInterestPPM: leadrate + p.riskPremiumPPM,

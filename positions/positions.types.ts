@@ -56,6 +56,7 @@ export type PositionQueryV2 = {
 	denied: boolean;
 	closed: boolean;
 	original: Address;
+	parent: Address;
 
 	minimumCollateral: string;
 	annualInterestPPM: number; // @dev: in V2, sum of leadrate and riskPremium
