@@ -15,8 +15,8 @@ import { mainnet, polygon } from 'viem/chains';
 
 export const INDEXING_TIMEOUT_COUNT: number = 3;
 export const POLLING_DELAY: { [key: Chain['id']]: number } = {
-	[mainnet.id]: 6_000, // blocktime: 12s
-	[polygon.id]: 12_000, // blocktime: 2s, skip: 6 blks
+	[mainnet.id]: 2_000, // blocktime: 12s
+	[polygon.id]: 6_000, // blocktime: 2s, skip: 6 blks
 };
 
 @Injectable()
