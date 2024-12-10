@@ -1,11 +1,11 @@
 {
 	"name": "@frankencoin/api",
-	"version": "0.2.6",
+	"version": "0.2.7",
 	"private": false,
 	"license": "MIT",
-	"main": "./distnpm/index.js",
-	"module": "./distnpm/index.mjs",
-	"types": "./distnpm/index.d.ts",
+	"main": "./exports/dist/index.js",
+	"module": "./exports/dist/index.mjs",
+	"types": "./exports/dist/index.d.ts",
 	"homepage": "https://api.frankencoin.com",
 	"repository": {
 		"url": "git+https://github.com/frankencoin-ZCHF/frankencoin-api.git"
