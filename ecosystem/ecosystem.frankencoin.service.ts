@@ -73,7 +73,7 @@ export class EcosystemFrankencoinService {
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					ecosystems(orderBy: "id") {
+					ecosystems(orderBy: "id", limit: 1000) {
 						items {
 							id
 							value
