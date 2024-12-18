@@ -176,7 +176,7 @@ export class TelegramService {
 
 		// Positions requested
 		const requestedPosition = Object.values(this.position.getPositionsRequests().map).filter(
-			(r) => r.created * 1000 > this.telegramState.positions
+			(r) => r.start * 1000 > Date.now() && r.created * 1000 > this.telegramState.positions
 		);
 		if (requestedPosition.length > 0) {
 			this.telegramState.positions = Date.now();
