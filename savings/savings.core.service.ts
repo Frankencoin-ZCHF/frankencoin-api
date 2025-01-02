@@ -32,7 +32,7 @@ export class SavingsCoreService {
 		return {
 			totalSaved,
 			totalWithdrawn,
-			totalBalance: totalSaved - totalWithdrawn,
+			totalBalance: totalSaved + totalInterest - totalWithdrawn,
 			totalInterest,
 			rate,
 			ratioOfSupply,

@@ -1,15 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { VIEM_CONFIG } from 'api.config';
+import { PONDER_CLIENT, VIEM_CONFIG } from 'api.config';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { PositionsService } from 'positions/positions.service';
 import { uniqueValues } from 'utils/format-array';
 import { formatUnits } from 'viem';
-import { AnalyticsExposureItem, ApiAnalyticsCollateralExposure, ApiAnalyticsFpsEarnings } from './analytics.types';
+import {
+	AnalyticsExposureItem,
+	AnalyticsTransactionLog,
+	ApiAnalyticsCollateralExposure,
+	ApiAnalyticsFpsEarnings,
+	ApiTransactionLog,
+} from './analytics.types';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { ADDRESS } from '@frankencoin/zchf';
 import { FrankencoinABI } from '@frankencoin/zchf';
 import { SavingsCoreService } from 'savings/savings.core.service';
+import { gql } from '@apollo/client/core';
 
 @Injectable()
 export class AnalyticsService {
@@ -164,6 +171,86 @@ export class AnalyticsService {
 
 			savingsInterestCosts: this.save.getInfo().totalInterest,
 			otherLossClaims: this.fps.getEcosystemFpsInfo().earnings.loss,
+		};
+	}
+
+	async getTransactionLog(latest: boolean, limit: number = 50, after: string = ''): Promise<ApiTransactionLog> {
+		this.logger.debug('Fetching transaction log...');
+		const txLog = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					transactionLogs(orderBy: "timestamp", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
+						items {
+							id
+							timestamp
+							kind
+							amount
+
+							totalInflow
+							totalOutflow
+							totalTradeFee
+
+							totalSupply
+							totalEquity
+							totalSavings
+							equityToSupplyRatio
+							savingsToSupplyRatio
+
+							fpsTotalSupply
+							fpsPrice
+
+							totalMintedV1
+							totalMintedV2
+							mintedV1ToSupplyRatio
+							mintedV2ToSupplyRatio
+
+							currentLeadRate
+							claimableInterests
+							projectedInterests
+							impliedV1Interests
+							impliedV2Interests
+
+							impliedV1AvgBorrowRate
+							impliedV2AvgBorrowRate
+
+							netImpliedEarnings
+							netImpliedEarningsToSupplyRatio
+							netImpliedEarningsToEquityRatio
+							netImpliedEarningsPerToken
+							netImpliedEarningsPerTokenYield
+
+							netRealized365Earnings
+							netRealized365EarningsToSupplyRatio
+							netRealized365EarningsToEquityRatio
+							netRealized365EarningsPerToken
+							netRealized365EarningsPerTokenYield
+						}
+						pageInfo {
+							startCursor
+       			 			endCursor
+        					hasNextPage
+      					}
+					}
+				}
+			`,
+		});
+
+		if (!txLog.data || !txLog.data.transactionLogs.items) {
+			this.logger.warn('No ecosystem data found.');
+			return;
+		}
+
+		const logs = txLog.data.transactionLogs.items as AnalyticsTransactionLog[];
+
+		return {
+			num: logs.length,
+			logs,
+			pageInfo: txLog.data?.transactionLogs?.pageInfo ?? {
+				startCursor: '',
+				endCursor: '',
+				hasNextPage: false,
+			},
 		};
 	}
 }

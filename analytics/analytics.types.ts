@@ -32,6 +32,52 @@ export type AnalyticsExposureItem = {
 	};
 };
 
+export type AnalyticsTransactionLog = {
+	id: string;
+	timestamp: string;
+	kind: string;
+	amount: bigint;
+
+	totalInflow: bigint;
+	totalOutflow: bigint;
+	totalTradeFee: bigint;
+
+	totalSupply: bigint;
+	totalEquity: bigint;
+	totalSavings: bigint;
+	equityToSupplyRatio: bigint;
+	savingsToSupplyRatio: bigint;
+
+	fpsTotalSupply: bigint;
+	fpsPrice: bigint;
+
+	totalMintedV1: bigint;
+	totalMintedV2: bigint;
+	mintedV1ToSupplyRatio: bigint;
+	mintedV2ToSupplyRatio: bigint;
+
+	currentLeadRate: bigint;
+	claimableInterests: bigint;
+	projectedInterests: bigint;
+	impliedV1Interests: bigint;
+	impliedV2Interests: bigint;
+
+	impliedV1AvgBorrowRate: bigint;
+	impliedV2AvgBorrowRate: bigint;
+
+	netImpliedEarnings: bigint;
+	netImpliedEarningsToSupplyRatio: bigint;
+	netImpliedEarningsToEquityRatio: bigint;
+	netImpliedEarningsPerToken: bigint;
+	netImpliedEarningsPerTokenYield: bigint;
+
+	netRealized365Earnings: bigint;
+	netRealized365EarningsToSupplyRatio: bigint;
+	netRealized365EarningsToEquityRatio: bigint;
+	netRealized365EarningsPerToken: bigint;
+	netRealized365EarningsPerTokenYield: bigint;
+};
+
 // --------------------------------------------------------------------------
 // Api
 export type ApiAnalyticsCollateralExposure = {
@@ -62,4 +108,14 @@ export type ApiAnalyticsFpsEarnings = {
 	// loss or costs
 	savingsInterestCosts: number;
 	otherLossClaims: number;
+};
+
+export type ApiTransactionLog = {
+	num: number;
+	logs: AnalyticsTransactionLog[];
+	pageInfo: {
+		startCursor: string;
+		endCursor: string;
+		hasNextPage: boolean;
+	};
 };
