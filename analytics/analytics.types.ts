@@ -32,6 +32,13 @@ export type AnalyticsExposureItem = {
 	};
 };
 
+export type AnalyticsProfitLossLog = {
+	id: string;
+	timestamp: string;
+	kind: string;
+	amount: bigint;
+};
+
 export type AnalyticsTransactionLog = {
 	id: string;
 	timestamp: string;
@@ -80,6 +87,11 @@ export type AnalyticsTransactionLog = {
 
 // --------------------------------------------------------------------------
 // Api
+export type ApiAnalyticsProfitLossLog = {
+	num: number;
+	logs: AnalyticsProfitLossLog[];
+};
+
 export type ApiAnalyticsCollateralExposure = {
 	general: {
 		balanceInReserve: number;

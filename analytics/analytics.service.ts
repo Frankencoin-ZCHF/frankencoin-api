@@ -6,9 +6,11 @@ import { uniqueValues } from 'utils/format-array';
 import { formatUnits } from 'viem';
 import {
 	AnalyticsExposureItem,
+	AnalyticsProfitLossLog,
 	AnalyticsTransactionLog,
 	ApiAnalyticsCollateralExposure,
 	ApiAnalyticsFpsEarnings,
+	ApiAnalyticsProfitLossLog,
 	ApiTransactionLog,
 } from './analytics.types';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
@@ -30,6 +32,37 @@ export class AnalyticsService {
 		private readonly minters: EcosystemMinterService,
 		private readonly save: SavingsCoreService
 	) {}
+
+	async getProfitLossLog(): Promise<ApiAnalyticsProfitLossLog> {
+		this.logger.debug('Fetching profit loss log...');
+		const response = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					profitLosss(orderBy: "timestamp", orderDirection: "desc", limit: 1000) {
+						items {
+							id
+							timestamp
+							kind
+							amount
+						}
+					}
+				}
+			`,
+		});
+
+		if (!response.data || !response.data.profitLosss.items) {
+			this.logger.warn('No profitloss data found.');
+			return;
+		}
+
+		const logs = response.data.profitLosss.items as AnalyticsProfitLossLog[];
+
+		return {
+			num: logs.length,
+			logs,
+		};
+	}
 
 	async getCollateralExposure(): Promise<ApiAnalyticsCollateralExposure> {
 		const positions = this.positions.getPositionsOpen().map;
@@ -237,7 +270,7 @@ export class AnalyticsService {
 		});
 
 		if (!txLog.data || !txLog.data.transactionLogs.items) {
-			this.logger.warn('No ecosystem data found.');
+			this.logger.warn('No transaction log data found.');
 			return;
 		}
 

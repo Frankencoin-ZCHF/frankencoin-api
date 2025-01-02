@@ -7,14 +7,22 @@ import { AnalyticsService } from './analytics.service';
 export class AnalyticsController {
 	constructor(private readonly analytics: AnalyticsService) {}
 
+	@Get('profitLossLog')
+	@ApiResponse({
+		description: 'Returns earnings from the FPS token',
+	})
+	getProfitLossLog() {
+		return this.analytics.getProfitLossLog();
+	}
+
 	@Get('transactionLog/json')
 	@ApiResponse({
-		description: 'Returns a transaction log in JSON format, latest on tail of array idx: 0',
+		description: 'Returns a transaction log in JSON format, default: latest on tail of array idx: 0',
 	})
 	@ApiQuery({
-		name: 'latest',
+		name: 'firstItem',
 		required: false,
-		type: String,
+		type: Boolean,
 	})
 	@ApiQuery({
 		name: 'limit',
@@ -26,18 +34,23 @@ export class AnalyticsController {
 		required: false,
 		type: String,
 	})
-	getTransactionLogJson(@Query('latest') latest?: string, @Query('limit') limit?: number, @Query('after') after?: string) {
-		return this.analytics.getTransactionLog(latest == 'true' ? true : false, limit ?? 50, after ?? '');
+	getTransactionLogJson(@Query('firstItem') firstItem?: string, @Query('limit') limit?: number, @Query('after') after?: string) {
+		return this.analytics.getTransactionLog(firstItem == 'true' ? false : true, limit ?? 50, after ?? '');
 	}
 
 	@Get('transactionLog/csv')
 	@ApiResponse({
-		description: 'Returns a transaction log in CSV format, latest on tail of array idx: 0',
+		description: 'Returns a transaction log in CSV format, default: latest on line: 1',
 	})
 	@ApiQuery({
-		name: 'latest',
+		name: 'pageInfo',
 		required: false,
-		type: String,
+		type: Boolean,
+	})
+	@ApiQuery({
+		name: 'firstItem',
+		required: false,
+		type: Boolean,
 	})
 	@ApiQuery({
 		name: 'limit',
@@ -49,8 +62,13 @@ export class AnalyticsController {
 		required: false,
 		type: String,
 	})
-	async getTransactionLogCsv(@Query('latest') latest?: string, @Query('limit') limit?: number, @Query('after') after?: string) {
-		const data = await this.analytics.getTransactionLog(latest == 'true' ? true : false, limit ?? 50, after ?? '');
+	async getTransactionLogCsv(
+		@Query('pageInfo') pageInfo?: string,
+		@Query('firstItem') firstItem?: string,
+		@Query('limit') limit?: number,
+		@Query('after') after?: string
+	) {
+		const data = await this.analytics.getTransactionLog(firstItem == 'true' ? false : true, limit ?? 50, after ?? '');
 		const header = data.logs.length > 0 ? Object.keys(data.logs[0]).slice(1, -1).join(', ') + ' \n' : '';
 		let csv: string = header ?? '';
 
@@ -100,6 +118,10 @@ export class AnalyticsController {
 				e.netRealized365EarningsPerTokenYield,
 			];
 			csv += toStrore.join(', ') + ' \n';
+		}
+
+		if (pageInfo == 'true') {
+			csv += `${JSON.stringify(data.pageInfo)}`;
 		}
 
 		return csv;
