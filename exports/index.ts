@@ -1,3 +1,4 @@
+export * from '../analytics/analytics.types';
 export * from '../challenges/challenges.types';
 export * from '../ecosystem/ecosystem.minter.types';
 export * from '../ecosystem/ecosystem.frankencoin.types';

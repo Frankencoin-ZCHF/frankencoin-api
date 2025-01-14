@@ -1,20 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { VIEM_CONFIG } from 'api.config';
+import { PONDER_CLIENT, VIEM_CONFIG } from 'api.config';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { PositionsService } from 'positions/positions.service';
 import { uniqueValues } from 'utils/format-array';
 import { formatUnits } from 'viem';
-import { AnalyticsExposureItem, ApiAnalyticsCollateralExposure, ApiAnalyticsFpsEarnings } from './analytics.types';
+import {
+	AnalyticsDailyLog,
+	AnalyticsExposureItem,
+	AnalyticsProfitLossLog,
+	AnalyticsTransactionLog,
+	ApiAnalyticsCollateralExposure,
+	ApiAnalyticsFpsEarnings,
+	ApiAnalyticsProfitLossLog,
+	ApiDailyLog,
+	ApiTransactionLog,
+} from './analytics.types';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { ADDRESS } from '@frankencoin/zchf';
 import { FrankencoinABI } from '@frankencoin/zchf';
 import { SavingsCoreService } from 'savings/savings.core.service';
+import { gql } from '@apollo/client/core';
+import { Interval } from '@nestjs/schedule';
 
 @Injectable()
 export class AnalyticsService {
 	private readonly logger = new Logger(this.constructor.name);
 	private exposure: ApiAnalyticsCollateralExposure;
+	private fetchedDailyLogs: AnalyticsDailyLog[];
 
 	constructor(
 		private readonly positions: PositionsService,
@@ -22,7 +35,40 @@ export class AnalyticsService {
 		private readonly fc: EcosystemFrankencoinService,
 		private readonly minters: EcosystemMinterService,
 		private readonly save: SavingsCoreService
-	) {}
+	) {
+		setTimeout(() => this.updateDailyLog(), 1000);
+	}
+
+	async getProfitLossLog(): Promise<ApiAnalyticsProfitLossLog> {
+		this.logger.debug('Fetching profit loss log...');
+		const response = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					profitLosss(orderBy: "timestamp", orderDirection: "desc", limit: 1000) {
+						items {
+							id
+							timestamp
+							kind
+							amount
+						}
+					}
+				}
+			`,
+		});
+
+		if (!response.data || !response.data.profitLosss.items) {
+			this.logger.warn('No profitloss data found.');
+			return;
+		}
+
+		const logs = response.data.profitLosss.items as AnalyticsProfitLossLog[];
+
+		return {
+			num: logs.length,
+			logs,
+		};
+	}
 
 	async getCollateralExposure(): Promise<ApiAnalyticsCollateralExposure> {
 		const positions = this.positions.getPositionsOpen().map;
@@ -164,6 +210,131 @@ export class AnalyticsService {
 
 			savingsInterestCosts: this.save.getInfo().totalInterest,
 			otherLossClaims: this.fps.getEcosystemFpsInfo().earnings.loss,
+		};
+	}
+
+	async getTransactionLog(latest: boolean, limit: number = 50, after: string = ''): Promise<ApiTransactionLog> {
+		this.logger.debug('Fetching transaction log...');
+		const txLog = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					transactionLogs(orderBy: "timestamp", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
+						items {
+							id
+							timestamp,
+							kind,
+							amount,
+
+							totalInflow,
+							totalOutflow,
+							totalTradeFee,
+
+							totalSupply,
+							totalEquity,
+							totalSavings,
+
+							fpsTotalSupply,
+							fpsPrice,
+
+							totalMintedV1,
+							totalMintedV2,
+
+							currentLeadRate,
+							claimableInterests,
+							projectedInterests,
+							annualV1Interests,
+							annualV2Interests,
+
+							annualV1BorrowRate,
+							annualV2BorrowRate,
+
+							annualNetEarnings,
+							realizedNetEarnings,
+						}
+						pageInfo {
+							startCursor
+       			 			endCursor
+        					hasNextPage
+      					}
+					}
+				}
+			`,
+		});
+
+		if (!txLog.data || !txLog.data.transactionLogs.items) {
+			this.logger.warn('No transaction log data found.');
+			return;
+		}
+
+		const logs = txLog.data.transactionLogs.items as AnalyticsTransactionLog[];
+
+		return {
+			num: logs.length,
+			logs,
+			pageInfo: txLog.data?.transactionLogs?.pageInfo ?? {
+				startCursor: '',
+				endCursor: '',
+				hasNextPage: false,
+			},
+		};
+	}
+
+	@Interval(60 * 60 * 1000) // hourly
+	async updateDailyLog() {
+		this.logger.debug('Fetching daily log...');
+		const fetched = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					dailyLogs(orderBy: "timestamp", orderDirection: "asc", limit: 1000) {
+						items {
+							id
+							timestamp
+
+							totalInflow
+							totalOutflow
+							totalTradeFee
+
+							totalSupply
+							totalEquity
+							totalSavings
+
+							fpsTotalSupply
+							fpsPrice
+
+							totalMintedV1
+							totalMintedV2
+
+							currentLeadRate
+							claimableInterests
+							projectedInterests
+							annualV1Interests
+							annualV2Interests
+
+							annualV1BorrowRate
+							annualV2BorrowRate
+
+							annualNetEarnings
+							realizedNetEarnings
+						}
+					}
+				}
+			`,
+		});
+
+		if (!fetched.data || !fetched.data.dailyLogs.items) {
+			this.logger.warn('No daily log data found.');
+			return;
+		}
+
+		this.fetchedDailyLogs = fetched.data.dailyLogs.items as AnalyticsDailyLog[];
+	}
+
+	getDailyLog(): ApiDailyLog {
+		return {
+			num: this.fetchedDailyLogs.length,
+			logs: this.fetchedDailyLogs,
 		};
 	}
 }

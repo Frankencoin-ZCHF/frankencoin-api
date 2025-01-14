@@ -32,8 +32,84 @@ export type AnalyticsExposureItem = {
 	};
 };
 
+export type AnalyticsProfitLossLog = {
+	id: string;
+	timestamp: string;
+	kind: string;
+	amount: bigint;
+};
+
+export type AnalyticsTransactionLog = {
+	id: string;
+	timestamp: string;
+	kind: string;
+	amount: bigint;
+
+	totalInflow: bigint;
+	totalOutflow: bigint;
+	totalTradeFee: bigint;
+
+	totalSupply: bigint;
+	totalEquity: bigint;
+	totalSavings: bigint;
+
+	fpsTotalSupply: bigint;
+	fpsPrice: bigint;
+
+	totalMintedV1: bigint;
+	totalMintedV2: bigint;
+
+	currentLeadRate: bigint;
+	claimableInterests: bigint;
+	projectedInterests: bigint;
+
+	annualV1Interests: bigint;
+	annualV2Interests: bigint;
+	annualV1BorrowRate: bigint;
+	annualV2BorrowRate: bigint;
+
+	annualNetEarnings: bigint;
+	realizedNetEarnings: bigint;
+};
+
+export type AnalyticsDailyLog = {
+	id: string;
+	timestamp: string;
+
+	totalInflow: bigint;
+	totalOutflow: bigint;
+	totalTradeFee: bigint;
+
+	totalSupply: bigint;
+	totalEquity: bigint;
+	totalSavings: bigint;
+
+	fpsTotalSupply: bigint;
+	fpsPrice: bigint;
+
+	totalMintedV1: bigint;
+	totalMintedV2: bigint;
+
+	currentLeadRate: bigint;
+	claimableInterests: bigint;
+	projectedInterests: bigint;
+
+	annualV1Interests: bigint;
+	annualV2Interests: bigint;
+	annualV1BorrowRate: bigint;
+	annualV2BorrowRate: bigint;
+
+	annualNetEarnings: bigint;
+	realizedNetEarnings: bigint;
+};
+
 // --------------------------------------------------------------------------
 // Api
+export type ApiAnalyticsProfitLossLog = {
+	num: number;
+	logs: AnalyticsProfitLossLog[];
+};
+
 export type ApiAnalyticsCollateralExposure = {
 	general: {
 		balanceInReserve: number;
@@ -62,4 +138,19 @@ export type ApiAnalyticsFpsEarnings = {
 	// loss or costs
 	savingsInterestCosts: number;
 	otherLossClaims: number;
+};
+
+export type ApiTransactionLog = {
+	num: number;
+	logs: AnalyticsTransactionLog[];
+	pageInfo: {
+		startCursor: string;
+		endCursor: string;
+		hasNextPage: boolean;
+	};
+};
+
+export type ApiDailyLog = {
+	num: number;
+	logs: AnalyticsDailyLog[];
 };
