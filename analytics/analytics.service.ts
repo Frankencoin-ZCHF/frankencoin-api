@@ -5,12 +5,14 @@ import { PositionsService } from 'positions/positions.service';
 import { uniqueValues } from 'utils/format-array';
 import { formatUnits } from 'viem';
 import {
+	AnalyticsDailyLog,
 	AnalyticsExposureItem,
 	AnalyticsProfitLossLog,
 	AnalyticsTransactionLog,
 	ApiAnalyticsCollateralExposure,
 	ApiAnalyticsFpsEarnings,
 	ApiAnalyticsProfitLossLog,
+	ApiDailyLog,
 	ApiTransactionLog,
 } from './analytics.types';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
@@ -19,11 +21,13 @@ import { ADDRESS } from '@frankencoin/zchf';
 import { FrankencoinABI } from '@frankencoin/zchf';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { gql } from '@apollo/client/core';
+import { Interval } from '@nestjs/schedule';
 
 @Injectable()
 export class AnalyticsService {
 	private readonly logger = new Logger(this.constructor.name);
 	private exposure: ApiAnalyticsCollateralExposure;
+	private fetchedDailyLogs: AnalyticsDailyLog[];
 
 	constructor(
 		private readonly positions: PositionsService,
@@ -31,7 +35,9 @@ export class AnalyticsService {
 		private readonly fc: EcosystemFrankencoinService,
 		private readonly minters: EcosystemMinterService,
 		private readonly save: SavingsCoreService
-	) {}
+	) {
+		setTimeout(() => this.updateDailyLog(), 1000);
+	}
 
 	async getProfitLossLog(): Promise<ApiAnalyticsProfitLossLog> {
 		this.logger.debug('Fetching profit loss log...');
@@ -216,48 +222,35 @@ export class AnalyticsService {
 					transactionLogs(orderBy: "timestamp", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
 						items {
 							id
-							timestamp
-							kind
-							amount
+							timestamp,
+							kind,
+							amount,
 
-							totalInflow
-							totalOutflow
-							totalTradeFee
+							totalInflow,
+							totalOutflow,
+							totalTradeFee,
 
-							totalSupply
-							totalEquity
-							totalSavings
-							equityToSupplyRatio
-							savingsToSupplyRatio
+							totalSupply,
+							totalEquity,
+							totalSavings,
 
-							fpsTotalSupply
-							fpsPrice
+							fpsTotalSupply,
+							fpsPrice,
 
-							totalMintedV1
-							totalMintedV2
-							mintedV1ToSupplyRatio
-							mintedV2ToSupplyRatio
+							totalMintedV1,
+							totalMintedV2,
 
-							currentLeadRate
-							claimableInterests
-							projectedInterests
-							impliedV1Interests
-							impliedV2Interests
+							currentLeadRate,
+							claimableInterests,
+							projectedInterests,
+							annualV1Interests,
+							annualV2Interests,
 
-							impliedV1AvgBorrowRate
-							impliedV2AvgBorrowRate
+							annualV1BorrowRate,
+							annualV2BorrowRate,
 
-							netImpliedEarnings
-							netImpliedEarningsToSupplyRatio
-							netImpliedEarningsToEquityRatio
-							netImpliedEarningsPerToken
-							netImpliedEarningsPerTokenYield
-
-							netRealized365Earnings
-							netRealized365EarningsToSupplyRatio
-							netRealized365EarningsToEquityRatio
-							netRealized365EarningsPerToken
-							netRealized365EarningsPerTokenYield
+							annualNetEarnings,
+							realizedNetEarnings,
 						}
 						pageInfo {
 							startCursor
@@ -284,6 +277,64 @@ export class AnalyticsService {
 				endCursor: '',
 				hasNextPage: false,
 			},
+		};
+	}
+
+	@Interval(60 * 60 * 1000) // hourly
+	async updateDailyLog() {
+		this.logger.debug('Fetching daily log...');
+		const fetched = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					dailyLogs(orderBy: "timestamp", orderDirection: "asc", limit: 1000) {
+						items {
+							id
+							timestamp
+
+							totalInflow
+							totalOutflow
+							totalTradeFee
+
+							totalSupply
+							totalEquity
+							totalSavings
+
+							fpsTotalSupply
+							fpsPrice
+
+							totalMintedV1
+							totalMintedV2
+
+							currentLeadRate
+							claimableInterests
+							projectedInterests
+							annualV1Interests
+							annualV2Interests
+
+							annualV1BorrowRate
+							annualV2BorrowRate
+
+							annualNetEarnings
+							realizedNetEarnings
+						}
+					}
+				}
+			`,
+		});
+
+		if (!fetched.data || !fetched.data.dailyLogs.items) {
+			this.logger.warn('No daily log data found.');
+			return;
+		}
+
+		this.fetchedDailyLogs = fetched.data.dailyLogs.items as AnalyticsDailyLog[];
+	}
+
+	getDailyLog(): ApiDailyLog {
+		return {
+			num: this.fetchedDailyLogs.length,
+			logs: this.fetchedDailyLogs,
 		};
 	}
 }

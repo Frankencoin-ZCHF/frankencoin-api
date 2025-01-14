@@ -52,37 +52,55 @@ export type AnalyticsTransactionLog = {
 	totalSupply: bigint;
 	totalEquity: bigint;
 	totalSavings: bigint;
-	equityToSupplyRatio: bigint;
-	savingsToSupplyRatio: bigint;
 
 	fpsTotalSupply: bigint;
 	fpsPrice: bigint;
 
 	totalMintedV1: bigint;
 	totalMintedV2: bigint;
-	mintedV1ToSupplyRatio: bigint;
-	mintedV2ToSupplyRatio: bigint;
 
 	currentLeadRate: bigint;
 	claimableInterests: bigint;
 	projectedInterests: bigint;
-	impliedV1Interests: bigint;
-	impliedV2Interests: bigint;
 
-	impliedV1AvgBorrowRate: bigint;
-	impliedV2AvgBorrowRate: bigint;
+	annualV1Interests: bigint;
+	annualV2Interests: bigint;
+	annualV1BorrowRate: bigint;
+	annualV2BorrowRate: bigint;
 
-	netImpliedEarnings: bigint;
-	netImpliedEarningsToSupplyRatio: bigint;
-	netImpliedEarningsToEquityRatio: bigint;
-	netImpliedEarningsPerToken: bigint;
-	netImpliedEarningsPerTokenYield: bigint;
+	annualNetEarnings: bigint;
+	realizedNetEarnings: bigint;
+};
 
-	netRealized365Earnings: bigint;
-	netRealized365EarningsToSupplyRatio: bigint;
-	netRealized365EarningsToEquityRatio: bigint;
-	netRealized365EarningsPerToken: bigint;
-	netRealized365EarningsPerTokenYield: bigint;
+export type AnalyticsDailyLog = {
+	id: string;
+	timestamp: string;
+
+	totalInflow: bigint;
+	totalOutflow: bigint;
+	totalTradeFee: bigint;
+
+	totalSupply: bigint;
+	totalEquity: bigint;
+	totalSavings: bigint;
+
+	fpsTotalSupply: bigint;
+	fpsPrice: bigint;
+
+	totalMintedV1: bigint;
+	totalMintedV2: bigint;
+
+	currentLeadRate: bigint;
+	claimableInterests: bigint;
+	projectedInterests: bigint;
+
+	annualV1Interests: bigint;
+	annualV2Interests: bigint;
+	annualV1BorrowRate: bigint;
+	annualV2BorrowRate: bigint;
+
+	annualNetEarnings: bigint;
+	realizedNetEarnings: bigint;
 };
 
 // --------------------------------------------------------------------------
@@ -130,4 +148,9 @@ export type ApiTransactionLog = {
 		endCursor: string;
 		hasNextPage: boolean;
 	};
+};
+
+export type ApiDailyLog = {
+	num: number;
+	logs: AnalyticsDailyLog[];
 };
