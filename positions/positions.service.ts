@@ -140,6 +140,7 @@ export class PositionsService {
 		const list: PositionsQueryObjectArray = {};
 		const balanceOfDataPromises: Promise<bigint>[] = [];
 		const mintedDataPromises: Promise<bigint>[] = [];
+		const availableForClonesDataPromises: Promise<bigint>[] = [];
 
 		for (const p of items) {
 			// Forces the collateral balance to be overwritten with the latest blockchain state, instead of the ponder state.
@@ -163,16 +164,26 @@ export class PositionsService {
 					functionName: 'minted',
 				})
 			);
+
+			availableForClonesDataPromises.push(
+				VIEM_CONFIG.readContract({
+					address: p.position,
+					abi: PositionV1ABI,
+					functionName: 'limitForClones',
+				})
+			);
 		}
 
 		// await for contract calls
 		const balanceOfData = await Promise.allSettled(balanceOfDataPromises);
 		const mintedData = await Promise.allSettled(mintedDataPromises);
+		const availableForClonesData = await Promise.allSettled(availableForClonesDataPromises);
 
 		for (let idx = 0; idx < items.length; idx++) {
 			const p = items[idx] as PositionQueryV1;
 			const b = (balanceOfData[idx] as PromiseFulfilledResult<bigint>).value;
 			const m = (mintedData[idx] as PromiseFulfilledResult<bigint>).value;
+			const a = (availableForClonesData[idx] as PromiseFulfilledResult<bigint>).value;
 
 			const entry: PositionQueryV1 = {
 				version: 1,
@@ -210,7 +221,7 @@ export class PositionsService {
 				limitForPosition: p.limitForPosition,
 				limitForClones: p.limitForClones,
 				availableForPosition: p.availableForPosition,
-				availableForClones: p.availableForClones,
+				availableForClones: typeof a === 'bigint' ? a.toString() : p.availableForClones,
 				minted: typeof m === 'bigint' ? m.toString() : p.minted,
 			};
 
