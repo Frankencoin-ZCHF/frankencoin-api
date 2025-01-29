@@ -125,7 +125,7 @@ export class AnalyticsController {
 
 	@Get('dailyLog/csv1e18')
 	@ApiResponse({
-		description: 'Returns a daily log in CSV format, 1e18 adjusted values, default: latest on line: 1',
+		description: 'Returns a daily log in CSV format, 1e18 adjusted values, default: first item on line: 1',
 	})
 	async getDailyLogCsv1e18() {
 		const data = this.analytics.getDailyLog();

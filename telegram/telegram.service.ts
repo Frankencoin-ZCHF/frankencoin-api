@@ -19,6 +19,8 @@ import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 import { LeadrateProposalMessage } from './messages/LeadrateProposal.message';
 import { LeadrateChangedMessage } from './messages/LeadrateChanged.message';
 import { BidTakenMessage } from './messages/BidTaken.message';
+import { PositionExpiringSoonMessage } from './messages/PositionExpiringSoon.message';
+import { PositionExpiredMessage } from './messages/PositionExpired.message';
 
 @Injectable()
 export class TelegramService {
@@ -44,6 +46,9 @@ export class TelegramService {
 			leadrateProposal: time,
 			leadrateChanged: time,
 			positions: time,
+			positionsExpiringSoon7: time,
+			positionsExpiringSoon3: time,
+			positionsExpired: time,
 			mintingUpdates: time,
 			challenges: time,
 			bids: time,
@@ -185,6 +190,50 @@ export class TelegramService {
 			}
 		}
 
+		// Positions expiring soon (7 days)
+		const expiringSoonPosition7 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
+			const stateDate = new Date(this.telegramState.positionsExpiringSoon7).getTime();
+			const warningDays = 7 * 24 * 60 * 60 * 1000;
+			const isSoon = p.expiration * 1000 < Date.now() + warningDays;
+			const isNew = isSoon && stateDate + warningDays < p.expiration * 1000;
+			return isSoon && isNew;
+		});
+		if (expiringSoonPosition7.length > 0) {
+			this.telegramState.positionsExpiringSoon7 = Date.now();
+			for (const p of expiringSoonPosition7) {
+				this.sendMessageAll(PositionExpiringSoonMessage(p));
+			}
+		}
+
+		// Positions expiring soon (3 days)
+		const expiringSoonPosition3 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
+			const stateDate = new Date(this.telegramState.positionsExpiringSoon3).getTime();
+			const warningDays = 3 * 24 * 60 * 60 * 1000;
+			const isSoon = p.expiration * 1000 < Date.now() + warningDays;
+			const isNew = isSoon && stateDate + warningDays < p.expiration * 1000;
+			return isSoon && isNew;
+		});
+		if (expiringSoonPosition3.length > 0) {
+			this.telegramState.positionsExpiringSoon3 = Date.now();
+			for (const p of expiringSoonPosition3) {
+				this.sendMessageAll(PositionExpiringSoonMessage(p));
+			}
+		}
+
+		// Positions expired
+		const expiredPosition = Object.values(this.position.getPositionsOpen().map).filter((p) => {
+			const stateDate = new Date(this.telegramState.positionsExpired).getTime();
+			const isExpired = p.expiration * 1000 < Date.now();
+			const isNew = isExpired && stateDate < p.expiration * 1000;
+			return isExpired && isNew;
+		});
+		if (expiredPosition.length > 0) {
+			this.telegramState.positionsExpired = Date.now();
+			for (const p of expiredPosition) {
+				this.sendMessageAll(PositionExpiredMessage(p));
+			}
+		}
+
 		// Challenges started
 		const challengesStarted = Object.values(this.challenge.getChallengesMapping().map).filter(
 			(c) => parseInt(c.created.toString()) * 1000 > this.telegramState.challenges
@@ -269,14 +318,6 @@ export class TelegramService {
 		return update;
 	}
 
-	@Cron(CronExpression.EVERY_WEEK)
-	async clearIgnoreTelegramGroup(): Promise<boolean> {
-		this.telegramGroupState.ignore = [];
-		await this.writeBackupGroups();
-		this.logger.warn('Weekly job done, cleared ignore telegram group array');
-		return true;
-	}
-
 	async applyListener() {
 		const toggle = (handle: string, msg: TelegramBot.Message) => {
 			if (handle !== msg.text) return;
@@ -300,5 +341,13 @@ export class TelegramService {
 				this.sendMessage(m.chat.id, HelpMessage(m.chat.id.toString(), this.telegramHandles, this.telegramGroupState.subscription));
 			else this.telegramHandles.forEach((h) => toggle(h, m));
 		});
+	}
+
+	@Cron(CronExpression.EVERY_WEEK)
+	async clearIgnoreTelegramGroup(): Promise<boolean> {
+		this.telegramGroupState.ignore = [];
+		await this.writeBackupGroups();
+		this.logger.warn('Weekly job done, cleared ignore telegram group array');
+		return true;
 	}
 }
