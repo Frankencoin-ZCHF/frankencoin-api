@@ -18,7 +18,7 @@ Owner: ${position.owner}
 Minted: ${formatCurrency(formatUnits(BigInt(position.minted), 18), 2, 2)} ZCHF
 Retained Reserve: ${formatCurrency(position.reserveContribution / 10000, 1, 1)}%
 Auction Duration: ${Math.floor(position.challengePeriod / 60 / 60)} hours
-Expiration: ${Math.floor((position.expiration * 1000 - Date.now()) / 1000 / 60 / 60 / 24)} days
+Expiration: ${formatCurrency((position.expiration * 1000 - Date.now()) / 1000 / 60 / 60 / 24)} days
 At: ${date.toUTCString()}
 
 Collateral: ${position.collateralName} (${position.collateralSymbol})
