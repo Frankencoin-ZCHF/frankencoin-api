@@ -28,7 +28,6 @@ Bal. min.: ${formatCurrency(min, 2, 2)} ${position.collateralSymbol}
 Price: ${formatCurrency(price, 2, 2)} ZCHF
 
 [Overview Position](${AppUrl(`/monitoring/${position.position}`)})
-[Challenge Position](${AppUrl(`/monitoring/${position.position}/challenge`)})
 
 [Explorer Position](${ExplorerAddressUrl(position.position)})
 [Explorer Owner](${ExplorerAddressUrl(position.owner)}) 

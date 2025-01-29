@@ -29,6 +29,16 @@ Balance: ${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}
 Bal. min.: ${formatCurrency(min, 2, 2)} ${position.collateralSymbol}
 `;
 
+	const v1Body = `
+*Challenge is available*
+
+Declines (1x -> 0x Price): ${begin.toUTCString()}
+Price (1x): ${formatCurrency(price, 2, 2)} ZCHF per 1 ${position.collateralSymbol}
+
+Zero: ${mid.toUTCString()}
+Price (0x): 0.00 ZCHF per 1 ${position.collateralSymbol}
+`;
+
 	const v2Body = `
 *ForceSell is available*
 
@@ -52,5 +62,5 @@ Price (0x): 0.00 ZCHF per 1 ${position.collateralSymbol}
 [Explorer Collateral](${ExplorerAddressUrl(position.collateral)}) 
 `;
 
-	return position.version == 1 ? header + footer : header + v2Body + footer;
+	return position.version == 1 ? header + v1Body + footer : header + v2Body + footer;
 }
