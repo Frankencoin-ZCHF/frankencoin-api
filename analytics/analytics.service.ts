@@ -280,7 +280,7 @@ export class AnalyticsService {
 		};
 	}
 
-	@Interval(60 * 60 * 1000) // hourly
+	@Interval(10 * 60 * 1000) // 10min
 	async updateDailyLog() {
 		this.logger.debug('Fetching daily log...');
 		const fetched = await PONDER_CLIENT.query({
