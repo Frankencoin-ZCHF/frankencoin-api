@@ -70,6 +70,7 @@ export type AnalyticsTransactionLog = {
 
 	annualNetEarnings: bigint;
 	realizedNetEarnings: bigint;
+	earningsPerFPS: bigint;
 };
 
 export type AnalyticsDailyLog = {
@@ -101,6 +102,7 @@ export type AnalyticsDailyLog = {
 
 	annualNetEarnings: bigint;
 	realizedNetEarnings: bigint;
+	earningsPerFPS: bigint;
 };
 
 // --------------------------------------------------------------------------
