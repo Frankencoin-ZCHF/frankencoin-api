@@ -51,13 +51,14 @@ export class SavingsCoreService {
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsBalances(orderBy: "amount", orderDirection: "desc", where: { amount_not_in: "0" }, limit: 1000) {
+					savingsBalances(orderBy: "balance", orderDirection: "desc", where: { balance_not_in: "0" }, limit: 1000) {
 						items {
 							id
 							created
 							blockheight
 							updated
-							amount
+							interest
+							balance
 						}
 					}
 				}

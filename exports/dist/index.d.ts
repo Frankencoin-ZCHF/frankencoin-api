@@ -645,7 +645,8 @@ type SavingsBalanceQuery = {
     created: number;
     blockheight: number;
     updated: number;
-    amount: string;
+    interest: string;
+    balance: string;
 };
 type SavingsIdSaved = `${Address}-${number}`;
 type SavingsSavedQuery = {

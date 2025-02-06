@@ -7,7 +7,8 @@ export type SavingsBalanceQuery = {
 	created: number;
 	blockheight: number;
 	updated: number;
-	amount: string;
+	interest: string;
+	balance: string;
 };
 
 export type SavingsIdSaved = `${Address}-${number}`;
