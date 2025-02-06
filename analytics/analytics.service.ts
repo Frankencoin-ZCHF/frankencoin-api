@@ -225,6 +225,7 @@ export class AnalyticsService {
 							timestamp,
 							kind,
 							amount,
+							txHash,
 
 							totalInflow,
 							totalOutflow,
@@ -292,6 +293,7 @@ export class AnalyticsService {
 						items {
 							id
 							timestamp
+							txHash
 
 							totalInflow
 							totalOutflow

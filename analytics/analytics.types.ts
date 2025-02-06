@@ -44,6 +44,7 @@ export type AnalyticsTransactionLog = {
 	timestamp: string;
 	kind: string;
 	amount: bigint;
+	txHash: string;
 
 	totalInflow: bigint;
 	totalOutflow: bigint;
@@ -76,6 +77,7 @@ export type AnalyticsTransactionLog = {
 export type AnalyticsDailyLog = {
 	id: string;
 	timestamp: string;
+	txHash: string;
 
 	totalInflow: bigint;
 	totalOutflow: bigint;
