@@ -1,7 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SavingsCoreService } from './savings.core.service';
-import { ApiSavingsInfo, ApiSavingsUserTable } from './savings.core.types';
+import { ApiSavingsBalance, ApiSavingsInfo, ApiSavingsUserTable } from './savings.core.types';
 import { Address, isAddress, zeroAddress } from 'viem';
 
 @ApiTags('Savings Controller')
@@ -15,6 +15,16 @@ export class SavingsCoreController {
 	})
 	getInfo(): ApiSavingsInfo {
 		return this.savings.getInfo();
+	}
+
+	@Get('balances')
+	@ApiResponse({
+		description: 'returns information about balances, max. 100',
+	})
+	// async getBalance(@Param('limit') limit: number): Promise<ApiSavingsBalance> {
+	// if (isNaN(limit)) limit = undefined;
+	async getBalance(): Promise<ApiSavingsBalance> {
+		return await this.savings.getBalanceTable(100);
 	}
 
 	@Get('user/:address')

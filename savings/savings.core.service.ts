@@ -3,13 +3,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { SavingsLeadrateService } from './savings.leadrate.service';
 import { Address, formatUnits, zeroAddress } from 'viem';
-import { ApiSavingsInfo, ApiSavingsUserTable } from './savings.core.types';
+import { ApiSavingsBalance, ApiSavingsInfo, ApiSavingsUserTable, SavingsBalanceQuery } from './savings.core.types';
 import { PONDER_CLIENT } from 'api.config';
 
 @Injectable()
 export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
 	private fetchedZeroAddressTable: ApiSavingsUserTable;
+	private fetchedTopBalanceTable: SavingsBalanceQuery[] = [];
 
 	constructor(
 		private readonly fc: EcosystemFrankencoinService,
@@ -37,6 +38,33 @@ export class SavingsCoreService {
 			rate,
 			ratioOfSupply,
 		};
+	}
+
+	async getBalanceTable(limit: number = 20): Promise<ApiSavingsBalance> {
+		return {
+			ranked: this.fetchedTopBalanceTable.slice(0, limit),
+		};
+	}
+
+	async updateBalanceTable() {
+		const fetched = await PONDER_CLIENT.query({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					savingsBalances(orderBy: "amount", orderDirection: "desc", where: { amount_not_in: "0" }, limit: 1000) {
+						items {
+							id
+							created
+							blockheight
+							updated
+							amount
+						}
+					}
+				}
+			`,
+		});
+
+		this.fetchedTopBalanceTable = fetched?.data?.savingsBalances?.items ?? [];
 	}
 
 	async getUserTable(userAddress: Address, limit: number = 8): Promise<ApiSavingsUserTable> {
