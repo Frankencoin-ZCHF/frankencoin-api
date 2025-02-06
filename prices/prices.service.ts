@@ -76,7 +76,8 @@ export class PricesService {
 		if (erc.address.toLowerCase() === ADDRESS[VIEM_CHAIN.id].equity.toLowerCase()) {
 			const priceInChf = this.fps.getEcosystemFpsInfo()?.values?.price;
 			const zchfAddress = ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase();
-			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd || 1;
+			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
+			if (!zchfPrice) return null;
 			return { usd: priceInChf * zchfPrice };
 		}
 
@@ -152,7 +153,7 @@ export class PricesService {
 				this.logger.debug(`Price for ${erc.name} out of date, trying to fetch from coingecko`);
 				const price = await this.fetchSourcesCoingecko(erc);
 
-				if (!price == null) {
+				if (price == null) {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
 					pricesQuery[addr] = {
