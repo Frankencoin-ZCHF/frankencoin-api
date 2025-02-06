@@ -37,6 +37,7 @@ type AnalyticsTransactionLog = {
     timestamp: string;
     kind: string;
     amount: bigint;
+    txHash: string;
     totalInflow: bigint;
     totalOutflow: bigint;
     totalTradeFee: bigint;
@@ -61,6 +62,7 @@ type AnalyticsTransactionLog = {
 type AnalyticsDailyLog = {
     id: string;
     timestamp: string;
+    txHash: string;
     totalInflow: bigint;
     totalOutflow: bigint;
     totalTradeFee: bigint;
