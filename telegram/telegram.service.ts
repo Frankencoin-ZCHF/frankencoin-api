@@ -232,6 +232,14 @@ export class TelegramService {
 			for (const p of expiredPosition) {
 				this.sendMessageAll(PositionExpiredMessage(p));
 			}
+		} else {
+			// @dev: fixes issue if ponder indexes and stateDate didnt change,
+			// it might happen that an old state will trigger this due to re-indexing
+
+			// reset to last 1h
+			if (Date.now() - this.telegramState.positionsExpired > 60 * 60 * 1000) {
+				this.telegramState.positionsExpired = Date.now() - 5 * 60 * 1000; // reduce 5min to allow latest expiration
+			}
 		}
 
 		// Challenges started

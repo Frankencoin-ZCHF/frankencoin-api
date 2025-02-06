@@ -39,7 +39,7 @@ export class AnalyticsController {
 		return this.analytics.getTransactionLog(firstItem == 'true' ? false : true, limit ?? 50, after ?? '');
 	}
 
-	@Get('transactionLog/csv1e18')
+	@Get('transactionLog/csvE18')
 	@ApiResponse({
 		description: 'Returns a transaction log in CSV format, 1e18 adjusted values, default: latest on line: 1',
 	})
@@ -63,7 +63,7 @@ export class AnalyticsController {
 		required: false,
 		type: String,
 	})
-	async getTransactionLogCsv1e18(
+	async getTransactionLogCsvE18(
 		@Query('pageInfo') pageInfo?: string,
 		@Query('firstItem') firstItem?: string,
 		@Query('limit') limit?: number,
@@ -104,6 +104,7 @@ export class AnalyticsController {
 
 				formatUnits(e.annualNetEarnings, 18),
 				formatUnits(e.realizedNetEarnings, 18),
+				formatUnits(e.earningsPerFPS, 18),
 			];
 			csv += toStrore.join(', ') + ' \n';
 		}
@@ -123,11 +124,11 @@ export class AnalyticsController {
 		return this.analytics.getDailyLog();
 	}
 
-	@Get('dailyLog/csv1e18')
+	@Get('dailyLog/csvE18')
 	@ApiResponse({
 		description: 'Returns a daily log in CSV format, 1e18 adjusted values, default: first item on line: 1',
 	})
-	async getDailyLogCsv1e18() {
+	async getDailyLogCsvE18() {
 		const data = this.analytics.getDailyLog();
 		const header = data.logs.length > 0 ? Object.keys(data.logs[0]).slice(0, -1).join(', ') + ' \n' : '';
 		let csv: string = header ?? '';
@@ -162,6 +163,7 @@ export class AnalyticsController {
 
 				formatUnits(e.annualNetEarnings, 18),
 				formatUnits(e.realizedNetEarnings, 18),
+				formatUnits(e.earningsPerFPS, 18),
 			];
 			csv += toStrore.join(', ') + ' \n';
 		}

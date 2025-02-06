@@ -54,6 +54,7 @@ export class ApiService {
 			this.fps.updateFpsInfo(),
 			this.leadrate.updateLeadrateRates(),
 			this.leadrate.updateLeadrateProposals(),
+			this.savings.updateBalanceTable(),
 			this.savings.updateZeroAddressTable(),
 			this.challenges.updateChallengeV1s(),
 			this.challenges.updateChallengeV2s(),

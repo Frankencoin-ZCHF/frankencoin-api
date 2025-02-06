@@ -49,7 +49,7 @@ export class PositionsService {
 
 	getPositionsOpen(): ApiPositionsMapping {
 		const pos = this.getPositionsList().list;
-		const open = pos.filter((p) => !p.closed && !p.denied);
+		const open = pos.filter((p) => !p.closed && !p.denied && BigInt(p.collateralBalance) > 0n);
 		const mapped: PositionsQueryObjectArray = {};
 		for (const p of open) {
 			mapped[p.position] = p;

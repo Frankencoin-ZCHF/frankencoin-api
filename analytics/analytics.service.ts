@@ -251,6 +251,7 @@ export class AnalyticsService {
 
 							annualNetEarnings,
 							realizedNetEarnings,
+							earningsPerFPS,
 						}
 						pageInfo {
 							startCursor
@@ -317,6 +318,7 @@ export class AnalyticsService {
 
 							annualNetEarnings
 							realizedNetEarnings
+							earningsPerFPS
 						}
 					}
 				}

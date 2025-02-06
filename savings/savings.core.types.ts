@@ -2,6 +2,14 @@ import { Address } from 'viem';
 
 // --------------------------------------------------------------------------
 // Ponder return types
+export type SavingsBalanceQuery = {
+	id: Address;
+	created: number;
+	blockheight: number;
+	updated: number;
+	amount: string;
+};
+
 export type SavingsIdSaved = `${Address}-${number}`;
 export type SavingsSavedQuery = {
 	id: SavingsIdSaved;
@@ -52,6 +60,10 @@ export type ApiSavingsInfo = {
 	totalInterest: number;
 	rate: number;
 	ratioOfSupply: number;
+};
+
+export type ApiSavingsBalance = {
+	ranked: SavingsBalanceQuery[];
 };
 
 export type ApiSavingsUserTable = {

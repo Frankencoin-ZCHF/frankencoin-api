@@ -130,7 +130,7 @@ export class PricesService {
 		let pricesQueryUpdateCount: number = 0;
 		let pricesQueryUpdateCountFailed: number = 0;
 
-		const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd;
+		const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd || 1;
 
 		for (const erc of a) {
 			const addr = erc.address.toLowerCase() as Address;
@@ -140,40 +140,35 @@ export class PricesService {
 				pricesQueryNewCount += 1;
 				this.logger.debug(`Price for ${erc.name} not available, trying to fetch from coingecko`);
 				const price = await this.fetchSourcesCoingecko(erc);
-				if (!price) pricesQueryNewCountFailed += 1;
+				if (price == null) pricesQueryNewCountFailed += 1;
 
 				pricesQuery[addr] = {
 					...erc,
 					timestamp: price === null ? 0 : Date.now(),
-					price: price === null ? { usd: 1 } : price,
+					price: price === null ? { usd: 1, chf: 1 } : price,
 				};
-
-				continue;
-			}
-
-			// needs to update => try to fetch
-			if (oldEntry.timestamp + 300_000 < Date.now()) {
+			} else if (oldEntry.timestamp + 300_000 < Date.now()) {
+				// needs to update => try to fetch
 				pricesQueryUpdateCount += 1;
 				this.logger.debug(`Price for ${erc.name} out of date, trying to fetch from coingecko`);
 				const price = await this.fetchSourcesCoingecko(erc);
 
-				if (!price) {
+				if (price == null) {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
 					pricesQuery[addr] = {
 						...erc,
 						timestamp: Date.now(),
-						price,
+						price: { ...price },
 					};
 				}
 			}
 
-			if (zchfPrice) {
-				const priceUsd = this.fetchedPrices[addr]?.price?.usd;
-				if (priceUsd) {
-					const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
-					this.fetchedPrices[addr].price.chf = priceChf;
-				}
+			// calculate chf value for erc token
+			const priceUsd = pricesQuery[addr]?.price?.usd;
+			if (priceUsd) {
+				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
+				pricesQuery[addr].price.chf = priceChf;
 			}
 		}
 
