@@ -249,12 +249,12 @@ export class TelegramService {
 		// Position Price Warning
 		Object.values(this.position.getPositionsOpen().map).map((p) => {
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
-			const THRES_LOWEST = 1.11;
-			const THRES_ALERT = 1.13;
-			const THRES_WARN = 1.15;
-			const DELAY_LOWEST = 2 * 60 * 1000;
-			const DELAY_ALERT = 5 * 60 * 1000;
-			const DELAY_WARNING = 10 * 60 * 1000;
+			const THRES_LOWEST = 1;
+			const THRES_ALERT = 1.05;
+			const THRES_WARN = 1.1;
+			const DELAY_LOWEST = 10 * 60 * 1000;
+			const DELAY_ALERT = 6 * 60 * 60 * 1000;
+			const DELAY_WARNING = 12 * 60 * 60 * 1000;
 
 			// price query
 			const priceQuery: PriceQuery | undefined = this.prices.getPricesMapping()[p.collateral.toLowerCase()];
@@ -297,11 +297,13 @@ export class TelegramService {
 				}
 			} else if (price < posPrice * THRES_WARN) {
 				// if below 110 -> warning
-				if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
-					// delay guard passed
-					this.sendMessageAll(PositionPriceWarning(p, priceQuery, last));
-					last.warningTimestamp = Date.now();
-					last.warningPrice = price;
+				if (last.alertTimestamp + DELAY_WARNING < Date.now()) {
+					if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
+						// delay guard passed
+						this.sendMessageAll(PositionPriceWarning(p, priceQuery, last));
+						last.warningTimestamp = Date.now();
+						last.warningPrice = price;
+					}
 				}
 			}
 
