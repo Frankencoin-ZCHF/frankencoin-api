@@ -21,6 +21,8 @@ import { LeadrateChangedMessage } from './messages/LeadrateChanged.message';
 import { BidTakenMessage } from './messages/BidTaken.message';
 import { PositionExpiringSoonMessage } from './messages/PositionExpiringSoon.message';
 import { PositionExpiredMessage } from './messages/PositionExpired.message';
+import { Address, formatUnits } from 'viem';
+import { PriceQuery } from 'prices/prices.types';
 
 @Injectable()
 export class TelegramService {
@@ -49,6 +51,7 @@ export class TelegramService {
 			positionsExpiringSoon7: time,
 			positionsExpiringSoon3: time,
 			positionsExpired: time,
+			positionsPriceAlert: new Map(),
 			mintingUpdates: time,
 			challenges: time,
 			bids: time,
@@ -241,6 +244,97 @@ export class TelegramService {
 				this.telegramState.positionsExpired = Date.now() - 5 * 60 * 1000; // reduce 5min to allow latest expiration
 			}
 		}
+
+		// Position Price Warning
+		Object.values(this.position.getPositionsOpen().map).map((p) => {
+			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
+			const THRES_WARN = 1.15;
+			const THRES_ALERT = 1.05;
+			const DELAY_LOWEST = 10 * 60 * 1000;
+			const DELAY_ALERT = 10 * 60 * 1000;
+			const DELAY_WARNING = 10 * 60 * 1000;
+
+			// price query
+			const priceQuery: PriceQuery | undefined = this.prices.getPricesMapping()[p.collateral.toLowerCase()];
+			if (priceQuery == undefined || priceQuery?.timestamp == 0) return false; // not found or still searching
+
+			// price check
+			const price = priceQuery.price.chf;
+			console.log({
+				addr: p.position,
+				name: p.collateralName,
+				price,
+				posPrice,
+				ratio: Math.round((price / posPrice) * 100),
+			});
+			if (posPrice * THRES_WARN < price) return false; // below threshold
+
+			// get latest or make available
+			let last = this.telegramState.positionsPriceAlert.get(p.position.toLowerCase() as Address);
+			if (last == undefined) {
+				last = {
+					warningPrice: 0,
+					warningTimestamp: 0,
+					alertPrice: 0,
+					alertTimestamp: 0,
+					lowestPrice: 0,
+					lowestTimestamp: 0,
+				};
+			}
+
+			if (price < posPrice) {
+				console.log('lowest...');
+				// below 100%
+				if (last.lowestTimestamp + DELAY_LOWEST < Date.now()) {
+					// delay guard passed
+					last.lowestTimestamp = Date.now();
+					if (last.lowestPrice == 0 || last.lowestPrice > price) {
+						// first time or did lowestPrice declined
+						// send message
+						console.log({
+							kind: 'lowest price',
+							coll: p.collateralName,
+							price,
+							posPrice,
+						});
+						last.lowestPrice = price;
+					}
+				}
+			} else if (price < posPrice * THRES_ALERT) {
+				console.log('alerting...');
+				// below 105%
+				if (last.alertTimestamp + DELAY_ALERT < Date.now()) {
+					// delay guard passed
+					last.alertTimestamp = Date.now();
+					// send message
+					console.log({
+						kind: 'alert price',
+						coll: p.collateralName,
+						price,
+						posPrice,
+					});
+					last.alertPrice = price;
+				}
+			} else if (price < posPrice * THRES_WARN) {
+				console.log('warning...');
+				// if below 110 -> warning
+				if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
+					// delay guard passed
+					last.warningTimestamp = Date.now();
+					// send message
+					console.log({
+						kind: 'warning price',
+						coll: p.collateralName,
+						price,
+						posPrice,
+					});
+					last.warningPrice = price;
+				}
+			}
+
+			// update state
+			this.telegramState.positionsPriceAlert.set(p.position.toLowerCase() as Address, last);
+		});
 
 		// Challenges started
 		const challengesStarted = Object.values(this.challenge.getChallengesMapping().map).filter(

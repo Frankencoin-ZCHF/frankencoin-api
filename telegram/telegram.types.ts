@@ -1,3 +1,4 @@
+import { Address } from 'viem';
 import { SubscriptionGroups } from './dtos/groups.dto';
 
 // @dev: timestamps of last trigger emits
@@ -10,6 +11,17 @@ export type TelegramState = {
 	positionsExpiringSoon7: number;
 	positionsExpiringSoon3: number;
 	positionsExpired: number;
+	positionsPriceAlert: Map<
+		Address,
+		{
+			warningPrice: number; // e.g. below 110%
+			warningTimestamp: number;
+			alertPrice: number; // e.g. below 105%
+			alertTimestamp: number;
+			lowestPrice: number;
+			lowestTimestamp: number;
+		}
+	>;
 	mintingUpdates: number;
 	challenges: number;
 	bids: number;
