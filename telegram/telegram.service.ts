@@ -23,6 +23,7 @@ import { PositionExpiringSoonMessage } from './messages/PositionExpiringSoon.mes
 import { PositionExpiredMessage } from './messages/PositionExpired.message';
 import { Address, formatUnits } from 'viem';
 import { PriceQuery } from 'prices/prices.types';
+import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from './messages/PositionPrice.message';
 
 @Injectable()
 export class TelegramService {
@@ -248,10 +249,11 @@ export class TelegramService {
 		// Position Price Warning
 		Object.values(this.position.getPositionsOpen().map).map((p) => {
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
+			const THRES_LOWEST = 1.11;
+			const THRES_ALERT = 1.13;
 			const THRES_WARN = 1.15;
-			const THRES_ALERT = 1.05;
-			const DELAY_LOWEST = 10 * 60 * 1000;
-			const DELAY_ALERT = 10 * 60 * 1000;
+			const DELAY_LOWEST = 2 * 60 * 1000;
+			const DELAY_ALERT = 5 * 60 * 1000;
 			const DELAY_WARNING = 10 * 60 * 1000;
 
 			// price query
@@ -260,13 +262,6 @@ export class TelegramService {
 
 			// price check
 			const price = priceQuery.price.chf;
-			console.log({
-				addr: p.position,
-				name: p.collateralName,
-				price,
-				posPrice,
-				ratio: Math.round((price / posPrice) * 100),
-			});
 			if (posPrice * THRES_WARN < price) return false; // below threshold
 
 			// get latest or make available
@@ -282,54 +277,38 @@ export class TelegramService {
 				};
 			}
 
-			if (price < posPrice) {
-				console.log('lowest...');
+			if (price < posPrice * THRES_LOWEST) {
 				// below 100%
 				if (last.lowestTimestamp + DELAY_LOWEST < Date.now()) {
 					// delay guard passed
-					last.lowestTimestamp = Date.now();
 					if (last.lowestPrice == 0 || last.lowestPrice > price) {
-						// first time or did lowestPrice declined
-						// send message
-						console.log({
-							kind: 'lowest price',
-							coll: p.collateralName,
-							price,
-							posPrice,
-						});
+						this.sendMessageAll(PositionPriceLowest(p, priceQuery, last));
 						last.lowestPrice = price;
 					}
+					last.lowestTimestamp = Date.now();
 				}
 			} else if (price < posPrice * THRES_ALERT) {
-				console.log('alerting...');
 				// below 105%
 				if (last.alertTimestamp + DELAY_ALERT < Date.now()) {
 					// delay guard passed
+					this.sendMessageAll(PositionPriceAlert(p, priceQuery, last));
 					last.alertTimestamp = Date.now();
-					// send message
-					console.log({
-						kind: 'alert price',
-						coll: p.collateralName,
-						price,
-						posPrice,
-					});
 					last.alertPrice = price;
 				}
 			} else if (price < posPrice * THRES_WARN) {
-				console.log('warning...');
 				// if below 110 -> warning
 				if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
 					// delay guard passed
+					this.sendMessageAll(PositionPriceWarning(p, priceQuery, last));
 					last.warningTimestamp = Date.now();
-					// send message
-					console.log({
-						kind: 'warning price',
-						coll: p.collateralName,
-						price,
-						posPrice,
-					});
 					last.warningPrice = price;
 				}
+			}
+
+			// reset lowest price
+			if (price < posPrice * THRES_ALERT && last.lowestTimestamp > 0) {
+				last.lowestTimestamp = 0;
+				last.lowestPrice = 0;
 			}
 
 			// update state

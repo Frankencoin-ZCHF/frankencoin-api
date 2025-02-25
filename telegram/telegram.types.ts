@@ -11,20 +11,19 @@ export type TelegramState = {
 	positionsExpiringSoon7: number;
 	positionsExpiringSoon3: number;
 	positionsExpired: number;
-	positionsPriceAlert: Map<
-		Address,
-		{
-			warningPrice: number; // e.g. below 110%
-			warningTimestamp: number;
-			alertPrice: number; // e.g. below 105%
-			alertTimestamp: number;
-			lowestPrice: number;
-			lowestTimestamp: number;
-		}
-	>;
+	positionsPriceAlert: Map<Address, PositionPriceAlertState>;
 	mintingUpdates: number;
 	challenges: number;
 	bids: number;
+};
+
+export type PositionPriceAlertState = {
+	warningPrice: number; // e.g. below 110%
+	warningTimestamp: number;
+	alertPrice: number; // e.g. below 105%
+	alertTimestamp: number;
+	lowestPrice: number;
+	lowestTimestamp: number;
 };
 
 export type TelegramGroupState = {

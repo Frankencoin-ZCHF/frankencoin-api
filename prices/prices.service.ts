@@ -177,6 +177,7 @@ export class PricesService {
 			// calculate chf value for erc token
 			if (this.fetchedPrices[addr]?.timestamp > 0) {
 				const priceUsd = this.fetchedPrices[addr].price.usd;
+				if (priceUsd == undefined || zchfPrice == undefined) continue;
 				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
 				if (addr === frankencoin) {
 					this.fetchedPrices[addr].price.chf = 1;
