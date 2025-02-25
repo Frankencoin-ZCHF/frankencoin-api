@@ -130,10 +130,9 @@ export class PricesService {
 		let pricesQueryUpdateCount: number = 0;
 		let pricesQueryUpdateCountFailed: number = 0;
 
-		const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd || 1;
-
 		for (const erc of a) {
 			const addr = erc.address.toLowerCase() as Address;
+			const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd || 1;
 			const oldEntry = this.fetchedPrices[addr];
 
 			if (!oldEntry) {
@@ -145,7 +144,7 @@ export class PricesService {
 				pricesQuery[addr] = {
 					...erc,
 					timestamp: price === null ? 0 : Date.now(),
-					price: price === null ? { usd: 1, chf: 1 } : price,
+					price: price === null ? { usd: zchfPrice, chf: 1 } : price,
 				};
 			} else if (oldEntry.timestamp + 300_000 < Date.now()) {
 				// needs to update => try to fetch
@@ -157,18 +156,11 @@ export class PricesService {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
 					pricesQuery[addr] = {
-						...erc,
+						...oldEntry,
 						timestamp: Date.now(),
-						price: { ...price },
+						price: { ...oldEntry.price, ...price },
 					};
 				}
-			}
-
-			// calculate chf value for erc token
-			const priceUsd = pricesQuery[addr]?.price?.usd;
-			if (priceUsd) {
-				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
-				pricesQuery[addr].price.chf = priceChf;
 			}
 		}
 
@@ -178,5 +170,20 @@ export class PricesService {
 
 		if (updatesCnt > 0) this.logger.log(`Prices merging, ${fromNewStr}, ${fromUpdateStr}`);
 		this.fetchedPrices = { ...this.fetchedPrices, ...pricesQuery };
+
+		const frankencoin = ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase();
+		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
+		for (const addr of Object.keys(this.fetchedPrices)) {
+			// calculate chf value for erc token
+			if (this.fetchedPrices[addr]?.timestamp > 0) {
+				const priceUsd = this.fetchedPrices[addr].price.usd;
+				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
+				if (addr === frankencoin) {
+					this.fetchedPrices[addr].price.chf = 1;
+				} else {
+					this.fetchedPrices[addr].price.chf = priceChf;
+				}
+			}
+		}
 	}
 }
