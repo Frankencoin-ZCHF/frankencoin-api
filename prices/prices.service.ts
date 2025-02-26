@@ -14,18 +14,47 @@ import { COINGECKO_CLIENT, VIEM_CHAIN } from 'api.config';
 import { Address } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { ADDRESS } from '@frankencoin/zchf';
+import { Storj } from 'storj/storj.s3.service';
+import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 
 const randRef: number = Math.random() * 0.4 + 0.8;
 
 @Injectable()
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
+	private readonly storjPath: string = '/prices.query.json';
 	private fetchedPrices: PriceQueryObjectArray = {};
 
 	constructor(
+		private readonly storj: Storj,
 		private readonly positionsService: PositionsService,
 		private readonly fps: EcosystemFpsService
-	) {}
+	) {
+		this.readBackupPriceQuery();
+	}
+
+	async readBackupPriceQuery() {
+		this.logger.log(`Reading backup PriceQueryObject from storj`);
+		const response = await this.storj.read(this.storjPath, PriceQueryObjectDTO);
+
+		if (response.messageError || response.validationError.length > 0) {
+			this.logger.error(response.messageError);
+		} else {
+			this.fetchedPrices = { ...this.fetchedPrices, ...response.data };
+			this.logger.log(`PriceQueryObject state restored...`);
+		}
+	}
+
+	async writeBackupPriceQuery() {
+		const response = await this.storj.write(this.storjPath, this.fetchedPrices);
+		const httpStatusCode = response['$metadata'].httpStatusCode;
+
+		if (httpStatusCode == 200) {
+			this.logger.log(`PriceQueryObject backup stored`);
+		} else {
+			this.logger.error(`PriceQueryObject backup failed. httpStatusCode: ${httpStatusCode}`);
+		}
+	}
 
 	getPrices(): ApiPriceListing {
 		return Object.values(this.fetchedPrices);
@@ -171,6 +200,11 @@ export class PricesService {
 		if (updatesCnt > 0) this.logger.log(`Prices merging, ${fromNewStr}, ${fromUpdateStr}`);
 		this.fetchedPrices = { ...this.fetchedPrices, ...pricesQuery };
 
+		if (pricesQueryUpdateCount > pricesQueryUpdateCountFailed || pricesQueryNewCount - pricesQueryNewCountFailed) {
+			this.writeBackupPriceQuery();
+		}
+
+		// make chf conversion available
 		const frankencoin = ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase();
 		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
 		for (const addr of Object.keys(this.fetchedPrices)) {

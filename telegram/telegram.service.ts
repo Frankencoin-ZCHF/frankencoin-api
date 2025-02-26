@@ -249,12 +249,12 @@ export class TelegramService {
 		// Position Price Warning
 		Object.values(this.position.getPositionsOpen().map).map((p) => {
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
-			const THRES_LOWEST = 1;
-			const THRES_ALERT = 1.05;
-			const THRES_WARN = 1.1;
-			const DELAY_LOWEST = 10 * 60 * 1000;
-			const DELAY_ALERT = 6 * 60 * 60 * 1000;
-			const DELAY_WARNING = 12 * 60 * 60 * 1000;
+			const THRES_LOWEST = 1; // 100%
+			const THRES_ALERT = 1.05; // 105%
+			const THRES_WARN = 1.1; // 110%
+			const DELAY_LOWEST = 10 * 60 * 1000; // 10min guard
+			const DELAY_ALERT = 6 * 60 * 60 * 1000; // 6h guard
+			const DELAY_WARNING = 12 * 60 * 60 * 1000; // 12h guard
 
 			// price query
 			const priceQuery: PriceQuery | undefined = this.prices.getPricesMapping()[p.collateral.toLowerCase()];
