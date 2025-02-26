@@ -200,7 +200,7 @@ export class PricesService {
 		if (updatesCnt > 0) this.logger.log(`Prices merging, ${fromNewStr}, ${fromUpdateStr}`);
 		this.fetchedPrices = { ...this.fetchedPrices, ...pricesQuery };
 
-		if (pricesQueryUpdateCount > pricesQueryUpdateCountFailed || pricesQueryNewCount - pricesQueryNewCountFailed) {
+		if (pricesQueryUpdateCount > pricesQueryUpdateCountFailed || pricesQueryNewCount > pricesQueryNewCountFailed) {
 			this.writeBackupPriceQuery();
 		}
 
