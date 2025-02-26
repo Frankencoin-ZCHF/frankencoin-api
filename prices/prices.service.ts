@@ -14,18 +14,47 @@ import { COINGECKO_CLIENT, VIEM_CHAIN } from 'api.config';
 import { Address } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { ADDRESS } from '@frankencoin/zchf';
+import { Storj } from 'storj/storj.s3.service';
+import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 
 const randRef: number = Math.random() * 0.4 + 0.8;
 
 @Injectable()
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
+	private readonly storjPath: string = '/prices.query.json';
 	private fetchedPrices: PriceQueryObjectArray = {};
 
 	constructor(
+		private readonly storj: Storj,
 		private readonly positionsService: PositionsService,
 		private readonly fps: EcosystemFpsService
-	) {}
+	) {
+		this.readBackupPriceQuery();
+	}
+
+	async readBackupPriceQuery() {
+		this.logger.log(`Reading backup PriceQueryObject from storj`);
+		const response = await this.storj.read(this.storjPath, PriceQueryObjectDTO);
+
+		if (response.messageError || response.validationError.length > 0) {
+			this.logger.error(response.messageError);
+		} else {
+			this.fetchedPrices = { ...this.fetchedPrices, ...response.data };
+			this.logger.log(`PriceQueryObject state restored...`);
+		}
+	}
+
+	async writeBackupPriceQuery() {
+		const response = await this.storj.write(this.storjPath, this.fetchedPrices);
+		const httpStatusCode = response['$metadata'].httpStatusCode;
+
+		if (httpStatusCode == 200) {
+			this.logger.log(`PriceQueryObject backup stored`);
+		} else {
+			this.logger.error(`PriceQueryObject backup failed. httpStatusCode: ${httpStatusCode}`);
+		}
+	}
 
 	getPrices(): ApiPriceListing {
 		return Object.values(this.fetchedPrices);
@@ -130,10 +159,9 @@ export class PricesService {
 		let pricesQueryUpdateCount: number = 0;
 		let pricesQueryUpdateCountFailed: number = 0;
 
-		const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd || 1;
-
 		for (const erc of a) {
 			const addr = erc.address.toLowerCase() as Address;
+			const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd || 1;
 			const oldEntry = this.fetchedPrices[addr];
 
 			if (!oldEntry) {
@@ -145,7 +173,7 @@ export class PricesService {
 				pricesQuery[addr] = {
 					...erc,
 					timestamp: price === null ? 0 : Date.now(),
-					price: price === null ? { usd: 1, chf: 1 } : price,
+					price: price === null ? { usd: zchfPrice, chf: 1 } : price,
 				};
 			} else if (oldEntry.timestamp + 300_000 < Date.now()) {
 				// needs to update => try to fetch
@@ -157,18 +185,11 @@ export class PricesService {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
 					pricesQuery[addr] = {
-						...erc,
+						...oldEntry,
 						timestamp: Date.now(),
-						price: { ...price },
+						price: { ...oldEntry.price, ...price },
 					};
 				}
-			}
-
-			// calculate chf value for erc token
-			const priceUsd = pricesQuery[addr]?.price?.usd;
-			if (priceUsd) {
-				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
-				pricesQuery[addr].price.chf = priceChf;
 			}
 		}
 
@@ -178,5 +199,26 @@ export class PricesService {
 
 		if (updatesCnt > 0) this.logger.log(`Prices merging, ${fromNewStr}, ${fromUpdateStr}`);
 		this.fetchedPrices = { ...this.fetchedPrices, ...pricesQuery };
+
+		if (pricesQueryUpdateCount > pricesQueryUpdateCountFailed || pricesQueryNewCount > pricesQueryNewCountFailed) {
+			this.writeBackupPriceQuery();
+		}
+
+		// make chf conversion available
+		const frankencoin = ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase();
+		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
+		for (const addr of Object.keys(this.fetchedPrices)) {
+			// calculate chf value for erc token
+			if (this.fetchedPrices[addr]?.timestamp > 0) {
+				const priceUsd = this.fetchedPrices[addr].price.usd;
+				if (priceUsd == undefined || zchfPrice == undefined) continue;
+				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
+				if (addr === frankencoin) {
+					this.fetchedPrices[addr].price.chf = 1;
+				} else {
+					this.fetchedPrices[addr].price.chf = priceChf;
+				}
+			}
+		}
 	}
 }
