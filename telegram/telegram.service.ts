@@ -308,7 +308,7 @@ export class TelegramService {
 			}
 
 			// reset lowest price
-			if (price < posPrice * THRES_ALERT && last.lowestTimestamp > 0) {
+			if (price > posPrice * THRES_ALERT && last.lowestTimestamp > 0) {
 				last.lowestTimestamp = 0;
 				last.lowestPrice = 0;
 			}
