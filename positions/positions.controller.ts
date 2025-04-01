@@ -81,4 +81,28 @@ export class PositionsController {
 			Number(version)
 		);
 	}
+
+	@Get('mintingupdates/owner/:address')
+	@ApiResponse({
+		description: 'Returns a list of all latest mintingupdates of an owner, limit: 1000',
+	})
+	async getMintingOwner(@Param('address') owner: string): Promise<ApiMintingUpdateListing | { error: string }> {
+		if (!isAddress(owner)) {
+			return { error: 'Address not valid' };
+		}
+		return await this.positionsService.getMintingUpdatesOwner(owner);
+	}
+
+	@Get('mintingupdates/owner/:address/fees')
+	@ApiResponse({
+		description: 'Returns a list of all latest mintingupdates of an owner, limit: 1000',
+	})
+	async getMintingOwnerFees(@Param('address') owner: string): Promise<{ t: number; f: string }[] | { error: string }> {
+		if (!isAddress(owner)) {
+			return { error: 'Address not valid' };
+		}
+		const updates = await this.positionsService.getMintingUpdatesOwner(owner);
+		const entries = updates.list.filter((l) => BigInt(l.feePaid) > 0).map((l) => ({ t: Number(l.created), f: l.feePaid }));
+		return entries;
+	}
 }

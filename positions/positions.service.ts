@@ -434,21 +434,20 @@ export class PositionsService {
 	}
 
 	async getMintingUpdatesPosition(position: Address, version: number): Promise<ApiMintingUpdateListing> {
-		console.log({ position, version });
-
 		if (version == 1) {
 			const { data } = await PONDER_CLIENT.query({
 				fetchPolicy: 'no-cache',
 				query: gql`
 					query {
 						mintingUpdateV1s(
-							orderBy: "created"
+							orderBy: "count"
 						 	orderDirection: "desc"
-							where: { position: "${position}" }
+							where: { position: "${position.toLowerCase()}" }
 							limit: 1000
 							) {
 							items {
 								id
+								count
 								txHash
 								created
 								position
@@ -494,9 +493,10 @@ export class PositionsService {
 				fetchPolicy: 'no-cache',
 				query: gql`
 					query {
-						mintingUpdateV2s(where: { position: "${position}" }, orderBy: "created", orderDirection: "desc", limit: 1000) {
+						mintingUpdateV2s(where: { position: "${position.toLowerCase()}" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
 							items {
 								id
+								count
 								txHash
 								created
 								position
@@ -540,6 +540,92 @@ export class PositionsService {
 				list: items,
 			};
 		}
+	}
+
+	async getMintingUpdatesOwner(owner: Address): Promise<ApiMintingUpdateListing> {
+		const { data: version1 } = await PONDER_CLIENT.query<{
+			mintingUpdateV1s: { items: MintingUpdateQueryV1[] };
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingUpdateV1s(
+							orderBy: "count"
+						 	orderDirection: "desc"
+							where: { owner: "${owner.toLowerCase()}" }
+							limit: 1000
+							) {
+							items {
+								id
+								count
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+		});
+
+		const { data: version2 } = await PONDER_CLIENT.query<{ mintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingUpdateV2s(where: { owner: "${owner.toLowerCase()}" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
+							items {
+								id
+								count
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								basePremiumPPM
+								riskPremiumPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+		});
+
+		const items: MintingUpdateQuery[] = [...version1.mintingUpdateV1s.items, ...version2.mintingUpdateV2s.items];
+
+		return {
+			num: items.length,
+			list: items,
+		};
 	}
 
 	async updateMintingUpdateV1s() {
@@ -595,6 +681,7 @@ export class PositionsService {
 				version: 1,
 
 				id: m.id,
+				count: Number(m.count),
 				txHash: m.txHash,
 				created: parseInt(m.created as any),
 				position: getAddress(m.position),
@@ -685,6 +772,7 @@ export class PositionsService {
 				version: 2,
 
 				id: m.id,
+				count: Number(m.count),
 				txHash: m.txHash,
 				created: parseInt(m.created as any),
 				position: getAddress(m.position),
