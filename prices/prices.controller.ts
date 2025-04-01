@@ -1,12 +1,47 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiPriceERC20, ApiPriceERC20Mapping, ApiPriceListing, ApiPriceMapping } from 'prices/prices.types';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiPriceERC20, ApiPriceERC20Mapping, ApiPriceListing, ApiPriceMapping, PriceQueryCurrencies } from 'prices/prices.types';
 import { PricesService } from './prices.service';
+import { AnalyticsService } from 'analytics/analytics.service';
+import { formatUnits } from 'viem';
 
 @ApiTags('Prices Controller')
 @Controller('prices')
 export class PricesController {
-	constructor(private readonly pricesService: PricesService) {}
+	constructor(
+		private readonly pricesService: PricesService,
+		private readonly analytics: AnalyticsService
+	) {}
+
+	@Get('ticker/:ticker')
+	@ApiResponse({
+		description: 'Returns a price query for a given ticker',
+	})
+	getTicker(@Param('ticker') ticker: string): PriceQueryCurrencies & { error?: string } {
+		const matching = this.pricesService.getPrices().find((p) => p.symbol == ticker);
+		if (matching == undefined) {
+			return {
+				error: 'No asset found',
+				chf: 0,
+				usd: 0,
+			};
+		} else {
+			return matching.price;
+		}
+	}
+
+	@Get('ticker/FPS/history')
+	@ApiResponse({
+		description: 'Returns price history for FPS ticker',
+	})
+	@ApiQuery({ name: 'date', required: false, description: 'Date for price history (DD-MM-YYYY)' })
+	getTickerHistory(@Query('date') date: string = '0'): { t: number; p: number }[] {
+		const listMapped = this.analytics
+			.getDailyLog()
+			.logs.map((l) => ({ t: Number(l.timestamp), p: Number(formatUnits(l.fpsPrice, 18)) }));
+
+		return listMapped.filter((l) => l.t >= new Date(date).getTime());
+	}
 
 	@Get('list')
 	@ApiResponse({
