@@ -45,12 +45,14 @@ export class AnalyticsService {
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					profitLosss(orderBy: "timestamp", orderDirection: "desc", limit: 1000) {
+					profitLosss(orderBy: "count", orderDirection: "desc", limit: 1000) {
 						items {
 							id
-							timestamp
+							count
+							created
 							kind
 							amount
+							perFPS
 						}
 					}
 				}
@@ -219,9 +221,10 @@ export class AnalyticsService {
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					transactionLogs(orderBy: "timestamp", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
+					transactionLogs(orderBy: "count", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
 						items {
 							id
+							count,
 							timestamp,
 							kind,
 							amount,

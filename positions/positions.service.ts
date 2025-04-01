@@ -433,6 +433,115 @@ export class PositionsService {
 		return { num: Object.keys(m).length, positions: Object.keys(m) as Address[], map: m };
 	}
 
+	async getMintingUpdatesPosition(position: Address, version: number): Promise<ApiMintingUpdateListing> {
+		console.log({ position, version });
+
+		if (version == 1) {
+			const { data } = await PONDER_CLIENT.query({
+				fetchPolicy: 'no-cache',
+				query: gql`
+					query {
+						mintingUpdateV1s(
+							orderBy: "created"
+						 	orderDirection: "desc"
+							where: { position: "${position}" }
+							limit: 1000
+							) {
+							items {
+								id
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+			});
+
+			if (!data || !data?.mintingUpdateV1s?.items?.length) {
+				this.logger.warn('No MintingUpdates V1 found.');
+				return {
+					num: 0,
+					list: [],
+				};
+			}
+
+			const items: MintingUpdateQuery[] = data.mintingUpdateV1s.items;
+
+			return {
+				num: items.length,
+				list: items,
+			};
+		} else {
+			const { data } = await PONDER_CLIENT.query({
+				fetchPolicy: 'no-cache',
+				query: gql`
+					query {
+						mintingUpdateV2s(where: { position: "${position}" }, orderBy: "created", orderDirection: "desc", limit: 1000) {
+							items {
+								id
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								basePremiumPPM
+								riskPremiumPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+			});
+
+			if (!data || !data?.mintingUpdateV2s?.items?.length) {
+				this.logger.warn('No MintingUpdates V2 found.');
+				return {
+					num: 0,
+					list: [],
+				};
+			}
+
+			const items: MintingUpdateQuery[] = data.mintingUpdateV2s.items;
+
+			return {
+				num: items.length,
+				list: items,
+			};
+		}
+	}
+
 	async updateMintingUpdateV1s() {
 		this.logger.debug('Updating Positions MintingUpdates V1');
 		const { data } = await PONDER_CLIENT.query({

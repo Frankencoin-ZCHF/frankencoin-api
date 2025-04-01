@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { PositionsService } from './positions.service';
 import {
 	ApiMintingUpdateListing,
@@ -8,6 +8,7 @@ import {
 	ApiPositionsOwners,
 } from './positions.types';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Address, isAddress, zeroAddress } from 'viem';
 
 @ApiTags('Positions Controller')
 @Controller('positions')
@@ -56,7 +57,7 @@ export class PositionsController {
 
 	@Get('mintingupdates/list')
 	@ApiResponse({
-		description: 'Returns a list of all mintingupdates',
+		description: 'Returns a list of all latest mintingupdates, limit: 1000',
 	})
 	getMintingList(): ApiMintingUpdateListing {
 		return this.positionsService.getMintingUpdatesList();
@@ -64,9 +65,20 @@ export class PositionsController {
 
 	@Get('mintingupdates/mapping')
 	@ApiResponse({
-		description: 'Returns a mapping of all mintingupdates',
+		description: 'Returns a mapping of all latest mintingupdates, limit: 1000',
 	})
-	geMintingtMapping(): ApiMintingUpdateMapping {
+	geMintingMapping(): ApiMintingUpdateMapping {
 		return this.positionsService.getMintingUpdatesMapping();
+	}
+
+	@Get('mintingupdates/position/:version/:address')
+	@ApiResponse({
+		description: 'Returns a list of all latest mintingupdates of a versioned position, limit: 1000',
+	})
+	async getMintingPosition(@Param('version') version: string, @Param('address') position: string): Promise<ApiMintingUpdateListing> {
+		return await this.positionsService.getMintingUpdatesPosition(
+			isAddress(position) ? (position as Address) : zeroAddress,
+			Number(version)
+		);
 	}
 }
