@@ -32,15 +32,17 @@ export class PricesController {
 
 	@Get('ticker/FPS/history')
 	@ApiResponse({
-		description: 'Returns price history for FPS ticker',
+		description: 'Returns trade price history from DailyLog for FPS ticker',
 	})
-	@ApiQuery({ name: 'date', required: false, description: 'Date for price history (DD-MM-YYYY)' })
-	getTickerHistory(@Query('date') date: string = '0'): { t: number; p: number }[] {
+	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
+	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
+	getTickerHistory(@Query('start') start: string = '0', @Query('end') end: string | number = Date.now()): { t: number; p: number }[] {
 		const listMapped = this.analytics
 			.getDailyLog()
 			.logs.map((l) => ({ t: Number(l.timestamp), p: Number(formatUnits(l.fpsPrice, 18)) }));
 
-		return listMapped.filter((l) => l.t >= new Date(date).getTime());
+		const listFiltered = listMapped.filter((l) => l.t >= new Date(start).getTime() && l.t <= new Date(end).getTime());
+		return listFiltered;
 	}
 
 	@Get('list')
