@@ -15,13 +15,13 @@ export class PricesController {
 
 	@Get('ticker/:ticker')
 	@ApiResponse({
-		description: 'Returns a list of price queries',
+		description: 'Returns a price query for a given ticker',
 	})
 	getTicker(@Param('ticker') ticker: string): PriceQueryCurrencies & { error?: string } {
 		const matching = this.pricesService.getPrices().find((p) => p.symbol == ticker);
 		if (matching == undefined) {
 			return {
-				error: 'No asset found for given criteria',
+				error: 'No asset found',
 				chf: 0,
 				usd: 0,
 			};
