@@ -6,6 +6,7 @@ import {
 	ApiPositionsListing,
 	ApiPositionsMapping,
 	ApiPositionsOwners,
+	MintingUpdateQuery,
 } from './positions.types';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Address, isAddress, zeroAddress } from 'viem';
@@ -95,14 +96,43 @@ export class PositionsController {
 
 	@Get('mintingupdates/owner/:address/fees')
 	@ApiResponse({
-		description: 'Returns a list of all latest mintingupdates of an owner, limit: 1000',
+		description: 'Returns a list of all latest fees paid by owner, limit: 1000',
 	})
 	async getMintingOwnerFees(@Param('address') owner: string): Promise<{ t: number; f: string }[] | { error: string }> {
 		if (!isAddress(owner)) {
 			return { error: 'Address not valid' };
 		}
-		const updates = await this.positionsService.getMintingUpdatesOwner(owner);
+		const updates = await this.positionsService.getMintingUpdatesOwnerFees(owner);
 		const entries = updates.list.filter((l) => BigInt(l.feePaid) > 0).map((l) => ({ t: Number(l.created), f: l.feePaid }));
 		return entries;
+	}
+
+	@Get('mintingupdates/owner/:address/debt')
+	@ApiResponse({
+		description: 'Returns a list of all open debt of an owner, limit: 1000',
+	})
+	async getMintingOwnerDebt(@Param('address') owner: string): Promise<{ t: number; p: Address; m: string }[] | { error: string }> {
+		if (!isAddress(owner)) {
+			return { error: 'Address not valid' };
+		}
+		const updates = (await this.positionsService.getMintingUpdatesOwner(owner)).list;
+		const mapping: { [key: Address]: MintingUpdateQuery[] } = {};
+
+		for (const m of updates) {
+			const k = m.position.toLowerCase();
+			if (mapping[k] == undefined) mapping[k] = [m];
+			else mapping[k].push(m);
+		}
+
+		const positions = Object.keys(mapping);
+		const latestByPos: MintingUpdateQuery[] = [];
+
+		for (const p of positions) {
+			const items = mapping[p] as MintingUpdateQuery[];
+			const sorted = items.sort((a, b) => (a.count > b.count ? -1 : 1));
+			latestByPos.push(sorted.at(0));
+		}
+
+		return latestByPos.map((l) => ({ t: Number(l.created), p: l.position, m: l.minted }));
 	}
 }

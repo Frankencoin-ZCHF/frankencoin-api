@@ -628,6 +628,92 @@ export class PositionsService {
 		};
 	}
 
+	async getMintingUpdatesOwnerFees(owner: Address): Promise<ApiMintingUpdateListing> {
+		const { data: version1 } = await PONDER_CLIENT.query<{
+			mintingUpdateV1s: { items: MintingUpdateQueryV1[] };
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingUpdateV1s(
+							orderBy: "count"
+						 	orderDirection: "desc"
+							where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }
+							limit: 1000
+							) {
+							items {
+								id
+								count
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+		});
+
+		const { data: version2 } = await PONDER_CLIENT.query<{ mintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingUpdateV2s(where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
+							items {
+								id
+								count
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								basePremiumPPM
+								riskPremiumPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+		});
+
+		const items: MintingUpdateQuery[] = [...version1.mintingUpdateV1s.items, ...version2.mintingUpdateV2s.items];
+
+		return {
+			num: items.length,
+			list: items,
+		};
+	}
+
 	async updateMintingUpdateV1s() {
 		this.logger.debug('Updating Positions MintingUpdates V1');
 		const { data } = await PONDER_CLIENT.query({
