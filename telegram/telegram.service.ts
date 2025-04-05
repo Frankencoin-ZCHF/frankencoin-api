@@ -27,6 +27,7 @@ import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from '.
 
 @Injectable()
 export class TelegramService {
+	private readonly startUpTime = Date.now();
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 	private readonly storjPath: string = '/telegram.groups.json';
@@ -142,6 +143,9 @@ export class TelegramService {
 	}
 
 	async updateTelegram() {
+		// give indexer and start up some time before starting with msg, alert, ...
+		if (Date.now() < this.startUpTime + 10 * 60 * 1000) return; // 10min
+
 		this.logger.debug('Updating Telegram');
 
 		// break if no groups are known
