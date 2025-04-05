@@ -109,15 +109,18 @@ export class PositionsController {
 
 	@Get('mintingupdates/owner/:address/debt')
 	@ApiResponse({
-		description: 'Returns a list of all open debt of an owner, limit: 1000',
+		description: 'Returns a list of yearly latest debt entry of an owner, limit: 1000',
 	})
-	async getMintingOwnerDebt(@Param('address') owner: string): Promise<{ t: number; p: Address; m: string }[] | { error: string }> {
+	async getMintingOwnerDebt(
+		@Param('address') owner: string
+	): Promise<{ [key: string]: { [key: Address]: { t: number; p: Address; m: string }[] } } | { error: string }> {
 		if (!isAddress(owner)) {
 			return { error: 'Address not valid' };
 		}
 		const updates = (await this.positionsService.getMintingUpdatesOwner(owner)).list;
 		const mapping: { [key: Address]: MintingUpdateQuery[] } = {};
 
+		// mapping to position
 		for (const m of updates) {
 			const k = m.position.toLowerCase();
 			if (mapping[k] == undefined) mapping[k] = [m];
@@ -125,14 +128,20 @@ export class PositionsController {
 		}
 
 		const positions = Object.keys(mapping);
-		const latestByPos: MintingUpdateQuery[] = [];
+		const latestByPos: { [key: string]: { [key: Address]: { t: number; p: Address; m: string }[] } } = {}; // mapped by year and address, latest entry
 
 		for (const p of positions) {
 			const items = mapping[p] as MintingUpdateQuery[];
-			const sorted = items.sort((a, b) => (a.count > b.count ? -1 : 1));
-			latestByPos.push(sorted.at(0));
+			const sorted = items.sort((a, b) => (BigInt(a.count) > BigInt(b.count) ? 1 : -1));
+
+			for (const i of sorted) {
+				const year = new Date(i.created * 1000).getFullYear();
+				const payload = { t: i.created, p: i.position.toLowerCase() as Address, m: i.minted };
+				if (latestByPos[year] == undefined) latestByPos[year] = {};
+				latestByPos[year][p] = payload;
+			}
 		}
 
-		return latestByPos.map((l) => ({ t: Number(l.created), p: l.position, m: l.minted }));
+		return latestByPos;
 	}
 }
