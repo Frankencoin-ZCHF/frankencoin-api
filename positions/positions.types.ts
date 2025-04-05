@@ -92,6 +92,7 @@ export type MintingUpdateQueryV1 = {
 	version: 1;
 
 	id: MintingUpdateQueryId;
+	count: number;
 	txHash: string;
 	created: number;
 	position: Address;
@@ -118,6 +119,7 @@ export type MintingUpdateQueryV2 = {
 	version: 2;
 
 	id: MintingUpdateQueryId;
+	count: number;
 	txHash: string;
 	created: number;
 	position: Address;

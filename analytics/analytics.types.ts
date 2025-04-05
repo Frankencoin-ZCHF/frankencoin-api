@@ -34,13 +34,16 @@ export type AnalyticsExposureItem = {
 
 export type AnalyticsProfitLossLog = {
 	id: string;
-	timestamp: string;
+	count: bigint;
+	created: string;
 	kind: string;
 	amount: bigint;
+	perFPS: bigint;
 };
 
 export type AnalyticsTransactionLog = {
 	id: string;
+	count: number;
 	timestamp: string;
 	kind: string;
 	amount: bigint;
