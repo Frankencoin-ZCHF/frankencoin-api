@@ -27,6 +27,7 @@ import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from '.
 
 @Injectable()
 export class TelegramService {
+	private readonly startUpTime = Date.now();
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 	private readonly storjPath: string = '/telegram.groups.json';
@@ -112,6 +113,9 @@ export class TelegramService {
 	}
 
 	async sendMessage(group: string | number, message: string) {
+		// give indexer and start up some time before starting with msg, alert, ...
+		if (Date.now() < this.startUpTime + 25 * 60 * 1000) return; // 20min for updates, +5min for sending
+
 		try {
 			this.logger.log(`Sending message to group id: ${group}`);
 			await this.bot.sendMessage(group.toString(), message, { parse_mode: 'Markdown', disable_web_page_preview: true });
@@ -142,6 +146,9 @@ export class TelegramService {
 	}
 
 	async updateTelegram() {
+		// give indexer and start up some time before starting with msg, alert, ...
+		if (Date.now() < this.startUpTime + 20 * 60 * 1000) return; // 20min
+
 		this.logger.debug('Updating Telegram');
 
 		// break if no groups are known
@@ -253,8 +260,8 @@ export class TelegramService {
 			const THRES_ALERT = 1.05; // 105%
 			const THRES_WARN = 1.1; // 110%
 			const DELAY_LOWEST = 10 * 60 * 1000; // 10min guard
-			const DELAY_ALERT = 6 * 60 * 60 * 1000; // 6h guard
-			const DELAY_WARNING = 12 * 60 * 60 * 1000; // 12h guard
+			const DELAY_ALERT = 12 * 60 * 60 * 1000; // 12h guard
+			const DELAY_WARNING = 24 * 60 * 60 * 1000; // 24h guard
 
 			// price query
 			const priceQuery: PriceQuery | undefined = this.prices.getPricesMapping()[p.collateral.toLowerCase()];
