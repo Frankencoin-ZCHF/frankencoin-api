@@ -59,19 +59,19 @@ export class TransferReferenceService {
 		}
 	}
 
-	async getByFromFilter(Props: { from: Address; to?: Address; ref?: string; start?: string | number; end?: string | number }) {
+	async getByFromFilter(Props: {
+		from: Address;
+		to?: Address | undefined;
+		ref?: string | undefined;
+		start?: string | number;
+		end?: string | number;
+	}) {
 		const { from, to, ref, start, end } = Props;
-		return [] as TransferReferenceQuery[];
-	}
-
-	async getByToFilter(Props: { to: Address; from?: Address | undefined; ref?: string; start?: string | number; end?: string | number }) {
-		const { from, to, ref, start, end } = Props;
-		const cachedItem = this.fetchedByToFilter[to.toLowerCase()] as TransferReferenceQuery[] | undefined;
+		const cachedItem = this.fetchedByFromFilter[to.toLowerCase()] as TransferReferenceQuery[] | undefined;
 		let currentItems: TransferReferenceQuery[] = [];
 
 		// fetch from indexer if not available
 		if (cachedItem == undefined) {
-			console.log({ cachedItem });
 			try {
 				const { data } = await PONDER_CLIENT.query<{
 					referenceTransfers: { items: TransferReferenceQuery[] };
@@ -81,26 +81,96 @@ export class TransferReferenceService {
 					query {
 						referenceTransfers(
 							where: {
-								to: "${to.toLowerCase()}"
-								${from ? `from: "${from.toLowerCase()}"` : ''}
-								${ref ? `ref: "${ref}"` : ''}
-								},
-								orderBy: "count",
-								limit: 1000) {
-									items {
-										id
-										count
-										created
-										txHash
-										from
-										to
-										amount
-										ref
-										autoSaved
-										}
-										}
-										}
-										`,
+								AND: [
+									{from: "${from.toLowerCase()}"},
+									${to != undefined ? `{to: "${to.toLowerCase()}"},` : ''}
+									${ref != undefined ? `{ref: "${ref}"},` : ''}
+								]
+							},
+							orderBy: "count",
+							limit: 1000) {
+								items {
+									id
+									count
+									created
+									txHash
+									from
+									to
+									amount
+									ref
+									autoSaved
+								}
+							}
+						}`,
+				});
+				currentItems = data.referenceTransfers.items;
+				this.fetchedByFromFilter[to.toLowerCase()] = currentItems;
+			} catch (error) {
+				return { error };
+			}
+		} else {
+			// get latest state and merge with ref log
+			const latestMatched = Object.values(this.fetchedReferences).filter((i) => i.from == from.toLowerCase());
+			const ids = Object.values(cachedItem).map((i) => i.id);
+			const upsert = latestMatched.filter((i) => !ids.includes(i.id));
+			this.fetchedByFromFilter[to.toLowerCase()].push(upsert);
+			currentItems = [...cachedItem, ...upsert];
+		}
+
+		// filter
+		const filteredItems = currentItems.filter(
+			(i) => i.created * 1000 >= new Date(start).getTime() && i.created * 1000 <= new Date(end).getTime()
+		);
+		return filteredItems;
+	}
+
+	async getByToFilter(Props: {
+		to: Address;
+		from?: Address | undefined;
+		ref?: string | undefined;
+		start?: string | number;
+		end?: string | number;
+	}) {
+		const { from, to, ref, start, end } = Props;
+		const cachedItem = this.fetchedByToFilter[to.toLowerCase()] as TransferReferenceQuery[] | undefined;
+		let currentItems: TransferReferenceQuery[] = [];
+
+		console.log(Props);
+
+		const query = `
+					query {
+						referenceTransfers(
+							where: {
+								to: "${to.toLowerCase()}",
+								${from != undefined ? `from: "${from.toLowerCase()}",` : ''}
+								${ref != undefined ? `ref: "${ref}",` : ''}
+							},
+							orderBy: "count",
+							limit: 1000) {
+								items {
+									id
+									count
+									created
+									txHash
+									from
+									to
+									amount
+									ref
+									autoSaved
+								}
+							}
+						}`;
+
+		console.log(query);
+
+		// fetch from indexer if not available
+		if (cachedItem == undefined) {
+			try {
+				const { data } = await PONDER_CLIENT.query<{
+					referenceTransfers: { items: TransferReferenceQuery[] };
+				}>({
+					fetchPolicy: 'no-cache',
+					query: gql(query),
 				});
 				currentItems = data.referenceTransfers.items;
 				this.fetchedByToFilter[to.toLowerCase()] = currentItems;
@@ -114,7 +184,6 @@ export class TransferReferenceService {
 			const upsert = latestMatched.filter((i) => !ids.includes(i.id));
 			this.fetchedByToFilter[to.toLowerCase()].push(upsert);
 			currentItems = [...cachedItem, ...upsert];
-			console.log({ latestMatched, ids, upsert });
 		}
 
 		// filter

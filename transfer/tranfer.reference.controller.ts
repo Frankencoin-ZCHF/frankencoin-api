@@ -53,7 +53,7 @@ export class TransferReferenceController {
 		if (isAddress(to) == false) return { error: 'Address invalid, "to"' };
 		if (from != undefined && isAddress(from) == false) return { error: 'Address invalid, "from"' };
 		return await this.transfer.getByToFilter({
-			from: from as Address,
+			from: from as Address | undefined,
 			to,
 			ref,
 			start,
@@ -63,7 +63,7 @@ export class TransferReferenceController {
 
 	@Get('by/from/:from')
 	@ApiResponse({
-		description: 'Returns the transfer references by "to" address and reference',
+		description: 'Returns the transfer references by "from" address',
 	})
 	@ApiQuery({ name: 'to', required: false, description: 'Enter the recipiant address' })
 	@ApiQuery({ name: 'ref', required: false, description: 'Enter the reference' })
@@ -77,10 +77,10 @@ export class TransferReferenceController {
 		@Query('end') end: string | number = Date.now()
 	): Promise<TransferReferenceQuery[] | { error: string }> {
 		if (isAddress(from) == false) return { error: 'Address invalid, "from"' };
-		if (isAddress(to) == false) return { error: 'Address invalid, "to"' };
+		if (to != undefined && isAddress(to) == false) return { error: 'Address invalid, "to"' };
 		return await this.transfer.getByFromFilter({
 			from,
-			to,
+			to: to as Address | undefined,
 			ref,
 			start,
 			end,
