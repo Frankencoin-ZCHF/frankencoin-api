@@ -9,3 +9,4 @@ export * from '../savings/savings.core.types';
 export * from '../positions/positions.types';
 export * from '../prices/prices.types';
 export * from '../telegram/telegram.types';
+export * from '../transfer/transfer.reference.types';

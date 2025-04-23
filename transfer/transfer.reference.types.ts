@@ -22,13 +22,9 @@ export type TransferReferenceObjectArray = {
 
 // --------------------------------------------------------------------------
 // Api
-// export type ApiMinterListing = {
-// 	num: number;
-// 	list: MinterQuery[];
-// };
+export type ApiTransferReferenceList = {
+	num: number;
+	list: TransferReferenceQuery[];
+};
 
-// export type ApiMinterMapping = {
-// 	num: number;
-// 	addresses: Address[];
-// 	map: MinterQueryObjectArray;
-// };
+export type ApiTransferReferenceQuery = TransferReferenceQuery[] | { error: string };
