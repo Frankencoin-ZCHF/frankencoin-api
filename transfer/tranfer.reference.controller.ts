@@ -44,8 +44,8 @@ export class TransferReferenceController {
 	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
 	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
 	async getByFrom(
-		@Param('from') to: string,
-		@Query('to') from?: string,
+		@Param('from') from: string,
+		@Query('to') to?: string,
 		@Query('ref') ref?: string,
 		@Query('start') start: string = '0',
 		@Query('end') end: string | number = Date.now()
