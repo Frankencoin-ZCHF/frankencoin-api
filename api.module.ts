@@ -29,6 +29,8 @@ import { SavingsLeadrateController } from 'savings/savings.leadrate.controller';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 import { SavingsCoreController } from 'savings/savings.core.controller';
 import { SavingsCoreService } from 'savings/savings.core.service';
+import { TransferReferenceController } from 'transfer/tranfer.reference.controller';
+import { TransferReferenceService } from 'transfer/transfer.reference.service';
 
 // APP MODULE
 @Module({
@@ -43,6 +45,7 @@ import { SavingsCoreService } from 'savings/savings.core.service';
 		SavingsCoreController,
 		PricesController,
 		ChallengesController,
+		TransferReferenceController,
 		AnalyticsController,
 	],
 	providers: [
@@ -56,6 +59,7 @@ import { SavingsCoreService } from 'savings/savings.core.service';
 		SavingsCoreService,
 		PricesService,
 		ChallengesService,
+		TransferReferenceService,
 		TelegramService,
 		ApiService,
 		AnalyticsService,
