@@ -26,14 +26,15 @@ export class SavingsCoreService {
 		const totalSaved: number = parseFloat(formatUnits(totalSavedRaw, 18));
 		const totalInterest: number = parseFloat(formatUnits(totalInterestRaw, 18));
 		const totalWithdrawn: number = parseFloat(formatUnits(totalWithdrawnRaw, 18));
+		const totalBalance: number = totalSaved + totalInterest - totalWithdrawn;
 
 		const totalSupply: number = this.fc.getEcosystemFrankencoinInfo()?.total?.supply || 1; // @dev: make available. Safer for division
-		const ratioOfSupply: number = totalSaved / totalSupply;
+		const ratioOfSupply: number = totalBalance / totalSupply;
 
 		return {
 			totalSaved,
 			totalWithdrawn,
-			totalBalance: totalSaved + totalInterest - totalWithdrawn,
+			totalBalance,
 			totalInterest,
 			rate,
 			ratioOfSupply,
