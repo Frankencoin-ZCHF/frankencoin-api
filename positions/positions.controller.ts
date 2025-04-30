@@ -3,6 +3,8 @@ import { PositionsService } from './positions.service';
 import {
 	ApiMintingUpdateListing,
 	ApiMintingUpdateMapping,
+	ApiMintingUpdateOwnerDebt,
+	ApiMintingUpdateOwnerFees,
 	ApiPositionsListing,
 	ApiPositionsMapping,
 	ApiPositionsOwners,
@@ -98,7 +100,7 @@ export class PositionsController {
 	@ApiResponse({
 		description: 'Returns a list of all latest fees paid by owner, limit: 1000',
 	})
-	async getMintingOwnerFees(@Param('address') owner: string): Promise<{ t: number; f: string }[] | { error: string }> {
+	async getMintingOwnerFees(@Param('address') owner: string): Promise<ApiMintingUpdateOwnerFees> {
 		if (!isAddress(owner)) {
 			return { error: 'Address not valid' };
 		}
@@ -111,9 +113,7 @@ export class PositionsController {
 	@ApiResponse({
 		description: 'Returns a list of yearly latest debt entry of an owner, limit: 1000',
 	})
-	async getMintingOwnerDebt(
-		@Param('address') owner: string
-	): Promise<{ [key: string]: { [key: Address]: { t: number; p: Address; m: string }[] } } | { error: string }> {
+	async getMintingOwnerDebt(@Param('address') owner: string): Promise<ApiMintingUpdateOwnerDebt> {
 		if (!isAddress(owner)) {
 			return { error: 'Address not valid' };
 		}
@@ -128,7 +128,7 @@ export class PositionsController {
 		}
 
 		const positions = Object.keys(mapping);
-		const latestByPos: { [key: string]: { [key: Address]: { t: number; p: Address; m: string }[] } } = {}; // mapped by year and address, latest entry
+		const latestByPos: ApiMintingUpdateOwnerDebt = {}; // mapped by year and address, latest entry
 
 		for (const p of positions) {
 			const items = mapping[p] as MintingUpdateQuery[];
@@ -136,7 +136,7 @@ export class PositionsController {
 
 			for (const i of sorted) {
 				const year = new Date(i.created * 1000).getFullYear();
-				const payload = { t: i.created, p: i.position.toLowerCase() as Address, m: i.minted };
+				const payload = { t: i.created, p: i.position.toLowerCase() as Address, m: i.minted, r: i.reserveContribution };
 				if (latestByPos[year] == undefined) latestByPos[year] = {};
 				latestByPos[year][p] = payload;
 			}
