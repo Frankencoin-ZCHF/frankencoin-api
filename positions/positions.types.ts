@@ -188,3 +188,9 @@ export type ApiMintingUpdateMapping = {
 	positions: Address[];
 	map: MintingUpdateQueryObjectArray;
 };
+
+export type ApiMintingUpdateOwnerFees = { t: number; f: string }[] | { error: string };
+
+export type ApiMintingUpdateOwnerDebt =
+	| { [key: string]: { [key: Address]: { t: number; p: Address; m: string; r: number }[] } }
+	| { error: string };
