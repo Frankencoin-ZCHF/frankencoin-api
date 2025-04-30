@@ -4,9 +4,9 @@ import { AppUrl, ExplorerAddressUrl } from 'utils/func-helper';
 import { formatUnits } from 'viem';
 
 export function PositionProposalMessage(position: PositionQuery): string {
-	const bal: number = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
-	const min: number = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
-	const price: number = parseInt(formatUnits(BigInt(position.price), 36 - position.collateralDecimals - 2)) / 100;
+	const bal = formatUnits(BigInt(position.collateralBalance), position.collateralDecimals);
+	const min = formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals);
+	const price = formatUnits(BigInt(position.price), 36 - position.collateralDecimals);
 
 	return `
 *New Position Proposal*

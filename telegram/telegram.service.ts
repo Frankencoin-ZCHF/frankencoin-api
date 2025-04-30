@@ -43,26 +43,25 @@ export class TelegramService {
 		private readonly prices: PricesService,
 		private readonly challenge: ChallengesService
 	) {
-		const time: number = Date.now();
 		this.telegramState = {
-			minterApplied: time,
-			minterVetoed: time,
-			leadrateProposal: time,
-			leadrateChanged: time,
-			positions: time,
-			positionsExpiringSoon7: time,
-			positionsExpiringSoon3: time,
-			positionsExpired: time,
+			minterApplied: this.startUpTime,
+			minterVetoed: this.startUpTime,
+			leadrateProposal: this.startUpTime,
+			leadrateChanged: this.startUpTime,
+			positions: this.startUpTime,
+			positionsExpiringSoon7: this.startUpTime,
+			positionsExpiringSoon3: this.startUpTime,
+			positionsExpired: this.startUpTime,
 			positionsPriceAlert: new Map(),
-			mintingUpdates: time,
-			challenges: time,
-			bids: time,
+			mintingUpdates: this.startUpTime,
+			challenges: this.startUpTime,
+			bids: this.startUpTime,
 		};
 
 		this.telegramGroupState = {
 			apiVersion: process.env.npm_package_version,
-			createdAt: time,
-			updatedAt: time,
+			createdAt: this.startUpTime,
+			updatedAt: this.startUpTime,
 			groups: [],
 			ignore: [],
 			subscription: {},
@@ -254,7 +253,7 @@ export class TelegramService {
 		}
 
 		// Position Price Warning
-		Object.values(this.position.getPositionsOpen().map).map((p) => {
+		Object.values(this.position.getPositionsOpen().map).forEach((p) => {
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%
