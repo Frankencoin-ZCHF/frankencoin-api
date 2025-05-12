@@ -11,7 +11,7 @@ export type TransferReferenceQuery = {
 	to: Address;
 	amount: bigint;
 	ref: string;
-	autoSaved: boolean;
+	autoSaved: Address;
 };
 
 // --------------------------------------------------------------------------
