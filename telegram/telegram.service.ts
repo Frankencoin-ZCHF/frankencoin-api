@@ -114,7 +114,7 @@ export class TelegramService {
 	async sendMessage(group: string | number, message: string) {
 		// @dev: reduced from 25min to 2min, just to fetch latest stored state
 		// give indexer and start up some time before starting with msg, alert, ...
-		// if (Date.now() < this.startUpTime + 2 * 60 * 1000) return; // @now: 2min @old: 20min for updates, +5min for sending
+		if (Date.now() < this.startUpTime + 2 * 60 * 1000) return; // @now: 2min @old: 20min for updates, +5min for sending
 
 		try {
 			this.logger.log(`Sending message to group id: ${group}`);
