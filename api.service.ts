@@ -1,12 +1,15 @@
+import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { CONFIG, VIEM_CONFIG } from 'api.config';
+import { AxiosError } from 'axios';
 import { ChallengesService } from 'challenges/challenges.service';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { PositionsService } from 'positions/positions.service';
 import { PricesService } from 'prices/prices.service';
+import { catchError, firstValueFrom } from 'rxjs';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 import { TelegramService } from 'telegram/telegram.service';
@@ -20,6 +23,17 @@ export const POLLING_DELAY: { [key: Chain['id']]: number } = {
 	[polygon.id]: 6_000, // blocktime: 2s, skip: 6 blks
 };
 
+export type IndexerStatus = {
+	block: {
+		number: number;
+		timestamp: number;
+	};
+	ready: boolean;
+};
+export type IndexerStatusObject = {
+	[key: string]: IndexerStatus;
+};
+
 @Injectable()
 export class ApiService {
 	private readonly logger = new Logger(this.constructor.name);
@@ -28,6 +42,7 @@ export class ApiService {
 	private fetchedBlockheight: number = 0;
 
 	constructor(
+		private readonly httpService: HttpService,
 		private readonly minter: EcosystemMinterService,
 		private readonly positions: PositionsService,
 		private readonly prices: PricesService,
@@ -72,13 +87,39 @@ export class ApiService {
 
 	@Interval(POLLING_DELAY[CONFIG.chain.id])
 	async updateBlockheight() {
-		const tmp: number = parseInt((await VIEM_CONFIG.getBlockNumber()).toString());
+		// block height
+		const blockHeight: number = parseInt((await VIEM_CONFIG.getBlockNumber()).toString());
+
+		// get status of indexer
+		let statusError = false;
+		const statusIndexer = (
+			await firstValueFrom(
+				this.httpService.get<IndexerStatus>(`${CONFIG.indexer}/status`).pipe(
+					catchError((error: AxiosError) => {
+						statusError = true;
+						this.logger.error(error.response?.data || error.message);
+						throw new Error('An error happened!');
+					})
+				)
+			)
+		).data;
+
+		// break if indexer is not available
+		if (statusError) return;
+		else if (statusIndexer[CONFIG.chain.name] == undefined) {
+			this.logger.warn(`Could not fetch indexer status`);
+			return;
+		} else if (!(statusIndexer[CONFIG.chain.name] as IndexerStatus).ready) {
+			this.logger.warn(`Indexer not ready...`);
+			return;
+		}
+
 		this.indexingTimeoutCount += 1;
-		if (tmp > this.fetchedBlockheight && !this.indexing) {
+		if (blockHeight > this.fetchedBlockheight && !this.indexing) {
 			this.indexing = true;
 			await this.updateWorkflow();
 			this.indexingTimeoutCount = 0;
-			this.fetchedBlockheight = tmp;
+			this.fetchedBlockheight = blockHeight;
 			this.indexing = false;
 		}
 		if (this.indexingTimeoutCount >= INDEXING_TIMEOUT_COUNT && this.indexing) {

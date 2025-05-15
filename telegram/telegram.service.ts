@@ -31,7 +31,7 @@ export class TelegramService {
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 	private readonly storjPath: string = '/telegram.groups.json';
-	private telegramHandles: string[] = ['/MintingUpdates', '/help'];
+	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/help'];
 	private telegramState: TelegramState;
 	private telegramGroupState: TelegramGroupState;
 
@@ -112,8 +112,9 @@ export class TelegramService {
 	}
 
 	async sendMessage(group: string | number, message: string) {
+		// @dev: reduced from 25min to 2min, just to fetch latest stored state
 		// give indexer and start up some time before starting with msg, alert, ...
-		if (Date.now() < this.startUpTime + 25 * 60 * 1000) return; // 20min for updates, +5min for sending
+		// if (Date.now() < this.startUpTime + 2 * 60 * 1000) return; // @now: 2min @old: 20min for updates, +5min for sending
 
 		try {
 			this.logger.log(`Sending message to group id: ${group}`);
@@ -145,8 +146,9 @@ export class TelegramService {
 	}
 
 	async updateTelegram() {
+		// @dev: deactivated, verify indexer status before running workflow.
 		// give indexer and start up some time before starting with msg, alert, ...
-		if (Date.now() < this.startUpTime + 20 * 60 * 1000) return; // 20min
+		// if (Date.now() < this.startUpTime + 20 * 60 * 1000) return; // 20min
 
 		this.logger.debug('Updating Telegram');
 
@@ -283,12 +285,14 @@ export class TelegramService {
 				};
 			}
 
+			const groups = this.telegramGroupState.subscription['/PriceAlerts']?.groups || [];
+
 			if (price < posPrice * THRES_LOWEST) {
 				// below 100%
 				if (last.lowestTimestamp + DELAY_LOWEST < Date.now()) {
 					// delay guard passed
 					if (last.lowestPrice == 0 || last.lowestPrice > price) {
-						this.sendMessageAll(PositionPriceLowest(p, priceQuery, last));
+						this.sendMessageGroup(groups, PositionPriceLowest(p, priceQuery, last));
 						last.lowestPrice = price;
 					}
 					last.lowestTimestamp = Date.now();
@@ -297,7 +301,7 @@ export class TelegramService {
 				// below 105%
 				if (last.alertTimestamp + DELAY_ALERT < Date.now()) {
 					// delay guard passed
-					this.sendMessageAll(PositionPriceAlert(p, priceQuery, last));
+					this.sendMessageGroup(groups, PositionPriceAlert(p, priceQuery, last));
 					last.alertTimestamp = Date.now();
 					last.alertPrice = price;
 				}
@@ -306,7 +310,7 @@ export class TelegramService {
 				if (last.alertTimestamp + DELAY_WARNING < Date.now()) {
 					if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
 						// delay guard passed
-						this.sendMessageAll(PositionPriceWarning(p, priceQuery, last));
+						this.sendMessageGroup(groups, PositionPriceWarning(p, priceQuery, last));
 						last.warningTimestamp = Date.now();
 						last.warningPrice = price;
 					}

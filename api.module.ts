@@ -31,10 +31,11 @@ import { SavingsCoreController } from 'savings/savings.core.controller';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { TransferReferenceController } from 'transfer/tranfer.reference.controller';
 import { TransferReferenceService } from 'transfer/transfer.reference.service';
+import { HttpModule } from '@nestjs/axios';
 
 // APP MODULE
 @Module({
-	imports: [ConfigModule.forRoot(), ScheduleModule.forRoot()],
+	imports: [ConfigModule.forRoot(), ScheduleModule.forRoot(), HttpModule],
 	controllers: [
 		PositionsController,
 		EcosystemMinterController,
