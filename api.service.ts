@@ -98,7 +98,7 @@ export class ApiService {
 					catchError((error: AxiosError) => {
 						statusError = true;
 						this.logger.error(error.response?.data || error.message);
-						throw new Error('An error happened!');
+						throw new Error('Could not reach indexer status');
 					})
 				)
 			)
@@ -110,7 +110,7 @@ export class ApiService {
 			this.logger.warn(`Could not fetch indexer status`);
 			return;
 		} else if (!(statusIndexer[CONFIG.chain.name] as IndexerStatus).ready) {
-			this.logger.warn(`Indexer not ready...`);
+			this.logger.warn(`Indexer is not ready...`);
 			return;
 		}
 
