@@ -24,6 +24,8 @@ import { PositionExpiredMessage } from './messages/PositionExpired.message';
 import { Address, formatUnits } from 'viem';
 import { PriceQuery } from 'prices/prices.types';
 import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from './messages/PositionPrice.message';
+import { AnalyticsService } from 'analytics/analytics.service';
+import { DailyInfosMessage } from './messages/DailyInfos.message';
 
 @Injectable()
 export class TelegramService {
@@ -31,7 +33,7 @@ export class TelegramService {
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 	private readonly storjPath: string = '/telegram.groups.json';
-	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/help'];
+	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/DailyInfos', '/help'];
 	private telegramState: TelegramState;
 	private telegramGroupState: TelegramGroupState;
 
@@ -41,7 +43,8 @@ export class TelegramService {
 		private readonly leadrate: SavingsLeadrateService,
 		private readonly position: PositionsService,
 		private readonly prices: PricesService,
-		private readonly challenge: ChallengesService
+		private readonly challenge: ChallengesService,
+		private readonly analytics: AnalyticsService
 	) {
 		this.telegramState = {
 			minterApplied: this.startUpTime,
@@ -112,10 +115,6 @@ export class TelegramService {
 	}
 
 	async sendMessage(group: string | number, message: string) {
-		// @dev: reduced from 25min to 2min, just to fetch latest stored state
-		// give indexer and start up some time before starting with msg, alert, ...
-		if (Date.now() < this.startUpTime + 2 * 60 * 1000) return; // @now: 2min @old: 20min for updates, +5min for sending
-
 		try {
 			this.logger.log(`Sending message to group id: ${group}`);
 			await this.bot.sendMessage(group.toString(), message, { parse_mode: 'Markdown', disable_web_page_preview: true });
@@ -149,6 +148,7 @@ export class TelegramService {
 		// @dev: deactivated, verify indexer status before running workflow.
 		// give indexer and start up some time before starting with msg, alert, ...
 		// if (Date.now() < this.startUpTime + 20 * 60 * 1000) return; // 20min
+		const isSoftStart = Date.now() < this.startUpTime + 2 * 60 * 1000;
 
 		this.logger.debug('Updating Telegram');
 
@@ -292,7 +292,7 @@ export class TelegramService {
 				if (last.lowestTimestamp + DELAY_LOWEST < Date.now()) {
 					// delay guard passed
 					if (last.lowestPrice == 0 || last.lowestPrice > price) {
-						this.sendMessageGroup(groups, PositionPriceLowest(p, priceQuery, last));
+						!isSoftStart && this.sendMessageGroup(groups, PositionPriceLowest(p, priceQuery, last));
 						last.lowestPrice = price;
 					}
 					last.lowestTimestamp = Date.now();
@@ -301,7 +301,7 @@ export class TelegramService {
 				// below 105%
 				if (last.alertTimestamp + DELAY_ALERT < Date.now()) {
 					// delay guard passed
-					this.sendMessageGroup(groups, PositionPriceAlert(p, priceQuery, last));
+					!isSoftStart && this.sendMessageGroup(groups, PositionPriceAlert(p, priceQuery, last));
 					last.alertTimestamp = Date.now();
 					last.alertPrice = price;
 				}
@@ -310,7 +310,7 @@ export class TelegramService {
 				if (last.alertTimestamp + DELAY_WARNING < Date.now()) {
 					if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
 						// delay guard passed
-						this.sendMessageGroup(groups, PositionPriceWarning(p, priceQuery, last));
+						!isSoftStart && this.sendMessageGroup(groups, PositionPriceWarning(p, priceQuery, last));
 						last.warningTimestamp = Date.now();
 						last.warningPrice = price;
 					}
@@ -442,5 +442,17 @@ export class TelegramService {
 		await this.writeBackupGroups();
 		this.logger.warn('Weekly job done, cleared ignore telegram group array');
 		return true;
+	}
+
+	@Cron(CronExpression.EVERY_WEEKEND)
+	scheduleDailyInfos() {
+		const days = 1000 * 3600 * 24 * 30;
+		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() - days);
+		const groups = this.telegramGroupState.subscription['/DailyInfos']?.groups || [];
+
+		const before = infos.at(0);
+		const now = infos.at(-1);
+
+		this.sendMessageGroup(groups, DailyInfosMessage(before, now));
 	}
 }
