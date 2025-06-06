@@ -14,10 +14,10 @@ export function HelpMessage(group: string, handles: string[], subs: Subscription
 
 I am listening to changes within the Frankencoin ecosystem.
 
-*Available subscription handles:*
+*Available subscription handles*
 ${handles.join('\n')}
 
-*Subscripted to:*
+*Subscripted to*
 ${subTo.length > 0 ? subTo.join('\n') : 'Not subscripted to any handles.'}
 
 *Environment*
