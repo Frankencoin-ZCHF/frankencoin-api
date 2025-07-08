@@ -3,7 +3,7 @@ import { Address } from 'viem';
 // --------------------------------------------------------------------------
 // Ponder return types
 export type MinterQuery = {
-	id: Address;
+	chainId: number;
 	txHash: string;
 	minter: Address;
 	applicationPeriod: number;

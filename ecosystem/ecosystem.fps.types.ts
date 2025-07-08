@@ -1,3 +1,5 @@
+import { Address } from 'viem';
+
 // --------------------------------------------------------------------------
 // Ponder return types
 
@@ -7,14 +9,24 @@
 // --------------------------------------------------------------------------
 // Api
 export type ApiEcosystemFpsInfo = {
+	erc20: {
+		name: string;
+		address: Address;
+		symbol: string;
+		decimals: number;
+	};
+	chain: {
+		name: string;
+		id: number;
+	};
+	token: {
+		price: number;
+		totalSupply: number;
+		marketCap: number;
+	};
 	earnings: {
 		profit: number;
 		loss: number;
-	};
-	values: {
-		price: number;
-		totalSupply: number;
-		fpsMarketCapInChf: number;
 	};
 	reserve: {
 		balance: number;

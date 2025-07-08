@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CONFIG, PONDER_CLIENT, VIEM_CONFIG } from '../api.config';
+import { PONDER_CLIENT, VIEM_CONFIG } from '../api.config';
 import { gql } from '@apollo/client/core';
 import {
 	ApiMintingUpdateListing,
@@ -23,6 +23,7 @@ import { PositionV1ABI } from '@frankencoin/zchf';
 import { ADDRESS } from '@frankencoin/zchf';
 import { SavingsABI } from '@frankencoin/zchf';
 import { PositionV2ABI } from '@frankencoin/zchf';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class PositionsService {
@@ -147,7 +148,7 @@ export class PositionsService {
 			// This ensures that collateral transfers can be made without using the smart contract or application directly,
 			// and the API will be aware of the updated state.
 			balanceOfDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.collateral,
 					abi: erc20Abi,
 					functionName: 'balanceOf',
@@ -158,7 +159,7 @@ export class PositionsService {
 			// fetch minted - See issue #11
 			// https://github.com/Frankencoin-ZCHF/frankencoin-api/issues/11
 			mintedDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV1ABI,
 					functionName: 'minted',
@@ -166,7 +167,7 @@ export class PositionsService {
 			);
 
 			availableForClonesDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV1ABI,
 					functionName: 'limitForClones',
@@ -300,8 +301,8 @@ export class PositionsService {
 		const availableForClonesDataPromises: Promise<bigint>[] = [];
 		const availableForMintingDataPromises: Promise<bigint>[] = [];
 
-		const leadrate: number = await VIEM_CONFIG.readContract({
-			address: ADDRESS[CONFIG.chain.id].savings,
+		const leadrate: number = await VIEM_CONFIG[mainnet.id].readContract({
+			address: ADDRESS[mainnet.id].savingsV2,
 			abi: SavingsABI,
 			functionName: 'currentRatePPM',
 		});
@@ -311,7 +312,7 @@ export class PositionsService {
 			// This ensures that collateral transfers can be made without using the smart contract or application directly,
 			// and the API will be aware of the updated state.
 			balanceOfDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.collateral,
 					abi: erc20Abi,
 					functionName: 'balanceOf',
@@ -322,7 +323,7 @@ export class PositionsService {
 			// fetch minted - See issue #11
 			// https://github.com/Frankencoin-ZCHF/frankencoin-api/issues/11
 			mintedDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV2ABI,
 					functionName: 'minted',
@@ -332,14 +333,14 @@ export class PositionsService {
 			// make highly available, instead of relying on indexer state
 			// https://github.com/Frankencoin-ZCHF/frankencoin-dapp/issues/144
 			availableForClonesDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.original,
 					abi: PositionV2ABI,
 					functionName: 'availableForClones',
 				})
 			);
 			availableForMintingDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV2ABI,
 					functionName: 'availableForMinting',

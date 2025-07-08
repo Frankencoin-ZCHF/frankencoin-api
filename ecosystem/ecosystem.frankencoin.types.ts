@@ -78,7 +78,7 @@ export type ApiEcosystemFrankencoinInfo = ServiceEcosystemFrankencoin & {
 	fps: {
 		price: number;
 		totalSupply: number;
-		fpsMarketCapInChf: number;
+		marketCap: number;
 	};
 	tvl: PriceQueryCurrencies;
 };

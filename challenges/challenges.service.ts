@@ -28,6 +28,7 @@ import {
 } from './challenges.types';
 import { Address } from 'viem';
 import { ADDRESS, MintingHubV1ABI, MintingHubV2ABI } from '@frankencoin/zchf';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class ChallengesService {
@@ -177,9 +178,9 @@ export class ChallengesService {
 
 		// mapping active challenge -> prices
 		const challengesPrices: ChallengesPricesMapping = {};
-		const id = VIEM_CONFIG.chain.id;
+		const id = mainnet.id;
 		for (const c of active) {
-			const price = await VIEM_CONFIG.readContract({
+			const price = await VIEM_CONFIG[mainnet.id].readContract({
 				abi: c.version === 1 ? MintingHubV1ABI : MintingHubV2ABI,
 				address: c.version === 1 ? ADDRESS[id].mintingHubV1 : ADDRESS[id].mintingHubV2,
 				functionName: 'price',

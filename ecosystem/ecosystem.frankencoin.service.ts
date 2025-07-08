@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { gql } from '@apollo/client/core';
-import { CONFIG, PONDER_CLIENT } from 'api.config';
+import { PONDER_CLIENT } from 'api.config';
 import {
 	ServiceEcosystemFrankencoin,
 	ServiceEcosystemMintBurnMapping,
@@ -16,6 +16,7 @@ import { Address } from 'viem';
 import { EcosystemFpsService } from './ecosystem.fps.service';
 import { EcosystemCollateralService } from './ecosystem.collateral.service';
 import { ADDRESS } from '@frankencoin/zchf';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class EcosystemFrankencoinService {
@@ -38,18 +39,18 @@ export class EcosystemFrankencoinService {
 		return {
 			erc20: {
 				name: 'Frankencoin',
-				address: ADDRESS[CONFIG.chain.id as number].frankenCoin,
+				address: ADDRESS[mainnet.id].frankencoin,
 				symbol: 'ZCHF',
 				decimals: 18,
 			},
 			chain: {
-				name: CONFIG.chain.name,
-				id: CONFIG.chain.id,
+				name: mainnet.name,
+				id: mainnet.id,
 			},
 			price: {
 				usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
 			},
-			fps: this.fpsService.getEcosystemFpsInfo()?.values,
+			fps: this.fpsService.getEcosystemFpsInfo()?.token,
 			tvl: this.collService.getCollateralStats()?.totalValueLocked ?? {},
 			...this.ecosystemFrankencoin,
 		};

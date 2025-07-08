@@ -1,34 +1,31 @@
+import { ChainId, ChainMain } from '@frankencoin/zchf';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { CONFIG, VIEM_CONFIG } from 'api.config';
 import { AxiosError } from 'axios';
-import { ChallengesService } from 'challenges/challenges.service';
+// import { ChallengesService } from 'challenges/challenges.service';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
-import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
+// import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
-import { PositionsService } from 'positions/positions.service';
-import { PricesService } from 'prices/prices.service';
+// import { PositionsService } from 'positions/positions.service';
+// import { PricesService } from 'prices/prices.service';
 import { catchError, firstValueFrom } from 'rxjs';
-import { SavingsCoreService } from 'savings/savings.core.service';
-import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
-import { TelegramService } from 'telegram/telegram.service';
-import { TransferReferenceService } from 'transfer/transfer.reference.service';
-import { Chain } from 'viem';
-import { mainnet, polygon } from 'viem/chains';
+// import { SavingsCoreService } from 'savings/savings.core.service';
+// import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
+// import { TelegramService } from 'telegram/telegram.service';
+// import { TransferReferenceService } from 'transfer/transfer.reference.service';
+import { mainnet } from 'viem/chains';
 
 export const INDEXING_TIMEOUT_COUNT: number = 3;
-export const POLLING_DELAY: { [key: Chain['id']]: number } = {
-	[mainnet.id]: 2_000, // blocktime: 12s
-	[polygon.id]: 6_000, // blocktime: 2s, skip: 6 blks
-};
+export const POLLING_DELAY: number = 2_000; // 2000ms (= 2sec)
 
 export type IndexerStatus = {
+	id: ChainId;
 	block: {
 		number: number;
 		timestamp: number;
 	};
-	ready: boolean;
 };
 export type IndexerStatusObject = {
 	[key: string]: IndexerStatus;
@@ -44,15 +41,15 @@ export class ApiService {
 	constructor(
 		private readonly httpService: HttpService,
 		private readonly minter: EcosystemMinterService,
-		private readonly positions: PositionsService,
-		private readonly prices: PricesService,
-		private readonly frankencoin: EcosystemFrankencoinService,
-		private readonly fps: EcosystemFpsService,
-		private readonly challenges: ChallengesService,
-		private readonly telegram: TelegramService,
-		private readonly leadrate: SavingsLeadrateService,
-		private readonly savings: SavingsCoreService,
-		private readonly transferRef: TransferReferenceService
+		// private readonly positions: PositionsService,
+		// private readonly prices: PricesService,
+		// private readonly frankencoin: EcosystemFrankencoinService,
+		private readonly fps: EcosystemFpsService
+		// private readonly challenges: ChallengesService,
+		// private readonly telegram: TelegramService,
+		// private readonly leadrate: SavingsLeadrateService,
+		// private readonly savings: SavingsCoreService,
+		// private readonly transferRef: TransferReferenceService
 	) {
 		setTimeout(() => this.updateBlockheight(), 100);
 	}
@@ -61,34 +58,34 @@ export class ApiService {
 		this.logger.log(`Fetched blockheight: ${this.fetchedBlockheight}`);
 		const promises = [
 			this.minter.updateMinters(),
-			this.positions.updatePositonV1s(),
-			this.positions.updatePositonV2s(),
-			this.positions.updateMintingUpdateV1s(),
-			this.positions.updateMintingUpdateV2s(),
-			this.prices.updatePrices(),
-			this.frankencoin.updateEcosystemKeyValues(),
-			this.frankencoin.updateEcosystemMintBurnMapping(),
+			// this.positions.updatePositonV1s(),
+			// this.positions.updatePositonV2s(),
+			// this.positions.updateMintingUpdateV1s(),
+			// this.positions.updateMintingUpdateV2s(),
+			// this.prices.updatePrices(),
+			// this.frankencoin.updateEcosystemKeyValues(),
+			// this.frankencoin.updateEcosystemMintBurnMapping(),
 			this.fps.updateFpsInfo(),
-			this.leadrate.updateLeadrateRates(),
-			this.leadrate.updateLeadrateProposals(),
-			this.savings.updateBalanceTable(),
-			this.savings.updateZeroAddressTable(),
-			this.challenges.updateChallengeV1s(),
-			this.challenges.updateChallengeV2s(),
-			this.challenges.updateBidV1s(),
-			this.challenges.updateBidV2s(),
-			this.challenges.updateChallengesPrices(),
-			this.transferRef.updateReferences(),
-			this.telegram.updateTelegram(),
+			// this.leadrate.updateLeadrateRates(),
+			// this.leadrate.updateLeadrateProposals(),
+			// this.savings.updateBalanceTable(),
+			// this.savings.updateZeroAddressTable(),
+			// this.challenges.updateChallengeV1s(),
+			// this.challenges.updateChallengeV2s(),
+			// this.challenges.updateBidV1s(),
+			// this.challenges.updateBidV2s(),
+			// this.challenges.updateChallengesPrices(),
+			// this.transferRef.updateReferences(),
+			// this.telegram.updateTelegram(),
 		];
 
 		return Promise.all(promises);
 	}
 
-	@Interval(POLLING_DELAY[CONFIG.chain.id])
+	@Interval(POLLING_DELAY)
 	async updateBlockheight() {
 		// block height
-		const blockHeight: number = parseInt((await VIEM_CONFIG.getBlockNumber()).toString());
+		const blockHeight: number = parseInt((await VIEM_CONFIG[mainnet.id].getBlockNumber()).toString());
 
 		// get status of indexer
 		let statusError = false;
@@ -106,10 +103,10 @@ export class ApiService {
 
 		// break if indexer is not available
 		if (statusError) return;
-		else if (statusIndexer[CONFIG.chain.name] == undefined) {
+		else if (statusIndexer[ChainMain.name] == undefined) {
 			this.logger.warn(`Could not fetch indexer status`);
 			return;
-		} else if (!(statusIndexer[CONFIG.chain.name] as IndexerStatus).ready) {
+		} else if (blockHeight > (statusIndexer[ChainMain.name] as IndexerStatus).block.number) {
 			this.logger.warn(`Indexer is not ready...`);
 			return;
 		}

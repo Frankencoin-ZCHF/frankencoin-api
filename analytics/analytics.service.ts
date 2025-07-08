@@ -22,6 +22,7 @@ import { FrankencoinABI } from '@frankencoin/zchf';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { gql } from '@apollo/client/core';
 import { Interval } from '@nestjs/schedule';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class AnalyticsService {
@@ -81,17 +82,17 @@ export class AnalyticsService {
 		let positionsTheta: number = 0;
 		let positionsThetaPerToken: number = 0;
 
-		const minterReserveRaw = await VIEM_CONFIG.readContract({
-			address: ADDRESS[VIEM_CONFIG.chain.id].frankenCoin,
+		const minterReserveRaw = await VIEM_CONFIG[mainnet.id].readContract({
+			address: ADDRESS[mainnet.id].frankencoin,
 			abi: FrankencoinABI,
 			functionName: 'minterReserve',
 		});
 
-		const balanceReserveRaw = await VIEM_CONFIG.readContract({
-			address: ADDRESS[VIEM_CONFIG.chain.id].frankenCoin,
+		const balanceReserveRaw = await VIEM_CONFIG[mainnet.id].readContract({
+			address: ADDRESS[mainnet.id].frankencoin,
 			abi: FrankencoinABI,
 			functionName: 'balanceOf',
-			args: [ADDRESS[VIEM_CONFIG.chain.id].equity],
+			args: [ADDRESS[mainnet.id].equity],
 		});
 
 		const equityInReserveRaw = balanceReserveRaw - minterReserveRaw;
@@ -123,7 +124,7 @@ export class AnalyticsService {
 
 			const totalTheta = (interestAvg * parseFloat(totalMinted)) / 365;
 			positionsTheta += totalTheta;
-			const thetaPerToken = totalTheta / fps.values.totalSupply;
+			const thetaPerToken = totalTheta / fps.token.totalSupply;
 			positionsThetaPerToken += thetaPerToken;
 
 			const totalContributionMul = pos.reduce<bigint>((a, b) => {
@@ -132,13 +133,13 @@ export class AnalyticsService {
 
 			const totalContributionRaw = BigInt(Math.floor(parseInt(formatUnits(totalContributionMul, 6))));
 			const equityInReserveWipedRaw = equityInReserveRaw + totalContributionRaw - totalMintedRaw;
-			const fpsPriceWiped = (parseFloat(formatUnits(equityInReserveWipedRaw, 18)) * 3) / fps.values.totalSupply;
-			const riskRatioWiped = Math.round(1_000_000 * (1 - fpsPriceWiped / fps.values.price)) / 1_000_000;
+			const fpsPriceWiped = (parseFloat(formatUnits(equityInReserveWipedRaw, 18)) * 3) / fps.token.totalSupply;
+			const riskRatioWiped = Math.round(1_000_000 * (1 - fpsPriceWiped / fps.token.price)) / 1_000_000;
 
 			const data: AnalyticsExposureItem = {
 				collateral: {
 					address: c,
-					chainId: VIEM_CONFIG.chain.id,
+					chainId: mainnet.id,
 					name: pos.at(0).collateralName,
 					symbol: pos.at(0).collateralSymbol,
 				},
@@ -170,13 +171,13 @@ export class AnalyticsService {
 				balanceInReserve: parseFloat(balanceReserve),
 				mintersContribution: parseFloat(minterReserve),
 				equityInReserve: parseFloat(equityInReserve),
-				fpsPrice: fps.values.price,
-				fpsTotalSupply: fps.values.totalSupply,
+				fpsPrice: fps.token.price,
+				fpsTotalSupply: fps.token.totalSupply,
 				thetaFromPositions: positionsTheta,
 				thetaPerToken: positionsThetaPerToken,
 				earningsPerAnnum: positionsTheta * 365,
 				earningsPerToken: positionsThetaPerToken * 365,
-				priceToEarnings: fps.values.price / (positionsThetaPerToken * 365),
+				priceToEarnings: fps.token.price / (positionsThetaPerToken * 365),
 				priceToBookValue: 3,
 			},
 			exposures: returnData,
