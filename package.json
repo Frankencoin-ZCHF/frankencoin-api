@@ -30,7 +30,7 @@
 	"dependencies": {
 		"@apollo/client": "^3.10.5",
 		"@aws-sdk/client-s3": "^3.620.0",
-		"@frankencoin/zchf": "^0.3.16",
+		"@frankencoin/zchf": "^0.3.17",
 		"@nestjs/axios": "^4.0.0",
 		"@nestjs/common": "^10.0.0",
 		"@nestjs/config": "^3.2.3",
