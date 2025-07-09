@@ -1,4 +1,4 @@
-import { ChainId, ChainMain } from '@frankencoin/zchf';
+import { ChainId } from '@frankencoin/zchf';
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
@@ -103,10 +103,10 @@ export class ApiService {
 
 		// break if indexer is not available
 		if (statusError) return;
-		else if (statusIndexer[ChainMain.name] == undefined) {
+		else if (statusIndexer[mainnet.name] == undefined) {
 			this.logger.warn(`Could not fetch indexer status`);
 			return;
-		} else if (blockHeight > (statusIndexer[ChainMain.name] as IndexerStatus).block.number) {
+		} else if (blockHeight > (statusIndexer[mainnet.name] as IndexerStatus).block.number) {
 			this.logger.warn(`Indexer is not ready...`);
 			return;
 		}

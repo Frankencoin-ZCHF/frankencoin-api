@@ -1,6 +1,6 @@
 import { ApolloClient, InMemoryCache } from '@apollo/client/core';
 import { http, createPublicClient, PublicClient } from 'viem';
-import { SupportedChains, ChainId } from '@frankencoin/zchf';
+import { SupportedChainIds, ChainId } from '@frankencoin/zchf';
 import { arbitrum, avalanche, base, gnosis, mainnet, optimism, polygon, sonic } from 'viem/chains';
 
 import * as dotenv from 'dotenv';
@@ -25,7 +25,7 @@ export const CONFIG: ConfigType = {
 	indexer: process.env.CONFIG_INDEXER_URL || 'https://ponder.frankencoin.com',
 	coingeckoApiKey: process.env.COINGECKO_API_KEY,
 	alchemyRpcKey: process.env.ALCHEMY_RPC_KEY,
-	supportedChainIds: SupportedChains.map((c) => c.id),
+	supportedChainIds: SupportedChainIds,
 };
 
 // Start up message
