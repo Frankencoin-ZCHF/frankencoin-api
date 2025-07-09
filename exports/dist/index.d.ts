@@ -248,7 +248,7 @@ type ApiChallengesPrices = {
 };
 
 type MinterQuery = {
-    id: Address;
+    chainId: number;
     txHash: string;
     minter: Address;
     applicationPeriod: number;
@@ -366,7 +366,7 @@ type ApiEcosystemFrankencoinInfo = ServiceEcosystemFrankencoin & {
     fps: {
         price: number;
         totalSupply: number;
-        fpsMarketCapInChf: number;
+        marketCap: number;
     };
     tvl: PriceQueryCurrencies;
 };
@@ -604,14 +604,24 @@ type ApiEcosystemCollateralStats = {
 };
 
 type ApiEcosystemFpsInfo = {
+    erc20: {
+        name: string;
+        address: Address;
+        symbol: string;
+        decimals: number;
+    };
+    chain: {
+        name: string;
+        id: number;
+    };
+    token: {
+        price: number;
+        totalSupply: number;
+        marketCap: number;
+    };
     earnings: {
         profit: number;
         loss: number;
-    };
-    values: {
-        price: number;
-        totalSupply: number;
-        fpsMarketCapInChf: number;
     };
     reserve: {
         balance: number;
