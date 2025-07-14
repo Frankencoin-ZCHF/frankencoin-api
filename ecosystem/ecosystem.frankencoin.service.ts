@@ -2,33 +2,30 @@ import { Injectable, Logger } from '@nestjs/common';
 import { gql } from '@apollo/client/core';
 import { PONDER_CLIENT } from 'api.config';
 import {
-	ServiceEcosystemFrankencoin,
-	ServiceEcosystemMintBurnMapping,
+	ServiceEcosystemFrankencoinMapping,
 	EcosystemQueryItem,
-	MintBurnAddressMapperQueryItem,
-	ApiEcosystemFrankencoinInfo,
-	ApiEcosystemMintBurnMapping,
+	// ApiEcosystemFrankencoinInfo,
 	ServiceEcosystemFrankencoinKeyValues,
 	ApiEcosystemFrankencoinKeyValues,
+	EcosystemERC20StatusQueryItem,
+	ApiEcosystemFrankencoinInfo,
 } from './ecosystem.frankencoin.types';
-import { PricesService } from 'prices/prices.service';
-import { Address } from 'viem';
+// import { PricesService } from 'prices/prices.service';
 import { EcosystemFpsService } from './ecosystem.fps.service';
-import { EcosystemCollateralService } from './ecosystem.collateral.service';
-import { ADDRESS } from '@frankencoin/zchf';
-import { mainnet } from 'viem/chains';
+// import { EcosystemCollateralService } from './ecosystem.collateral.service';
+import { ADDRESS, ChainId } from '@frankencoin/zchf';
+import { formatFloat } from 'utils/format';
 
 @Injectable()
 export class EcosystemFrankencoinService {
 	private readonly logger = new Logger(this.constructor.name);
 	private ecosystemFrankencoinKeyValues: ServiceEcosystemFrankencoinKeyValues;
-	private ecosystemFrankencoin: ServiceEcosystemFrankencoin;
-	private ecosystemMintBurnMapping: ServiceEcosystemMintBurnMapping = {};
+	private ecosystemFrankencoin: ServiceEcosystemFrankencoinMapping = {} as ServiceEcosystemFrankencoinMapping;
 
 	constructor(
-		private readonly fpsService: EcosystemFpsService,
-		private readonly collService: EcosystemCollateralService,
-		private readonly pricesService: PricesService
+		private readonly fpsService: EcosystemFpsService
+		// private readonly collService: EcosystemCollateralService,
+		// private readonly pricesService: PricesService
 	) {}
 
 	getEcosystemFrankencoinKeyValues(): ApiEcosystemFrankencoinKeyValues {
@@ -39,28 +36,19 @@ export class EcosystemFrankencoinService {
 		return {
 			erc20: {
 				name: 'Frankencoin',
-				address: ADDRESS[mainnet.id].frankencoin,
 				symbol: 'ZCHF',
 				decimals: 18,
 			},
-			chain: {
-				name: mainnet.name,
-				id: mainnet.id,
-			},
+			chains: this.ecosystemFrankencoin,
 			price: {
-				usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
+				usd: 0,
+				// usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
 			},
 			fps: this.fpsService.getEcosystemFpsInfo()?.token,
-			tvl: this.collService.getCollateralStats()?.totalValueLocked ?? {},
-			...this.ecosystemFrankencoin,
-		};
-	}
-
-	getEcosystemMintBurnMapping(): ApiEcosystemMintBurnMapping {
-		return {
-			num: Object.keys(this.ecosystemMintBurnMapping).length,
-			addresses: Object.keys(this.ecosystemMintBurnMapping) as Address[],
-			map: this.ecosystemMintBurnMapping,
+			tvl: {
+				usd: 1,
+			},
+			// tvl: this.collService.getCollateralStats()?.totalValueLocked ?? {},
 		};
 	}
 
@@ -70,11 +58,15 @@ export class EcosystemFrankencoinService {
 
 	async updateEcosystemKeyValues() {
 		this.logger.debug('Updating EcosystemKeyValues');
-		const ecosystem = await PONDER_CLIENT.query({
+		const response = await PONDER_CLIENT.query<{
+			commonEcosystems: {
+				items: EcosystemQueryItem[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					ecosystems(orderBy: "id", limit: 1000) {
+					commonEcosystems(orderBy: "id", limit: 1000) {
 						items {
 							id
 							value
@@ -85,74 +77,75 @@ export class EcosystemFrankencoinService {
 			`,
 		});
 
-		if (!ecosystem.data || !ecosystem.data.ecosystems.items) {
-			this.logger.warn('No ecosystem data found.');
+		if (!response.data || !response.data.commonEcosystems.items) {
+			this.logger.warn('No commonEcosystems data found.');
 			return;
 		}
 
-		const e = ecosystem.data.ecosystems.items as EcosystemQueryItem[];
-		const getItem = (key: string) => e.find((i) => i.id === key);
+		const d = response.data.commonEcosystems.items;
 
 		// key values mapping
-		const mappingKeyValues: { [key: string]: EcosystemQueryItem } = {};
-		for (const i of e) {
+		const mappingKeyValues: ServiceEcosystemFrankencoinKeyValues = {};
+		for (const i of d) {
 			mappingKeyValues[i.id] = i;
 		}
 
 		this.ecosystemFrankencoinKeyValues = { ...mappingKeyValues };
-
-		// mint burn mapping
-		const mint: number = parseInt(getItem('Frankencoin:Mint')?.amount.toString() ?? '0') / 10 ** 18;
-		const burn: number = parseInt(getItem('Frankencoin:Burn')?.amount.toString() ?? '0') / 10 ** 18;
-		const supply: number = mint - burn;
-
-		this.ecosystemFrankencoin = {
-			total: {
-				mint: mint,
-				burn: burn,
-				supply: supply,
-			},
-			raw: {
-				mint: getItem('Frankencoin:Mint')?.amount.toString() ?? '0',
-				burn: getItem('Frankencoin:Burn')?.amount.toString() ?? '0',
-			},
-			counter: {
-				mint: parseInt(getItem('Frankencoin:MintCounter')?.amount.toString() ?? '0'),
-				burn: parseInt(getItem('Frankencoin:BurnCounter')?.amount.toString() ?? '0'),
-			},
-		};
 	}
 
-	async updateEcosystemMintBurnMapping() {
-		this.logger.debug('Updating EcosystemMintBurnMapping');
-
-		// FIXME: build a fetcher... with start and offset. (first:2 offset:2)
-		const response = await PONDER_CLIENT.query({
+	async updateEcosystemERC20Status() {
+		this.logger.debug('Updating EcosystemERC20Status');
+		const response = await PONDER_CLIENT.query<{
+			eRC20Statuss: {
+				items: EcosystemERC20StatusQueryItem[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					mintBurnAddressMappers(orderBy: "id", limit: 1000) {
+					eRC20Statuss(orderBy: "updated", orderDirection: "DESC", limit: 1000) {
 						items {
-							id
-							mint
+							balance
 							burn
+							chainId
+							mint
+							supply
+							token
+							updated
 						}
 					}
 				}
 			`,
 		});
 
-		if (!response.data || !response.data.mintBurnAddressMappers.items) {
-			this.logger.warn('No mints data found.');
+		if (!response.data || !response.data.eRC20Statuss.items) {
+			this.logger.warn('No eRC20Statuss data found.');
 			return;
 		}
 
-		const e = response.data.mintBurnAddressMappers.items as MintBurnAddressMapperQueryItem[];
+		const d = response.data.eRC20Statuss.items;
 
-		for (const item of e) {
-			this.ecosystemMintBurnMapping[item.id] = {
-				mint: item.mint,
-				burn: item.burn,
+		// chainId mapping
+		for (const i of d) {
+			// verify chainId with token address
+			if (i.chainId == 1) {
+				const a = ADDRESS[i.chainId].frankencoin.toLowerCase();
+				if (a != i.token) continue;
+			} else {
+				const a = ADDRESS[i.chainId].ccipBridgedFrankencoin.toLowerCase();
+				if (a != i.token) continue;
+			}
+
+			this.ecosystemFrankencoin[i.chainId as ChainId] = {
+				chainId: i.chainId,
+				updated: i.updated,
+				address: i.token,
+				supply: formatFloat(i.supply),
+				counter: {
+					mint: i.mint,
+					burn: i.burn,
+					balance: i.balance,
+				},
 			};
 		}
 	}

@@ -1,3 +1,4 @@
+import { ChainId, ChainIdMain } from '@frankencoin/zchf';
 import { Address } from 'viem';
 
 // --------------------------------------------------------------------------
@@ -11,13 +12,14 @@ import { Address } from 'viem';
 export type ApiEcosystemFpsInfo = {
 	erc20: {
 		name: string;
-		address: Address;
 		symbol: string;
 		decimals: number;
 	};
-	chain: {
-		name: string;
-		id: number;
+	chains: {
+		[K in ChainIdMain]: {
+			chainId: ChainId;
+			address: Address;
+		};
 	};
 	token: {
 		price: number;

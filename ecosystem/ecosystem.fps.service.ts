@@ -3,7 +3,7 @@ import { PONDER_CLIENT, VIEM_CONFIG } from 'api.config';
 import { ApiEcosystemFpsInfo } from './ecosystem.fps.types';
 import { gql } from '@apollo/client/core';
 import { ADDRESS } from '@frankencoin/zchf';
-import { EquityABI, FrankencoinABI } from '@frankencoin/zchf';
+import { EquityABI, FrankencoinABI, ChainIdMain } from '@frankencoin/zchf';
 import { mainnet } from 'viem/chains';
 import { formatFloat } from 'utils/format';
 
@@ -77,13 +77,14 @@ export class EcosystemFpsService {
 		this.fpsInfo = {
 			erc20: {
 				name: 'Frankencoin Pool Share',
-				address: ADDRESS[mainnet.id].equity,
 				symbol: 'FPS',
 				decimals: 18,
 			},
-			chain: {
-				name: mainnet.name,
-				id: mainnet.id,
+			chains: {
+				[mainnet.id as ChainIdMain]: {
+					chainId: mainnet.id,
+					address: addr,
+				},
 			},
 			token: {
 				price: formatFloat(fetchedPrice),
@@ -95,8 +96,8 @@ export class EcosystemFpsService {
 				loss: formatFloat(d.losses),
 			},
 			reserve: {
-				balance: formatFloat(fetchedBalanceReserve - fetchedMinterReserve),
-				equity: formatFloat(fetchedBalanceReserve),
+				balance: formatFloat(fetchedBalanceReserve),
+				equity: formatFloat(fetchedBalanceReserve - fetchedMinterReserve),
 				minter: formatFloat(fetchedMinterReserve),
 			},
 		};
