@@ -142,9 +142,9 @@ export class EcosystemFrankencoinService {
 				address: i.token,
 				supply: formatFloat(i.supply),
 				counter: {
-					mint: i.mint,
-					burn: i.burn,
-					balance: i.balance,
+					mint: formatFloat(i.mint, 0),
+					burn: formatFloat(i.burn, 0),
+					balance: formatFloat(i.balance, 0),
 				},
 			};
 		}

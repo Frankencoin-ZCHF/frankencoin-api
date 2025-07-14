@@ -14,9 +14,9 @@ export type EcosystemERC20StatusQueryItem = {
 	chainId: ChainId;
 	updated: number;
 	supply: bigint;
-	burn: number;
-	mint: number;
-	balance: number;
+	burn: bigint;
+	mint: bigint;
+	balance: bigint;
 	token: Address;
 };
 

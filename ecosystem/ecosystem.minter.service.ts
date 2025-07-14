@@ -16,6 +16,14 @@ export class EcosystemMinterService {
 		};
 	}
 
+	getMintersListChainId(chainId: number): ApiMinterListing {
+		const m = this.fetchedMinters.filter((m) => m.chainId == chainId);
+		return {
+			num: m.length,
+			list: m,
+		};
+	}
+
 	async updateMinters() {
 		this.logger.debug('Updating minters');
 		const minter = await PONDER_CLIENT.query<{
