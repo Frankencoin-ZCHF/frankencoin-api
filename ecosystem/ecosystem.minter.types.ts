@@ -1,9 +1,10 @@
+import { ChainId } from '@frankencoin/zchf';
 import { Address } from 'viem';
 
 // --------------------------------------------------------------------------
 // Ponder return types
 export type MinterQuery = {
-	chainId: number;
+	chainId: ChainId;
 	txHash: string;
 	minter: Address;
 	applicationPeriod: number;

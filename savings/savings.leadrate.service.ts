@@ -2,150 +2,211 @@ import { gql } from '@apollo/client/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT } from 'api.config';
 import {
-	ApiLeadrateInfo,
-	ApiLeadrateProposed,
-	ApiLeadrateRate,
-	LeadrateProposed,
-	LeadrateRateObjectArray,
-	LeadrateRateProposedObjectArray,
 	LeadrateRateQuery,
+	LeadrateRateMapping,
+	LeadrateProposedQuery,
+	LeadrateProposedMapping,
+	ApiLeadrateInfo,
+	ApiLeadrateRate,
+	ApiLeadrateProposed,
 } from './savings.leadrate.types';
+import { ChainId } from '@frankencoin/zchf';
 import { Address } from 'viem';
 
 @Injectable()
 export class SavingsLeadrateService {
 	private readonly logger = new Logger(this.constructor.name);
-	private fetchedRates: LeadrateRateObjectArray = {};
-	private fetchedProposals: LeadrateRateProposedObjectArray = {};
+	private fetchedRates: LeadrateRateMapping = {} as LeadrateRateMapping;
+	private fetchedProposals: LeadrateProposedMapping = {} as LeadrateProposedMapping;
 
 	getRates(): ApiLeadrateRate {
-		const l = Object.values(this.fetchedRates);
-		const h = l.sort((a, b) => b.blockheight - a.blockheight);
-		const n = h.length === 0;
+		const chainIds = Object.keys(this.fetchedRates).map((id) => Number(id)) as ChainId[];
+		const rate: ApiLeadrateRate['rate'] = {} as ApiLeadrateRate['rate'];
+
+		for (const chain of chainIds) {
+			const modules = Object.keys(this.fetchedRates[chain]).map((module) => module as Address);
+			for (const module of modules) {
+				// make object available
+				if (rate[chain] == undefined) rate[chain] = {};
+
+				// set value
+				rate[chain][module] = this.fetchedRates[chain][module][0];
+			}
+		}
+
 		return {
-			created: n ? 0 : h[0].created,
-			blockheight: n ? 0 : h[0].blockheight,
-			rate: n ? 0 : h[0].approvedRate,
-			num: l.length,
-			list: l,
+			rate,
+			list: this.fetchedRates,
 		};
 	}
 
 	getProposals(): ApiLeadrateProposed {
-		const l = Object.values(this.fetchedProposals);
-		const h = l.sort((a, b) => b.blockheight - a.blockheight);
-		const n = h.length === 0;
+		const chainIds = Object.keys(this.fetchedProposals).map((id) => Number(id)) as ChainId[];
+		const proposed: ApiLeadrateProposed['proposed'] = {} as ApiLeadrateProposed['proposed'];
+
+		for (const chain of chainIds) {
+			const modules = Object.keys(this.fetchedProposals[chain]).map((module) => module as Address);
+			for (const module of modules) {
+				// make object available
+				if (proposed[chain] == undefined) proposed[chain] = {};
+
+				// set value
+				proposed[chain][module] = this.fetchedProposals[chain][module][0];
+			}
+		}
+
 		return {
-			created: n ? 0 : h[0]?.created || 0,
-			blockheight: n ? 0 : h[0]?.blockheight || 0,
-			nextRate: n ? 0 : h[0]?.nextRate,
-			nextchange: n ? 0 : h[0]?.nextChange,
-			num: l.length,
-			list: l,
+			proposed,
+			list: this.fetchedProposals,
 		};
 	}
 
 	getInfo(): ApiLeadrateInfo {
-		const r = this.getRates();
-		const p = this.getProposals();
-		const isProposal = r.rate != p.nextRate;
-		const isPending = p.nextchange * 1000 >= Date.now();
+		const rate = this.getRates().rate;
+		const proposed = this.getProposals().proposed;
+
+		const open: ApiLeadrateInfo['open'] = {} as ApiLeadrateInfo['open'];
+
+		const chainIds = Object.keys(rate).map((id) => Number(id)) as ChainId[];
+		for (const chain of chainIds) {
+			const modules = Object.keys(rate[chain]).map((module) => module as Address);
+			for (const module of modules) {
+				// skip if there are no proposed items
+				if (proposed?.[chain]?.[module] == undefined) continue;
+
+				const currentRate = rate[chain][module];
+				const latestProposed = proposed[chain][module];
+				const isProposal = currentRate.approvedRate != latestProposed.nextRate;
+				const isPending = latestProposed.nextChange * 1000 >= Date.now();
+
+				// validate that it is a rate change
+				if (!isProposal) continue;
+
+				// make chain available and make entry
+				if (open[chain] == undefined) open[chain] = {};
+				open[chain][module] = {
+					currentRate: currentRate.approvedRate,
+					nextRate: latestProposed.nextRate,
+					nextchange: latestProposed.nextChange,
+					isPending,
+				};
+			}
+		}
+
 		return {
-			rate: r.rate,
-			nextRate: isProposal ? p.nextRate : undefined,
-			nextchange: isProposal ? p.nextchange : undefined,
-			isProposal,
-			isPending,
+			rate,
+			proposed,
+			open,
 		};
 	}
 
 	async updateLeadrateRates() {
 		this.logger.debug('Updating leadrate rates');
-		const { data } = await PONDER_CLIENT.query({
+		const response = await PONDER_CLIENT.query<{
+			leadrateRateChangeds: {
+				items: LeadrateRateQuery[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsRateChangeds(orderBy: "blockheight", orderDirection: "desc") {
+					leadrateRateChangeds(orderBy: "count", orderDirection: "DESC", limit: 1000) {
 						items {
-							id
-							created
-							blockheight
-							txHash
 							approvedRate
+							blockheight
+							chainId
+							count
+							created
+							module
+							txHash
 						}
 					}
 				}
 			`,
 		});
 
-		if (!data || !data?.savingsRateChangeds?.items) {
-			this.logger.warn('No leadrates rates found.');
+		if (!response.data || !response.data.leadrateRateChangeds?.items) {
+			this.logger.warn('No leadrateRateChangeds data found.');
 			return;
 		}
 
-		const list: LeadrateRateObjectArray = {};
-		for (const r of data.savingsRateChangeds.items as LeadrateRateQuery[]) {
-			list[r.id] = {
-				id: r.id,
+		const d = response.data.leadrateRateChangeds.items;
+
+		const list: LeadrateRateMapping = {} as LeadrateRateMapping;
+		for (const r of d) {
+			// make object available
+			if (list[r.chainId] == undefined) list[r.chainId] = {};
+			if (list[r.chainId][r.module] == undefined) list[r.chainId][r.module] = [] as LeadrateRateQuery[];
+
+			// set state and overwrite type conform
+			list[r.chainId][r.module].push({
+				chainId: r.chainId,
+				count: parseInt(r.count as any),
+				module: r.module,
 				created: parseInt(r.created as any),
 				blockheight: parseInt(r.blockheight as any),
 				txHash: r.txHash,
 				approvedRate: r.approvedRate,
-			} as LeadrateRateQuery;
+			});
 		}
 
-		const a = Object.keys(list).length;
-		const b = Object.keys(this.fetchedRates).length;
-		const isDiff = a !== b;
-
-		if (isDiff) this.logger.log(`Leadrate Rates merging, from ${b} to ${a} entries`);
-		this.fetchedRates = { ...this.fetchedRates, ...list };
+		this.fetchedRates = list;
 	}
 
 	async updateLeadrateProposals() {
 		this.logger.debug('Updating leadrate proposals');
-		const { data } = await PONDER_CLIENT.query({
+		const response = await PONDER_CLIENT.query<{
+			leadRateProposeds: {
+				items: LeadrateProposedQuery[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsRateProposeds(orderBy: "blockheight", orderDirection: "desc") {
+					leadRateProposeds(orderBy: "count", orderDirection: "DESC", limit: 1000) {
 						items {
-							id
-							created
 							blockheight
-							txHash
-							proposer
-							nextRate
+							chainId
+							count
+							created
+							module
 							nextChange
+							nextRate
+							proposer
+							txHash
 						}
 					}
 				}
 			`,
 		});
 
-		if (!data || !data?.savingsRateProposeds?.items) {
-			this.logger.warn('No leadrates proposals found.');
+		if (!response.data || !response.data.leadRateProposeds?.items) {
+			this.logger.warn('No leadRateProposeds data found.');
 			return;
 		}
 
-		const list: LeadrateRateProposedObjectArray = {};
-		for (const r of data.savingsRateProposeds.items as LeadrateProposed[]) {
-			list[r.id] = {
-				id: r.id,
+		const d = response.data.leadRateProposeds.items;
+
+		const list: LeadrateProposedMapping = {} as LeadrateProposedMapping;
+		for (const r of d) {
+			// make object available
+			if (list[r.chainId] == undefined) list[r.chainId] = {};
+			if (list[r.chainId][r.module] == undefined) list[r.chainId][r.module] = [] as LeadrateProposedQuery[];
+
+			// set state and overwrite type conform
+			list[r.chainId][r.module].push({
+				chainId: r.chainId,
 				created: parseInt(r.created as any),
+				count: parseInt(r.count as any),
 				blockheight: parseInt(r.blockheight as any),
+				module: r.module,
 				txHash: r.txHash,
-				proposer: r.proposer as Address,
-				nextRate: r.nextRate,
+				proposer: r.proposer,
 				nextChange: r.nextChange,
-			} as LeadrateProposed;
+				nextRate: r.nextRate,
+			});
 		}
 
-		const a = Object.keys(list).length;
-		const b = Object.keys(this.fetchedProposals).length;
-		const isDiff = a !== b;
-
-		if (isDiff) this.logger.log(`Leadrate Proposal merging, from ${b} to ${a} entries`);
-		this.fetchedProposals = { ...this.fetchedProposals, ...list };
+		this.fetchedProposals = list;
 	}
 }
