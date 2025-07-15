@@ -48,7 +48,7 @@ export type ApiLeadrateInfo = {
 			[L in LeadrateRateQuery['module']]: {
 				currentRate: number;
 				nextRate: number;
-				nextchange: number;
+				nextChange: number;
 				isPending: boolean;
 			};
 		};

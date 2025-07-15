@@ -5,12 +5,12 @@ import { Address } from 'viem';
 // --------------------------------------------------------------------------
 // Ponder return types
 
-export type EcosystemQueryItem = {
+export type EcosystemQuery = {
 	id: string;
 	value: string;
 	amount: bigint;
 };
-export type EcosystemERC20StatusQueryItem = {
+export type EcosystemERC20StatusQuery = {
 	chainId: ChainId;
 	updated: number;
 	supply: bigint;
@@ -22,11 +22,11 @@ export type EcosystemERC20StatusQueryItem = {
 
 // --------------------------------------------------------------------------
 // Service
-export type ServiceEcosystemFrankencoinKeyValues = {
-	[key: EcosystemQueryItem['id']]: EcosystemQueryItem;
+export type EcosystemFrankencoinKeyValues = {
+	[key: EcosystemQuery['id']]: EcosystemQuery;
 };
 
-export type ServiceEcosystemFrankencoin = {
+export type EcosystemFrankencoin = {
 	chainId: ChainId;
 	updated: number;
 	address: Address;
@@ -38,13 +38,13 @@ export type ServiceEcosystemFrankencoin = {
 	};
 };
 
-export type ServiceEcosystemFrankencoinMapping = {
-	[K in ChainId]: ServiceEcosystemFrankencoin;
+export type EcosystemFrankencoinMapping = {
+	[K in ChainId]: EcosystemFrankencoin;
 };
 
 // --------------------------------------------------------------------------
 // Api
-export type ApiEcosystemFrankencoinKeyValues = ServiceEcosystemFrankencoinKeyValues;
+export type ApiEcosystemFrankencoinKeyValues = EcosystemFrankencoinKeyValues;
 
 export type ApiEcosystemFrankencoinInfo = {
 	erc20: {
@@ -52,9 +52,10 @@ export type ApiEcosystemFrankencoinInfo = {
 		symbol: string;
 		decimals: number;
 	};
-	chains: ServiceEcosystemFrankencoinMapping;
-	price: {
+	chains: EcosystemFrankencoinMapping;
+	token: {
 		usd: number;
+		supply: number;
 	};
 	fps: {
 		price: number;

@@ -87,7 +87,7 @@ export class SavingsLeadrateService {
 				open[chain][module] = {
 					currentRate: currentRate.approvedRate,
 					nextRate: latestProposed.nextRate,
-					nextchange: latestProposed.nextChange,
+					nextChange: latestProposed.nextChange,
 					isPending,
 				};
 			}

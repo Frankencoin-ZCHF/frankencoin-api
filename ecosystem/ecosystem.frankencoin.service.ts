@@ -2,12 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { gql } from '@apollo/client/core';
 import { PONDER_CLIENT } from 'api.config';
 import {
-	ServiceEcosystemFrankencoinMapping,
-	EcosystemQueryItem,
-	// ApiEcosystemFrankencoinInfo,
-	ServiceEcosystemFrankencoinKeyValues,
+	EcosystemQuery,
+	EcosystemERC20StatusQuery,
+	EcosystemFrankencoinKeyValues,
+	EcosystemFrankencoinMapping,
 	ApiEcosystemFrankencoinKeyValues,
-	EcosystemERC20StatusQueryItem,
 	ApiEcosystemFrankencoinInfo,
 } from './ecosystem.frankencoin.types';
 // import { PricesService } from 'prices/prices.service';
@@ -19,8 +18,8 @@ import { formatFloat } from 'utils/format';
 @Injectable()
 export class EcosystemFrankencoinService {
 	private readonly logger = new Logger(this.constructor.name);
-	private ecosystemFrankencoinKeyValues: ServiceEcosystemFrankencoinKeyValues;
-	private ecosystemFrankencoin: ServiceEcosystemFrankencoinMapping = {} as ServiceEcosystemFrankencoinMapping;
+	private ecosystemFrankencoinKeyValues: EcosystemFrankencoinKeyValues;
+	private ecosystemFrankencoin: EcosystemFrankencoinMapping = {} as EcosystemFrankencoinMapping;
 
 	constructor(
 		private readonly fpsService: EcosystemFpsService
@@ -33,6 +32,10 @@ export class EcosystemFrankencoinService {
 	}
 
 	getEcosystemFrankencoinInfo(): ApiEcosystemFrankencoinInfo {
+		const supply = Object.values(this.ecosystemFrankencoin).reduce((a, b) => {
+			return a + b.supply;
+		}, 0);
+
 		return {
 			erc20: {
 				name: 'Frankencoin',
@@ -40,9 +43,10 @@ export class EcosystemFrankencoinService {
 				decimals: 18,
 			},
 			chains: this.ecosystemFrankencoin,
-			price: {
+			token: {
 				usd: 0,
 				// usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
+				supply,
 			},
 			fps: this.fpsService.getEcosystemFpsInfo()?.token,
 			tvl: {
@@ -60,7 +64,7 @@ export class EcosystemFrankencoinService {
 		this.logger.debug('Updating EcosystemKeyValues');
 		const response = await PONDER_CLIENT.query<{
 			commonEcosystems: {
-				items: EcosystemQueryItem[];
+				items: EcosystemQuery[];
 			};
 		}>({
 			fetchPolicy: 'no-cache',
@@ -85,7 +89,7 @@ export class EcosystemFrankencoinService {
 		const d = response.data.commonEcosystems.items;
 
 		// key values mapping
-		const mappingKeyValues: ServiceEcosystemFrankencoinKeyValues = {};
+		const mappingKeyValues: EcosystemFrankencoinKeyValues = {};
 		for (const i of d) {
 			mappingKeyValues[i.id] = i;
 		}
@@ -97,7 +101,7 @@ export class EcosystemFrankencoinService {
 		this.logger.debug('Updating EcosystemERC20Status');
 		const response = await PONDER_CLIENT.query<{
 			eRC20Statuss: {
-				items: EcosystemERC20StatusQueryItem[];
+				items: EcosystemERC20StatusQuery[];
 			};
 		}>({
 			fetchPolicy: 'no-cache',
