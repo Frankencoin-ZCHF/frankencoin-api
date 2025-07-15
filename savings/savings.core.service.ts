@@ -1,168 +1,260 @@
 import { gql } from '@apollo/client/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
-import { SavingsLeadrateService } from './savings.leadrate.service';
-import { Address, formatUnits, zeroAddress } from 'viem';
-import { ApiSavingsBalance, ApiSavingsInfo, ApiSavingsUserTable, SavingsBalanceQuery } from './savings.core.types';
+import {
+	ApiSavingsActivity,
+	ApiSavingsBalances,
+	ApiSavingsInfo,
+	ApiSavingsRanked,
+	SavingsActivityQuery,
+	SavingsBalances,
+	SavingsBalancesAccountMapping,
+	SavingsBalancesChainIdMapping,
+	SavingsBalancesQuery,
+	SavingsStatusMapping,
+	SavingsStatusQuery,
+} from './savings.core.types';
 import { PONDER_CLIENT } from 'api.config';
+import { formatFloat } from 'utils/format';
 
 @Injectable()
 export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
-	private fetchedZeroAddressTable: ApiSavingsUserTable;
-	private fetchedTopBalanceTable: SavingsBalanceQuery[] = [];
+	private fetchedStatus: SavingsStatusMapping = {} as SavingsStatusMapping;
+	private fetchedBalances: SavingsBalancesAccountMapping = {} as SavingsBalancesAccountMapping;
+	private fetchedActivities: SavingsActivityQuery[] = [];
 
-	constructor(
-		private readonly fc: EcosystemFrankencoinService,
-		private readonly lead: SavingsLeadrateService
-	) {}
+	constructor(private readonly fc: EcosystemFrankencoinService) {}
 
 	getInfo(): ApiSavingsInfo {
-		const totalSavedRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalSaved']?.amount || 0n;
-		const totalInterestRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalInterestCollected']?.amount || 0n;
-		const totalWithdrawnRaw = this.fc.getEcosystemFrankencoinKeyValues()?.['Savings:TotalWithdrawn']?.amount || 0n;
-		const rate = this.lead.getInfo().rate;
+		const totalBalance = Object.values(this.fetchedStatus).reduce((a, b) => {
+			const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.balance)), 0);
+			return a + modules;
+		}, 0);
 
-		const totalSaved: number = parseFloat(formatUnits(totalSavedRaw, 18));
-		const totalInterest: number = parseFloat(formatUnits(totalInterestRaw, 18));
-		const totalWithdrawn: number = parseFloat(formatUnits(totalWithdrawnRaw, 18));
-		const totalBalance: number = totalSaved + totalInterest - totalWithdrawn;
-
-		const totalSupply: number = this.fc.getEcosystemFrankencoinInfo()?.total?.supply || 1; // @dev: make available. Safer for division
+		const totalSupply = this.fc.getEcosystemFrankencoinInfo().token.supply;
 		const ratioOfSupply: number = totalBalance / totalSupply;
 
 		return {
-			totalSaved,
-			totalWithdrawn,
+			status: this.fetchedStatus,
 			totalBalance,
-			totalInterest,
-			rate,
 			ratioOfSupply,
 		};
 	}
 
-	async getBalanceTable(limit: number = 20): Promise<ApiSavingsBalance> {
-		return {
-			ranked: this.fetchedTopBalanceTable.slice(0, limit),
-		};
+	getBalances(): ApiSavingsBalances {
+		return this.fetchedBalances;
 	}
 
-	async updateBalanceTable() {
-		const fetched = await PONDER_CLIENT.query({
+	getRanked(): ApiSavingsRanked {
+		const balances: ApiSavingsRanked = {} as ApiSavingsRanked;
+		const accounts = Object.keys(this.fetchedBalances) as SavingsBalances['account'][];
+
+		for (const acc of accounts) {
+			balances[acc] = Object.values(this.fetchedBalances[acc as SavingsBalances['account']]).reduce((a, b) => {
+				const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.balance)), 0);
+				return a + modules;
+			}, 0);
+		}
+
+		return balances;
+	}
+
+	getActivity(): ApiSavingsActivity {
+		return this.fetchedActivities;
+	}
+
+	async updateSavingsStatus() {
+		this.logger.debug('Updating savings status');
+		const response = await PONDER_CLIENT.query<{
+			savingsStatuss: {
+				items: SavingsStatusQuery[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsBalances(orderBy: "balance", orderDirection: "desc", where: { balance_not_in: "0" }, limit: 1000) {
+					savingsStatuss(orderBy: "updated", orderDirection: "DESC", limit: 1000) {
 						items {
-							id
-							created
-							blockheight
-							updated
+							balance
+							chainId
+							counterInterest
+							counterRateChanged
+							counterRateProposed
+							counterSave
+							counterWithdraw
 							interest
-							balance
+							module
+							rate
+							save
+							updated
+							withdraw
 						}
 					}
 				}
 			`,
 		});
 
-		this.fetchedTopBalanceTable = fetched?.data?.savingsBalances?.items ?? [];
+		if (!response.data || !response.data.savingsStatuss?.items) {
+			this.logger.warn('No savingsStatuss data found.');
+			return;
+		}
+
+		const d = response.data.savingsStatuss.items;
+
+		const list: SavingsStatusMapping = {} as SavingsStatusMapping;
+		for (const r of d) {
+			// make object available
+			if (list[r.chainId] == undefined) list[r.chainId] = {};
+
+			// set state and overwrite type conform
+			list[r.chainId][r.module] = {
+				chainId: r.chainId,
+				updated: parseInt(r.updated as any),
+				module: r.module,
+				balance: r.balance,
+				interest: r.interest,
+				save: r.save,
+				withdraw: r.withdraw,
+				rate: r.rate,
+				counter: {
+					interest: parseInt(r.counterInterest as any),
+					rateChanged: parseInt(r.counterRateChanged as any),
+					rateProposed: parseInt(r.counterRateProposed as any),
+					save: parseInt(r.counterSave as any),
+					withdraw: parseInt(r.counterWithdraw as any),
+				},
+			};
+		}
+
+		this.fetchedStatus = list;
 	}
 
-	async getUserTable(userAddress: Address, limit: number = 8): Promise<ApiSavingsUserTable> {
-		if (userAddress == zeroAddress) return this.fetchedZeroAddressTable;
-		return this.fetchUserTable(userAddress, limit);
-	}
-
-	async updateZeroAddressTable(limit: number = 8) {
-		this.logger.debug('Updating savings zeroAddress table');
-		this.fetchedZeroAddressTable = await this.fetchUserTable(zeroAddress, limit);
-	}
-
-	async fetchUserTable(userAddress: Address, limit: number = 8): Promise<ApiSavingsUserTable> {
-		const user: Address = userAddress == zeroAddress ? zeroAddress : (userAddress.toLowerCase() as Address);
-		const savedFetched = await PONDER_CLIENT.query({
+	async updateSavingsBalances() {
+		this.logger.debug('Updating savings balances');
+		const response = await PONDER_CLIENT.query<{
+			savingsMappings: {
+				items: SavingsBalancesQuery[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsSaveds(
-						orderBy: "blockheight"
-						orderDirection: "desc"
-						${user == zeroAddress ? '' : `where: { account: "${user}" }`}
-						limit: ${limit}
-					) {
+					savingsMappings(where: { balance_gt: "0" }, orderBy: "balance", orderDirection: "DESC", limit: 1000) {
 						items {
-							id
-							created
-							blockheight
-							txHash
 							account
-							amount
-							rate
-							total
 							balance
+							chainId
+							counterInterest
+							counterSave
+							counterWithdraw
+							created
+							interest
+							module
+							save
+							updated
+							withdraw
 						}
 					}
 				}
 			`,
 		});
 
-		const withdrawnFetched = await PONDER_CLIENT.query({
+		if (!response.data || !response.data.savingsMappings?.items) {
+			this.logger.warn('No savingsMappings data found.');
+			return;
+		}
+
+		const d = response.data.savingsMappings.items;
+
+		const list: SavingsBalancesAccountMapping = {} as SavingsBalancesAccountMapping;
+		for (const r of d) {
+			// make object available, account -> chainId -> balances
+			if (list[r.account] == undefined) list[r.account] = {} as SavingsBalancesChainIdMapping;
+			if (list[r.account][r.chainId] == undefined) list[r.account][r.chainId] = {};
+
+			// set state and overwrite type conform
+			list[r.account][r.chainId][r.module] = {
+				chainId: r.chainId,
+				account: r.account,
+				module: r.module,
+				balance: r.balance,
+				created: parseInt(r.created as any),
+				updated: parseInt(r.updated as any),
+				save: r.save,
+				interest: r.interest,
+				withdraw: r.withdraw,
+				counter: {
+					save: parseInt(r.counterSave as any),
+					interest: parseInt(r.counterInterest as any),
+					withdraw: parseInt(r.counterWithdraw as any),
+				},
+			};
+		}
+
+		this.fetchedBalances = list;
+	}
+
+	async updateSavingsActivity() {
+		this.logger.debug('Updating savings activity');
+		const response = await PONDER_CLIENT.query<{
+			savingsActivitys: {
+				items: SavingsActivityQuery[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsWithdrawns(
-						orderBy: "blockheight"
-						orderDirection: "desc"
-						${user == zeroAddress ? '' : `where: { account: "${user}" }`}
-						limit: ${limit}
-					) {
+					savingsActivitys(orderBy: "created", orderDirection: "DESC", limit: 1000) {
 						items {
-							id
-							created
-							blockheight
-							txHash
 							account
 							amount
-							rate
-							total
 							balance
+							blockheight
+							chainId
+							count
+							created
+							interest
+							kind
+							module
+							rate
+							save
+							txHash
+							withdraw
 						}
 					}
 				}
 			`,
 		});
 
-		const interestFetched = await PONDER_CLIENT.query({
-			fetchPolicy: 'no-cache',
-			query: gql`
-				query {
-					savingsInterests(
-						orderBy: "blockheight"
-						orderDirection: "desc"
-						${user == zeroAddress ? '' : `where: { account: "${user}" }`}
-						limit: ${limit}
-					) {
-						items {
-							id
-							created
-							blockheight
-							txHash
-							account
-							amount
-							rate
-							total
-							balance
-						}
-					}
-				}
-			`,
-		});
+		if (!response.data || !response.data.savingsActivitys?.items) {
+			this.logger.warn('No savingsActivitys data found.');
+			return;
+		}
 
-		return {
-			save: savedFetched?.data?.savingsSaveds?.items ?? [],
-			interest: interestFetched?.data?.savingsInterests?.items ?? [],
-			withdraw: withdrawnFetched?.data?.savingsWithdrawns?.items ?? [],
-		};
+		const d = response.data.savingsActivitys.items;
+
+		const list: SavingsActivityQuery[] = [];
+		for (const r of d) {
+			// set state and overwrite type conform
+			list.push({
+				chainId: r.chainId,
+				account: r.account,
+				module: r.module,
+				created: parseInt(r.created as any),
+				blockheight: parseInt(r.blockheight as any),
+				count: parseInt(r.count as any),
+				balance: r.balance,
+				save: r.save,
+				interest: r.interest,
+				withdraw: r.withdraw,
+				kind: r.kind,
+				amount: r.amount,
+				rate: r.rate,
+				txHash: r.txHash,
+			});
+		}
+
+		this.fetchedActivities = d;
 	}
 }
