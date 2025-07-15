@@ -6,13 +6,13 @@ import { CONFIG, VIEM_CONFIG } from 'api.config';
 import { AxiosError } from 'axios';
 // import { ChallengesService } from 'challenges/challenges.service';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
-// import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
+import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 // import { PositionsService } from 'positions/positions.service';
 // import { PricesService } from 'prices/prices.service';
 import { catchError, firstValueFrom } from 'rxjs';
-// import { SavingsCoreService } from 'savings/savings.core.service';
-// import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
+import { SavingsCoreService } from 'savings/savings.core.service';
+import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 // import { TelegramService } from 'telegram/telegram.service';
 // import { TransferReferenceService } from 'transfer/transfer.reference.service';
 import { mainnet } from 'viem/chains';
@@ -43,12 +43,12 @@ export class ApiService {
 		private readonly minter: EcosystemMinterService,
 		// private readonly positions: PositionsService,
 		// private readonly prices: PricesService,
-		// private readonly frankencoin: EcosystemFrankencoinService,
-		private readonly fps: EcosystemFpsService
+		private readonly frankencoin: EcosystemFrankencoinService,
+		private readonly fps: EcosystemFpsService,
 		// private readonly challenges: ChallengesService,
 		// private readonly telegram: TelegramService,
-		// private readonly leadrate: SavingsLeadrateService,
-		// private readonly savings: SavingsCoreService,
+		private readonly leadrate: SavingsLeadrateService,
+		private readonly savings: SavingsCoreService
 		// private readonly transferRef: TransferReferenceService
 	) {
 		setTimeout(() => this.updateBlockheight(), 100);
@@ -63,13 +63,14 @@ export class ApiService {
 			// this.positions.updateMintingUpdateV1s(),
 			// this.positions.updateMintingUpdateV2s(),
 			// this.prices.updatePrices(),
-			// this.frankencoin.updateEcosystemKeyValues(),
-			// this.frankencoin.updateEcosystemMintBurnMapping(),
+			this.frankencoin.updateEcosystemKeyValues(),
+			this.frankencoin.updateEcosystemERC20Status(),
 			this.fps.updateFpsInfo(),
-			// this.leadrate.updateLeadrateRates(),
-			// this.leadrate.updateLeadrateProposals(),
-			// this.savings.updateBalanceTable(),
-			// this.savings.updateZeroAddressTable(),
+			this.leadrate.updateLeadrateRates(),
+			this.leadrate.updateLeadrateProposals(),
+			this.savings.updateSavingsStatus(),
+			this.savings.updateSavingsBalances(),
+			this.savings.updateSavingsActivity(),
 			// this.challenges.updateChallengeV1s(),
 			// this.challenges.updateChallengeV2s(),
 			// this.challenges.updateBidV1s(),
