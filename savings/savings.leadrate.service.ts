@@ -85,6 +85,7 @@ export class SavingsLeadrateService {
 				// make chain available and make entry
 				if (open[chain] == undefined) open[chain] = {};
 				open[chain][module] = {
+					details: latestProposed,
 					currentRate: currentRate.approvedRate,
 					nextRate: latestProposed.nextRate,
 					nextChange: latestProposed.nextChange,

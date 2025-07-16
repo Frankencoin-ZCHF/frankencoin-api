@@ -38,6 +38,14 @@ export type LeadrateProposedMapping = {
 	};
 };
 
+export type LeadrateProposedOpen = {
+	details: LeadrateProposedQuery;
+	currentRate: number;
+	nextRate: number;
+	nextChange: number;
+	isPending: boolean;
+};
+
 // --------------------------------------------------------------------------
 // Api
 export type ApiLeadrateInfo = {
@@ -45,12 +53,7 @@ export type ApiLeadrateInfo = {
 	proposed: ApiLeadrateProposed['proposed'];
 	open: {
 		[K in ChainId]: {
-			[L in LeadrateRateQuery['module']]: {
-				currentRate: number;
-				nextRate: number;
-				nextChange: number;
-				isPending: boolean;
-			};
+			[L in LeadrateProposedQuery['module']]: LeadrateProposedOpen;
 		};
 	};
 };

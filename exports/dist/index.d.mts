@@ -1,4 +1,5 @@
 import { Address } from 'viem';
+import { ChainId, ChainIdMain } from '@frankencoin/zchf';
 
 type AnalyticsExposureItem = {
     collateral: {
@@ -248,7 +249,7 @@ type ApiChallengesPrices = {
 };
 
 type MinterQuery = {
-    chainId: number;
+    chainId: ChainId;
     txHash: string;
     minter: Address;
     applicationPeriod: number;
@@ -300,68 +301,48 @@ type ApiPriceMapping = PriceQueryObjectArray;
 type ApiPriceERC20 = ERC20Info;
 type ApiPriceERC20Mapping = ERC20InfoObjectArray;
 
-type EcosystemQueryItem = {
+type EcosystemQuery = {
     id: string;
     value: string;
     amount: bigint;
 };
-type EcosystemMintQueryItem = {
-    id: string;
-    to: string;
-    value: bigint;
-    blockheight: bigint;
-    timestamp: bigint;
+type EcosystemERC20StatusQuery = {
+    chainId: ChainId;
+    updated: number;
+    supply: bigint;
+    burn: bigint;
+    mint: bigint;
+    balance: bigint;
+    token: Address;
 };
-type EcosystemBurnQueryItem = {
-    id: string;
-    from: string;
-    value: bigint;
-    blockheight: bigint;
-    timestamp: bigint;
+type EcosystemFrankencoinKeyValues = {
+    [key: EcosystemQuery['id']]: EcosystemQuery;
 };
-type MintBurnAddressMapperQueryItem = {
-    id: Address;
-    mint: number;
-    burn: number;
-};
-type ServiceEcosystemFrankencoinKeyValues = {
-    [key: string]: EcosystemQueryItem;
-};
-type ServiceEcosystemFrankencoin = {
-    raw: {
-        mint: string;
-        burn: string;
-    };
-    total: {
-        mint: number;
-        burn: number;
-        supply: number;
-    };
+type EcosystemFrankencoin = {
+    chainId: ChainId;
+    updated: number;
+    address: Address;
+    supply: number;
     counter: {
+        balance: number;
         mint: number;
         burn: number;
     };
 };
-type ServiceEcosystemMintBurnMapping = {
-    [key: Address]: {
-        mint: number;
-        burn: number;
-    };
+type EcosystemFrankencoinMapping = {
+    [K in ChainId]: EcosystemFrankencoin;
 };
-type ApiEcosystemFrankencoinKeyValues = ServiceEcosystemFrankencoinKeyValues;
-type ApiEcosystemFrankencoinInfo = ServiceEcosystemFrankencoin & {
+type ApiEcosystemFrankencoinKeyValues = EcosystemFrankencoinKeyValues;
+type ApiEcosystemFrankencoinInfo = {
     erc20: {
         name: string;
-        address: Address;
         symbol: string;
         decimals: number;
     };
-    chain: {
-        name: string;
-        id: number;
-    };
-    price: {
+    chains: EcosystemFrankencoinMapping;
+    token: {
         usd: number;
+        supply: number;
     };
     fps: {
         price: number;
@@ -369,16 +350,6 @@ type ApiEcosystemFrankencoinInfo = ServiceEcosystemFrankencoin & {
         marketCap: number;
     };
     tvl: PriceQueryCurrencies;
-};
-type ApiEcosystemMintBurnMapping = {
-    num: number;
-    addresses: Address[];
-    map: {
-        [key: Address]: {
-            mint: number;
-            burn: number;
-        };
-    };
 };
 
 type PositionQueryV1 = {
@@ -606,13 +577,14 @@ type ApiEcosystemCollateralStats = {
 type ApiEcosystemFpsInfo = {
     erc20: {
         name: string;
-        address: Address;
         symbol: string;
         decimals: number;
     };
-    chain: {
-        name: string;
-        id: number;
+    chains: {
+        [K in ChainIdMain]: {
+            chainId: ChainId;
+            address: Address;
+        };
     };
     token: {
         price: number;
@@ -631,110 +603,169 @@ type ApiEcosystemFpsInfo = {
 };
 
 type LeadrateRateQuery = {
-    id: string;
+    chainId: ChainId;
     created: number;
+    count: number;
     blockheight: number;
-    txHash: string;
+    module: Address;
     approvedRate: number;
+    txHash: string;
 };
-type LeadrateProposed = {
-    id: string;
+type LeadrateProposedQuery = {
+    chainId: ChainId;
     created: number;
+    count: number;
     blockheight: number;
+    module: Address;
     txHash: string;
     proposer: Address;
     nextRate: number;
     nextChange: number;
 };
-type LeadrateRateObjectArray = {
-    [key: number]: LeadrateRateQuery;
+type LeadrateRateMapping = {
+    [K in ChainId]: {
+        [key: LeadrateRateQuery['module']]: LeadrateRateQuery[];
+    };
 };
-type LeadrateRateProposedObjectArray = {
-    [key: string]: LeadrateProposed;
+type LeadrateProposedMapping = {
+    [K in ChainId]: {
+        [L in LeadrateProposedQuery['module']]: LeadrateProposedQuery[];
+    };
 };
-type ApiLeadrateInfo = {
-    rate: number;
+type LeadrateProposedOpen = {
+    details: LeadrateProposedQuery;
+    currentRate: number;
     nextRate: number;
-    nextchange: number;
-    isProposal: boolean;
+    nextChange: number;
     isPending: boolean;
 };
+type ApiLeadrateInfo = {
+    rate: ApiLeadrateRate['rate'];
+    proposed: ApiLeadrateProposed['proposed'];
+    open: {
+        [K in ChainId]: {
+            [L in LeadrateProposedQuery['module']]: LeadrateProposedOpen;
+        };
+    };
+};
 type ApiLeadrateRate = {
-    created: number;
-    blockheight: number;
-    rate: number;
-    num: number;
-    list: LeadrateRateQuery[];
+    rate: {
+        [K in ChainId]: {
+            [L in LeadrateRateQuery['module']]: LeadrateRateQuery;
+        };
+    };
+    list: LeadrateRateMapping;
 };
 type ApiLeadrateProposed = {
-    created: number;
-    blockheight: number;
-    nextRate: number;
-    nextchange: number;
-    num: number;
-    list: LeadrateProposed[];
+    proposed: {
+        [K in ChainId]: {
+            [L in LeadrateProposedQuery['module']]: LeadrateProposedQuery;
+        };
+    };
+    list: LeadrateProposedMapping;
 };
 
+type SavingsStatusQuery = {
+    chainId: ChainId;
+    updated: number;
+    module: Address;
+    balance: string;
+    interest: string;
+    save: string;
+    withdraw: string;
+    rate: number;
+    counterInterest: number;
+    counterRateChanged: number;
+    counterRateProposed: number;
+    counterSave: number;
+    counterWithdraw: number;
+};
 type SavingsBalanceQuery = {
-    id: Address;
+    chainId: ChainId;
+    account: Address;
+    module: Address;
+    balance: string;
     created: number;
-    blockheight: number;
     updated: number;
     interest: string;
-    balance: string;
+    save: string;
+    withdraw: string;
+    counterInterest: number;
+    counterSave: number;
+    counterWithdraw: number;
 };
-type SavingsIdSaved = `${Address}-${number}`;
-type SavingsSavedQuery = {
-    id: SavingsIdSaved;
+type SavingsActivityQuery = {
+    chainId: ChainId;
+    account: Address;
+    module: Address;
     created: number;
     blockheight: number;
-    txHash: string;
-    account: Address;
+    count: number;
+    balance: string;
+    save: string;
+    interest: string;
+    withdraw: string;
+    kind: string;
     amount: string;
     rate: number;
-    total: string;
-    balance: string;
+    txHash: string;
 };
-type SavingsIdInterest = `${Address}-${number}`;
-type SavingsInterestQuery = {
-    id: SavingsIdInterest;
-    created: number;
-    blockheight: number;
-    txHash: string;
-    account: Address;
-    amount: string;
-    rate: number;
-    total: string;
+type SavingsStatus = {
+    chainId: ChainId;
+    updated: number;
+    module: Address;
     balance: string;
+    interest: string;
+    save: string;
+    withdraw: string;
+    rate: number;
+    counter: {
+        interest: number;
+        rateChanged: number;
+        rateProposed: number;
+        save: number;
+        withdraw: number;
+    };
 };
-type SavingsIdWithdraw = `${Address}-${number}`;
-type SavingsWithdrawQuery = {
-    id: SavingsIdWithdraw;
-    created: number;
-    blockheight: number;
-    txHash: string;
+type SavingsStatusMapping = {
+    [K in ChainId]: {
+        [key: SavingsStatus['module']]: SavingsStatus;
+    };
+};
+type SavingsBalance = {
+    chainId: ChainId;
     account: Address;
-    amount: string;
-    rate: number;
-    total: string;
+    module: Address;
     balance: string;
+    created: number;
+    updated: number;
+    interest: string;
+    save: string;
+    withdraw: string;
+    counter: {
+        save: number;
+        interest: number;
+        withdraw: number;
+    };
+};
+type SavingsBalanceChainIdMapping = {
+    [K in ChainId]: {
+        [key in SavingsBalance['module'] | SavingsBalanceQuery['module']]: SavingsBalance;
+    };
+};
+type SavingsBalanceAccountMapping = {
+    [key in SavingsBalance['account'] | SavingsBalanceQuery['account']]: SavingsBalanceChainIdMapping;
 };
 type ApiSavingsInfo = {
-    totalSaved: number;
-    totalWithdrawn: number;
+    status: SavingsStatusMapping;
     totalBalance: number;
-    totalInterest: number;
-    rate: number;
     ratioOfSupply: number;
 };
-type ApiSavingsBalance = {
-    ranked: SavingsBalanceQuery[];
+type ApiSavingsBalance = SavingsBalanceAccountMapping;
+type ApiSavingsRanked = {
+    [key in SavingsBalance['account']]: number;
 };
-type ApiSavingsUserTable = {
-    save: SavingsSavedQuery[];
-    interest: SavingsInterestQuery[];
-    withdraw: SavingsWithdrawQuery[];
-};
+type ApiSavingsActivity = SavingsActivityQuery[];
 
 declare class SubscriptionGroups {
     constructor();
@@ -796,4 +827,4 @@ type ApiTransferReferenceQuery = TransferReferenceQuery[] | {
     error: string;
 };
 
-export { type AnalyticsDailyLog, type AnalyticsExposureItem, type AnalyticsProfitLossLog, type AnalyticsTransactionLog, type ApiAnalyticsCollateralExposure, type ApiAnalyticsFpsEarnings, type ApiAnalyticsProfitLossLog, type ApiBidsBidders, type ApiBidsChallenges, type ApiBidsListing, type ApiBidsMapping, type ApiBidsPositions, type ApiChallengesChallengers, type ApiChallengesListing, type ApiChallengesMapping, type ApiChallengesPositions, type ApiChallengesPrices, type ApiDailyLog, type ApiEcosystemCollateralList, type ApiEcosystemCollateralListArray, type ApiEcosystemCollateralPositions, type ApiEcosystemCollateralPositionsDetails, type ApiEcosystemCollateralStats, type ApiEcosystemCollateralStatsItem, type ApiEcosystemFpsInfo, type ApiEcosystemFrankencoinInfo, type ApiEcosystemFrankencoinKeyValues, type ApiEcosystemMintBurnMapping, type ApiLeadrateInfo, type ApiLeadrateProposed, type ApiLeadrateRate, type ApiMinterListing, type ApiMinterMapping, type ApiMintingUpdateListing, type ApiMintingUpdateMapping, type ApiMintingUpdateOwnerDebt, type ApiMintingUpdateOwnerFees, type ApiPositionsListing, type ApiPositionsMapping, type ApiPositionsOwners, type ApiPriceERC20, type ApiPriceERC20Mapping, type ApiPriceListing, type ApiPriceMapping, type ApiSavingsBalance, type ApiSavingsInfo, type ApiSavingsUserTable, type ApiTransactionLog, type ApiTransferReferenceList, type ApiTransferReferenceQuery, type BidsBidderMapping, type BidsChallengesMapping, type BidsId, type BidsPositionsMapping, type BidsQueryItem, type BidsQueryItemMapping, BidsQueryType, type BidsType, type ChallengesChallengersMapping, type ChallengesId, type ChallengesPositionsMapping, type ChallengesPricesMapping, type ChallengesQueryItem, type ChallengesQueryItemMapping, ChallengesQueryStatus, type ChallengesStatus, type ERC20Info, type ERC20InfoObjectArray, type EcosystemBurnQueryItem, type EcosystemCollateralPositionsDetailsItem, type EcosystemCollateralPositionsItem, type EcosystemMintQueryItem, type EcosystemQueryItem, type LeadrateProposed, type LeadrateRateObjectArray, type LeadrateRateProposedObjectArray, type LeadrateRateQuery, type MintBurnAddressMapperQueryItem, type MinterQuery, type MinterQueryObjectArray, type MintingUpdateQuery, type MintingUpdateQueryId, type MintingUpdateQueryObjectArray, type MintingUpdateQueryV1, type MintingUpdateQueryV2, type OwnersPositionsObjectArray, type PositionPriceAlertState, type PositionQuery, type PositionQueryV1, type PositionQueryV2, type PositionsQueryObjectArray, type PriceQuery, type PriceQueryCurrencies, type PriceQueryObjectArray, type SavingsBalanceQuery, type SavingsIdInterest, type SavingsIdSaved, type SavingsIdWithdraw, type SavingsInterestQuery, type SavingsSavedQuery, type SavingsWithdrawQuery, type ServiceEcosystemFrankencoin, type ServiceEcosystemFrankencoinKeyValues, type ServiceEcosystemMintBurnMapping, type TelegramGroupState, type TelegramState, type TransferReferenceObjectArray, type TransferReferenceQuery };
+export { type AnalyticsDailyLog, type AnalyticsExposureItem, type AnalyticsProfitLossLog, type AnalyticsTransactionLog, type ApiAnalyticsCollateralExposure, type ApiAnalyticsFpsEarnings, type ApiAnalyticsProfitLossLog, type ApiBidsBidders, type ApiBidsChallenges, type ApiBidsListing, type ApiBidsMapping, type ApiBidsPositions, type ApiChallengesChallengers, type ApiChallengesListing, type ApiChallengesMapping, type ApiChallengesPositions, type ApiChallengesPrices, type ApiDailyLog, type ApiEcosystemCollateralList, type ApiEcosystemCollateralListArray, type ApiEcosystemCollateralPositions, type ApiEcosystemCollateralPositionsDetails, type ApiEcosystemCollateralStats, type ApiEcosystemCollateralStatsItem, type ApiEcosystemFpsInfo, type ApiEcosystemFrankencoinInfo, type ApiEcosystemFrankencoinKeyValues, type ApiLeadrateInfo, type ApiLeadrateProposed, type ApiLeadrateRate, type ApiMinterListing, type ApiMinterMapping, type ApiMintingUpdateListing, type ApiMintingUpdateMapping, type ApiMintingUpdateOwnerDebt, type ApiMintingUpdateOwnerFees, type ApiPositionsListing, type ApiPositionsMapping, type ApiPositionsOwners, type ApiPriceERC20, type ApiPriceERC20Mapping, type ApiPriceListing, type ApiPriceMapping, type ApiSavingsActivity, type ApiSavingsBalance, type ApiSavingsInfo, type ApiSavingsRanked, type ApiTransactionLog, type ApiTransferReferenceList, type ApiTransferReferenceQuery, type BidsBidderMapping, type BidsChallengesMapping, type BidsId, type BidsPositionsMapping, type BidsQueryItem, type BidsQueryItemMapping, BidsQueryType, type BidsType, type ChallengesChallengersMapping, type ChallengesId, type ChallengesPositionsMapping, type ChallengesPricesMapping, type ChallengesQueryItem, type ChallengesQueryItemMapping, ChallengesQueryStatus, type ChallengesStatus, type ERC20Info, type ERC20InfoObjectArray, type EcosystemCollateralPositionsDetailsItem, type EcosystemCollateralPositionsItem, type EcosystemERC20StatusQuery, type EcosystemFrankencoin, type EcosystemFrankencoinKeyValues, type EcosystemFrankencoinMapping, type EcosystemQuery, type LeadrateProposedMapping, type LeadrateProposedOpen, type LeadrateProposedQuery, type LeadrateRateMapping, type LeadrateRateQuery, type MinterQuery, type MinterQueryObjectArray, type MintingUpdateQuery, type MintingUpdateQueryId, type MintingUpdateQueryObjectArray, type MintingUpdateQueryV1, type MintingUpdateQueryV2, type OwnersPositionsObjectArray, type PositionPriceAlertState, type PositionQuery, type PositionQueryV1, type PositionQueryV2, type PositionsQueryObjectArray, type PriceQuery, type PriceQueryCurrencies, type PriceQueryObjectArray, type SavingsActivityQuery, type SavingsBalance, type SavingsBalanceAccountMapping, type SavingsBalanceChainIdMapping, type SavingsBalanceQuery, type SavingsStatus, type SavingsStatusMapping, type SavingsStatusQuery, type TelegramGroupState, type TelegramState, type TransferReferenceObjectArray, type TransferReferenceQuery };
