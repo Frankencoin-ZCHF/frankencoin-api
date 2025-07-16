@@ -19,7 +19,7 @@ export type SavingsStatusQuery = {
 	counterWithdraw: number;
 };
 
-export type SavingsBalancesQuery = {
+export type SavingsBalanceQuery = {
 	chainId: ChainId;
 	account: Address;
 	module: Address;
@@ -78,7 +78,7 @@ export type SavingsStatusMapping = {
 	};
 };
 
-export type SavingsBalances = {
+export type SavingsBalance = {
 	chainId: ChainId;
 	account: Address;
 	module: Address;
@@ -95,14 +95,14 @@ export type SavingsBalances = {
 	};
 };
 
-export type SavingsBalancesChainIdMapping = {
+export type SavingsBalanceChainIdMapping = {
 	[K in ChainId]: {
-		[key in SavingsBalances['module'] | SavingsBalancesQuery['module']]: SavingsBalances;
+		[key in SavingsBalance['module'] | SavingsBalanceQuery['module']]: SavingsBalance;
 	};
 };
 
-export type SavingsBalancesAccountMapping = {
-	[key in SavingsBalances['account'] | SavingsBalancesQuery['account']]: SavingsBalancesChainIdMapping;
+export type SavingsBalanceAccountMapping = {
+	[key in SavingsBalance['account'] | SavingsBalanceQuery['account']]: SavingsBalanceChainIdMapping;
 };
 
 // --------------------------------------------------------------------------
@@ -113,10 +113,10 @@ export type ApiSavingsInfo = {
 	ratioOfSupply: number;
 };
 
-export type ApiSavingsBalances = SavingsBalancesAccountMapping;
+export type ApiSavingsBalance = SavingsBalanceAccountMapping;
 
 export type ApiSavingsRanked = {
-	[key in SavingsBalances['account']]: number;
+	[key in SavingsBalance['account']]: number;
 };
 
 export type ApiSavingsActivity = SavingsActivityQuery[];

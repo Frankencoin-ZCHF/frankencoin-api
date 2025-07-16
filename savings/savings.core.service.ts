@@ -3,14 +3,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import {
 	ApiSavingsActivity,
-	ApiSavingsBalances,
+	ApiSavingsBalance,
 	ApiSavingsInfo,
 	ApiSavingsRanked,
 	SavingsActivityQuery,
-	SavingsBalances,
-	SavingsBalancesAccountMapping,
-	SavingsBalancesChainIdMapping,
-	SavingsBalancesQuery,
+	SavingsBalance,
+	SavingsBalanceAccountMapping,
+	SavingsBalanceChainIdMapping,
+	SavingsBalanceQuery,
 	SavingsStatusMapping,
 	SavingsStatusQuery,
 } from './savings.core.types';
@@ -21,7 +21,7 @@ import { formatFloat } from 'utils/format';
 export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
 	private fetchedStatus: SavingsStatusMapping = {} as SavingsStatusMapping;
-	private fetchedBalances: SavingsBalancesAccountMapping = {} as SavingsBalancesAccountMapping;
+	private fetchedBalances: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
 	private fetchedActivities: SavingsActivityQuery[] = [];
 
 	constructor(private readonly fc: EcosystemFrankencoinService) {}
@@ -42,22 +42,22 @@ export class SavingsCoreService {
 		};
 	}
 
-	getBalances(): ApiSavingsBalances {
+	getBalances(): ApiSavingsBalance {
 		return this.fetchedBalances;
 	}
 
 	getRanked(): ApiSavingsRanked {
-		const balances: ApiSavingsRanked = {} as ApiSavingsRanked;
-		const accounts = Object.keys(this.fetchedBalances) as SavingsBalances['account'][];
+		const balance: ApiSavingsRanked = {} as ApiSavingsRanked;
+		const accounts = Object.keys(this.fetchedBalances) as SavingsBalance['account'][];
 
 		for (const acc of accounts) {
-			balances[acc] = Object.values(this.fetchedBalances[acc as SavingsBalances['account']]).reduce((a, b) => {
+			balance[acc] = Object.values(this.fetchedBalances[acc as SavingsBalance['account']]).reduce((a, b) => {
 				const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.balance)), 0);
 				return a + modules;
 			}, 0);
 		}
 
-		return balances;
+		return balance;
 	}
 
 	getActivity(): ApiSavingsActivity {
@@ -130,11 +130,11 @@ export class SavingsCoreService {
 		this.fetchedStatus = list;
 	}
 
-	async updateSavingsBalances() {
-		this.logger.debug('Updating savings balances');
+	async updateSavingsBalance() {
+		this.logger.debug('Updating savings balance');
 		const response = await PONDER_CLIENT.query<{
 			savingsMappings: {
-				items: SavingsBalancesQuery[];
+				items: SavingsBalanceQuery[];
 			};
 		}>({
 			fetchPolicy: 'no-cache',
@@ -167,10 +167,10 @@ export class SavingsCoreService {
 
 		const d = response.data.savingsMappings.items;
 
-		const list: SavingsBalancesAccountMapping = {} as SavingsBalancesAccountMapping;
+		const list: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
 		for (const r of d) {
-			// make object available, account -> chainId -> balances
-			if (list[r.account] == undefined) list[r.account] = {} as SavingsBalancesChainIdMapping;
+			// make object available, account -> chainId -> balance
+			if (list[r.account] == undefined) list[r.account] = {} as SavingsBalanceChainIdMapping;
 			if (list[r.account][r.chainId] == undefined) list[r.account][r.chainId] = {};
 
 			// set state and overwrite type conform

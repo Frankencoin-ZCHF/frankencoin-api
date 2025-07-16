@@ -1,7 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SavingsCoreService } from './savings.core.service';
-import { ApiSavingsActivity, ApiSavingsBalances, ApiSavingsInfo, ApiSavingsRanked } from './savings.core.types';
+import { ApiSavingsActivity, ApiSavingsBalance, ApiSavingsInfo, ApiSavingsRanked } from './savings.core.types';
 import { Address, isAddress, zeroAddress } from 'viem';
 
 @ApiTags('Savings Controller')
@@ -17,11 +17,12 @@ export class SavingsCoreController {
 		return this.savings.getInfo();
 	}
 
+	// TODO: endpoint could be deactivated, if work load and data load is to high
 	@Get('balances')
 	@ApiResponse({
 		description: 'returns information about balances',
 	})
-	getBalances(): ApiSavingsBalances {
+	getBalances(): ApiSavingsBalance {
 		return this.savings.getBalances();
 	}
 
@@ -29,7 +30,7 @@ export class SavingsCoreController {
 	@ApiResponse({
 		description: 'returns information about balances of an account',
 	})
-	getBalancesAccount(@Param('account') account: string): ApiSavingsBalances {
+	getBalancesAccount(@Param('account') account: string): ApiSavingsBalance {
 		if (!isAddress(account)) account = zeroAddress;
 		return this.savings.getBalances()[account.toLowerCase() as Address] || {};
 	}
@@ -42,6 +43,7 @@ export class SavingsCoreController {
 		return this.savings.getRanked();
 	}
 
+	// TODO: endpoint could be deactivated, if work load and data load is to high
 	@Get('activity')
 	@ApiResponse({
 		description: 'returns the latest activities',

@@ -69,7 +69,7 @@ export class ApiService {
 			this.leadrate.updateLeadrateRates(),
 			this.leadrate.updateLeadrateProposals(),
 			this.savings.updateSavingsStatus(),
-			this.savings.updateSavingsBalances(),
+			this.savings.updateSavingsBalance(),
 			this.savings.updateSavingsActivity(),
 			// this.challenges.updateChallengeV1s(),
 			// this.challenges.updateChallengeV2s(),
