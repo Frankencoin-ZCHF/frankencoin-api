@@ -18,21 +18,21 @@ export class SavingsCoreController {
 	}
 
 	// TODO: endpoint could be deactivated, if work load and data load is to high
-	@Get('balances')
+	@Get('balance')
 	@ApiResponse({
-		description: 'returns information about balances',
+		description: 'returns information about balance',
 	})
-	getBalances(): ApiSavingsBalance {
-		return this.savings.getBalances();
+	getBalance(): ApiSavingsBalance {
+		return this.savings.getBalance();
 	}
 
-	@Get('balances/:account')
+	@Get('balance/:account')
 	@ApiResponse({
-		description: 'returns information about balances of an account',
+		description: 'returns information about balance of an account',
 	})
-	getBalancesAccount(@Param('account') account: string): ApiSavingsBalance {
+	getBalanceAccount(@Param('account') account: string): ApiSavingsBalance {
 		if (!isAddress(account)) account = zeroAddress;
-		return this.savings.getBalances()[account.toLowerCase() as Address] || {};
+		return this.savings.getBalance()[account.toLowerCase() as Address] || {};
 	}
 
 	@Get('ranked')

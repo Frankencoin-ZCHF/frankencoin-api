@@ -21,8 +21,8 @@ import { formatFloat } from 'utils/format';
 export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
 	private fetchedStatus: SavingsStatusMapping = {} as SavingsStatusMapping;
-	private fetchedBalances: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
-	private fetchedActivities: SavingsActivityQuery[] = [];
+	private fetchedBalance: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
+	private fetchedActivity: SavingsActivityQuery[] = [];
 
 	constructor(private readonly fc: EcosystemFrankencoinService) {}
 
@@ -42,16 +42,16 @@ export class SavingsCoreService {
 		};
 	}
 
-	getBalances(): ApiSavingsBalance {
-		return this.fetchedBalances;
+	getBalance(): ApiSavingsBalance {
+		return this.fetchedBalance;
 	}
 
 	getRanked(): ApiSavingsRanked {
 		const balance: ApiSavingsRanked = {} as ApiSavingsRanked;
-		const accounts = Object.keys(this.fetchedBalances) as SavingsBalance['account'][];
+		const accounts = Object.keys(this.fetchedBalance) as SavingsBalance['account'][];
 
 		for (const acc of accounts) {
-			balance[acc] = Object.values(this.fetchedBalances[acc as SavingsBalance['account']]).reduce((a, b) => {
+			balance[acc] = Object.values(this.fetchedBalance[acc as SavingsBalance['account']]).reduce((a, b) => {
 				const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.balance)), 0);
 				return a + modules;
 			}, 0);
@@ -61,7 +61,7 @@ export class SavingsCoreService {
 	}
 
 	getActivity(): ApiSavingsActivity {
-		return this.fetchedActivities;
+		return this.fetchedActivity;
 	}
 
 	async updateSavingsStatus() {
@@ -192,7 +192,7 @@ export class SavingsCoreService {
 			};
 		}
 
-		this.fetchedBalances = list;
+		this.fetchedBalance = list;
 	}
 
 	async updateSavingsActivity() {
@@ -255,6 +255,6 @@ export class SavingsCoreService {
 			});
 		}
 
-		this.fetchedActivities = d;
+		this.fetchedActivity = d;
 	}
 }
