@@ -115,8 +115,6 @@ export type ApiSavingsInfo = {
 
 export type ApiSavingsBalance = SavingsBalanceAccountMapping;
 
-export type ApiSavingsRanked = {
-	[key in SavingsBalance['account']]: number;
-};
+export type ApiSavingsRanked = SavingsBalance[];
 
 export type ApiSavingsActivity = SavingsActivityQuery[];

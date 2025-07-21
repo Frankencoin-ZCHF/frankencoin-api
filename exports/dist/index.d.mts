@@ -762,9 +762,7 @@ type ApiSavingsInfo = {
     ratioOfSupply: number;
 };
 type ApiSavingsBalance = SavingsBalanceAccountMapping;
-type ApiSavingsRanked = {
-    [key in SavingsBalance['account']]: number;
-};
+type ApiSavingsRanked = SavingsBalance[];
 type ApiSavingsActivity = SavingsActivityQuery[];
 
 declare class SubscriptionGroups {

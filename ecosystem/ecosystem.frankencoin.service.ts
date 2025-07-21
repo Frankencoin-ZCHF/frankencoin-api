@@ -142,7 +142,7 @@ export class EcosystemFrankencoinService {
 
 			this.ecosystemFrankencoin[i.chainId as ChainId] = {
 				chainId: i.chainId,
-				updated: i.updated,
+				updated: parseInt(i.updated as any),
 				address: i.token,
 				supply: formatFloat(i.supply),
 				counter: {

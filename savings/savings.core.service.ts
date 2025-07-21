@@ -22,6 +22,7 @@ export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
 	private fetchedStatus: SavingsStatusMapping = {} as SavingsStatusMapping;
 	private fetchedBalance: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
+	private fetchedRanked: SavingsBalance[] = [];
 	private fetchedActivity: SavingsActivityQuery[] = [];
 
 	constructor(private readonly fc: EcosystemFrankencoinService) {}
@@ -47,17 +48,7 @@ export class SavingsCoreService {
 	}
 
 	getRanked(): ApiSavingsRanked {
-		const balance: ApiSavingsRanked = {} as ApiSavingsRanked;
-		const accounts = Object.keys(this.fetchedBalance) as SavingsBalance['account'][];
-
-		for (const acc of accounts) {
-			balance[acc] = Object.values(this.fetchedBalance[acc as SavingsBalance['account']]).reduce((a, b) => {
-				const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.balance)), 0);
-				return a + modules;
-			}, 0);
-		}
-
-		return balance;
+		return this.fetchedRanked;
 	}
 
 	getActivity(): ApiSavingsActivity {
@@ -168,13 +159,14 @@ export class SavingsCoreService {
 		const d = response.data.savingsMappings.items;
 
 		const list: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
+		const ranked: SavingsBalance[] = [];
 		for (const r of d) {
 			// make object available, account -> chainId -> balance
 			if (list[r.account] == undefined) list[r.account] = {} as SavingsBalanceChainIdMapping;
 			if (list[r.account][r.chainId] == undefined) list[r.account][r.chainId] = {};
 
 			// set state and overwrite type conform
-			list[r.account][r.chainId][r.module] = {
+			const data: SavingsBalance = {
 				chainId: r.chainId,
 				account: r.account,
 				module: r.module,
@@ -190,9 +182,16 @@ export class SavingsCoreService {
 					withdraw: parseInt(r.counterWithdraw as any),
 				},
 			};
+
+			list[r.account][r.chainId][r.module] = data;
+
+			if (ranked.length < 20) {
+				ranked.push(data);
+			}
 		}
 
 		this.fetchedBalance = list;
+		this.fetchedRanked = ranked;
 	}
 
 	async updateSavingsActivity() {
