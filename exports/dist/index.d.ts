@@ -637,7 +637,9 @@ type LeadrateProposedOpen = {
     currentRate: number;
     nextRate: number;
     nextChange: number;
+    isProposal: boolean;
     isPending: boolean;
+    isSynced: boolean;
 };
 type ApiLeadrateInfo = {
     rate: ApiLeadrateRate['rate'];

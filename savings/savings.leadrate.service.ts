@@ -10,8 +10,9 @@ import {
 	ApiLeadrateRate,
 	ApiLeadrateProposed,
 } from './savings.leadrate.types';
-import { ChainId } from '@frankencoin/zchf';
+import { ADDRESS, ChainId } from '@frankencoin/zchf';
 import { Address } from 'viem';
+import { base, mainnet } from 'viem/chains';
 
 @Injectable()
 export class SavingsLeadrateService {
@@ -78,9 +79,13 @@ export class SavingsLeadrateService {
 				const latestProposed = proposed[chain][module];
 				const isProposal = currentRate.approvedRate != latestProposed.nextRate;
 				const isPending = latestProposed.nextChange * 1000 >= Date.now();
+				const savingsReferral = ADDRESS[mainnet.id].savingsReferral.toLowerCase() as Address;
+				const bridgedSavingsBase = ADDRESS[base.id].ccipBridgedSavings.toLowerCase() as Address;
+				const sideChainRate = rate[base.id][bridgedSavingsBase];
+				const isSynced = savingsReferral != module.toLowerCase() || currentRate.approvedRate == sideChainRate.approvedRate;
 
-				// validate that it is a rate change
-				if (!isProposal) continue;
+				// validate that it is an unsettled proposal
+				if (!isProposal && !isPending && isSynced) continue;
 
 				// make chain available and make entry
 				if (open[chain] == undefined) open[chain] = {};
@@ -89,7 +94,9 @@ export class SavingsLeadrateService {
 					currentRate: currentRate.approvedRate,
 					nextRate: latestProposed.nextRate,
 					nextChange: latestProposed.nextChange,
+					isProposal,
 					isPending,
+					isSynced,
 				};
 			}
 		}

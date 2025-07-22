@@ -43,7 +43,9 @@ export type LeadrateProposedOpen = {
 	currentRate: number;
 	nextRate: number;
 	nextChange: number;
+	isProposal: boolean;
 	isPending: boolean;
+	isSynced: boolean;
 };
 
 // --------------------------------------------------------------------------
