@@ -9,7 +9,7 @@ import { ApiService } from 'api.service';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
-// import { PositionsService } from 'positions/positions.service';
+import { PositionsService } from 'positions/positions.service';
 // import { PricesService } from 'prices/prices.service';
 // import { ChallengesService } from 'challenges/challenges.service';
 // import { TelegramService } from 'telegram/telegram.service';
@@ -19,7 +19,7 @@ import { EcosystemMinterController } from 'ecosystem/ecosystem.minter.controller
 // import { EcosystemCollateralController } from 'ecosystem/ecosystem.collateral.controller';
 import { EcosystemFpsController } from 'ecosystem/ecosystem.fps.controller';
 import { EcosystemFrankencoinController } from 'ecosystem/ecosystem.frankencoin.controller';
-// import { PositionsController } from 'positions/positions.controller';
+import { PositionsController } from 'positions/positions.controller';
 // import { PricesController } from 'prices/prices.controller';
 // import { ChallengesController } from 'challenges/challenges.controller';
 import { Storj } from 'storj/storj.s3.service';
@@ -37,7 +37,7 @@ import { HttpModule } from '@nestjs/axios';
 @Module({
 	imports: [ConfigModule.forRoot(), ScheduleModule.forRoot(), HttpModule],
 	controllers: [
-		// PositionsController,
+		PositionsController,
 		EcosystemMinterController,
 		// EcosystemCollateralController,
 		EcosystemFpsController,
@@ -51,7 +51,7 @@ import { HttpModule } from '@nestjs/axios';
 	],
 	providers: [
 		Storj,
-		// PositionsService,
+		PositionsService,
 		EcosystemMinterService,
 		// EcosystemCollateralService,
 		EcosystemFpsService,
