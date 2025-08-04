@@ -60,7 +60,7 @@ export class EcosystemCollateralService {
 	}
 
 	getCollateralPositionsDetails(): ApiEcosystemCollateralPositionsDetails {
-		const positions = Object.values(this.positionsService.getPositionsList().list);
+		const positions = Object.values(this.positionsService.getPositionsOpen().map);
 		const collaterals = this.pricesService.getCollateral();
 		const collateralPositions: ApiEcosystemCollateralPositionsDetails = {};
 
@@ -85,14 +85,14 @@ export class EcosystemCollateralService {
 
 		const zchfAddress = this.pricesService.getMint()?.address;
 		if (!zchfAddress) return null;
-		const zchfPrice = prices[zchfAddress.toLowerCase()]?.price?.usd as number;
+		const zchfPrice = prices[zchfAddress.toLowerCase() as Address]?.price?.usd as number;
 		if (!zchfPrice) return null;
 
 		const ecosystemTotalValueLocked: PriceQueryCurrencies = {};
 		const map: { [key: Address]: ApiEcosystemCollateralStatsItem } = {};
 
 		for (const c of Object.values(collateralPositionsDetails)) {
-			const price = prices[c.address.toLowerCase()]?.price?.usd as number;
+			const price = prices[c.address.toLowerCase() as Address]?.price?.usd as number;
 			if (!price) continue;
 
 			const total = c.positions.length;
@@ -102,6 +102,10 @@ export class EcosystemCollateralService {
 			const denied = c.positions.filter((p: PositionQuery) => p.denied).length;
 			const originals = c.positions.filter((p: PositionQuery) => p.isOriginal).length;
 			const clones = c.positions.filter((p: PositionQuery) => p.isClone).length;
+			const totalMinted = c.positions.filter((p: PositionQuery) => !p.closed && !p.denied).reduce((a: bigint, b: PositionQuery) => a + BigInt(b.minted), 0n);
+			const totalLimit = this.positionsService.getPositionsList().list
+				.filter((p: PositionQuery) => p.collateral.toLowerCase() === c.address.toLowerCase() && p.isOriginal && p.expiration > Date.now()/1000)
+				.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.limitForClones), 0n);
 			const totalBalance = c.positions.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.collateralBalance), 0n);
 			const totalBalanceNumUsd = parseInt(formatUnits(totalBalance, c.decimals)) * price;
 			const totalValueLocked: PriceQueryCurrencies = {
@@ -138,6 +142,8 @@ export class EcosystemCollateralService {
 					originals,
 					clones,
 				},
+				totalMinted: parseInt(formatUnits(totalMinted, 18)),
+				totalLimit: parseInt(formatUnits(totalLimit, 18)),
 				totalBalanceRaw: totalBalance.toString(),
 				totalValueLocked,
 				price: {

@@ -4,12 +4,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { CONFIG, VIEM_CONFIG } from 'api.config';
 import { AxiosError } from 'axios';
-// import { ChallengesService } from 'challenges/challenges.service';
+import { ChallengesService } from 'challenges/challenges.service';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { PositionsService } from 'positions/positions.service';
-// import { PricesService } from 'prices/prices.service';
+import { PricesService } from 'prices/prices.service';
 import { catchError, firstValueFrom } from 'rxjs';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
@@ -42,10 +42,10 @@ export class ApiService {
 		private readonly httpService: HttpService,
 		private readonly minter: EcosystemMinterService,
 		private readonly positions: PositionsService,
-		// private readonly prices: PricesService,
+		private readonly prices: PricesService,
 		private readonly frankencoin: EcosystemFrankencoinService,
 		private readonly fps: EcosystemFpsService,
-		// private readonly challenges: ChallengesService,
+		private readonly challenges: ChallengesService,
 		// private readonly telegram: TelegramService,
 		private readonly leadrate: SavingsLeadrateService,
 		private readonly savings: SavingsCoreService
@@ -62,7 +62,7 @@ export class ApiService {
 			this.positions.updatePositonV2s(),
 			this.positions.updateMintingUpdateV1s(),
 			this.positions.updateMintingUpdateV2s(),
-			// this.prices.updatePrices(),
+			this.prices.updatePrices(),
 			this.frankencoin.updateEcosystemKeyValues(),
 			this.frankencoin.updateEcosystemERC20Status(),
 			this.fps.updateFpsInfo(),
@@ -71,11 +71,11 @@ export class ApiService {
 			this.savings.updateSavingsStatus(),
 			this.savings.updateSavingsBalance(),
 			this.savings.updateSavingsActivity(),
-			// this.challenges.updateChallengeV1s(),
-			// this.challenges.updateChallengeV2s(),
-			// this.challenges.updateBidV1s(),
-			// this.challenges.updateBidV2s(),
-			// this.challenges.updateChallengesPrices(),
+			this.challenges.updateChallengeV1s(),
+			this.challenges.updateChallengeV2s(),
+			this.challenges.updateBidV1s(),
+			this.challenges.updateBidV2s(),
+			this.challenges.updateChallengesPrices(),
 			// this.transferRef.updateReferences(),
 			// this.telegram.updateTelegram(),
 		];

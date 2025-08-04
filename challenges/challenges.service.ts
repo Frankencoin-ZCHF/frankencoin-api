@@ -190,20 +190,23 @@ export class ChallengesService {
 			challengesPrices[c.id] = price.toString();
 		}
 
-		// upsert
-		this.fetchedPrices = { ...this.fetchedPrices, ...challengesPrices };
+		// update
+		this.fetchedPrices = challengesPrices;
 	}
 
 	// --------------------------------------------------------------------------
 	async updateChallengeV1s() {
 		this.logger.debug('Updating Challenges V1');
-		const challenges = await PONDER_CLIENT.query({
+		const challenges = await PONDER_CLIENT.query<{
+			mintingHubV1ChallengeV1s: {
+				items: ChallengesQueryItem[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					challengeV1s(orderBy: "status", orderDirection: "asc", limit: 1000) {
+					mintingHubV1ChallengeV1s(orderBy: "status", orderDirection: "asc", limit: 1000) {
 						items {
-							id
 							position
 							number
 							challenger
@@ -222,17 +225,19 @@ export class ChallengesService {
 			`,
 		});
 
-		if (!challenges.data || !challenges?.data?.challengeV1s?.items?.length) {
+		if (!challenges.data || !challenges?.data?.mintingHubV1ChallengeV1s?.items?.length) {
 			this.logger.warn('No Challenge V1 found.');
 			return;
 		}
 
 		// mapping
-		const list = challenges.data.challengeV1s.items as ChallengesQueryItem[];
+		const list = challenges.data.mintingHubV1ChallengeV1s.items as ChallengesQueryItem[];
+
 		const mapped: ChallengesQueryItemMapping = {};
 		for (const i of list) {
-			mapped[i.id] = i;
-			mapped[i.id].version = 1;
+			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			mapped[key] = i;
+			mapped[key].version = 1;
 		}
 
 		// upsert
@@ -242,13 +247,16 @@ export class ChallengesService {
 	// --------------------------------------------------------------------------
 	async updateBidV1s() {
 		this.logger.debug('Updating Bids V1');
-		const bids = await PONDER_CLIENT.query({
+		const bids = await PONDER_CLIENT.query<{
+			mintingHubV1ChallengeBidV1s: {
+				items: BidsQueryItem[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					challengeBidV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
+					mintingHubV1ChallengeBidV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
-							id
 							position
 							number
 							numberBid
@@ -266,17 +274,18 @@ export class ChallengesService {
 			`,
 		});
 
-		if (!bids.data || !bids.data?.challengeBidV1s?.items?.length) {
+		if (!bids.data || !bids.data?.mintingHubV1ChallengeBidV1s?.items?.length) {
 			this.logger.warn('No Bids V1 found.');
 			return;
 		}
 
 		// mapping
-		const list = bids.data.challengeBidV1s.items as BidsQueryItem[];
+		const list = bids.data.mintingHubV1ChallengeBidV1s.items as BidsQueryItem[];
 		const mapped: BidsQueryItemMapping = {};
 		for (const i of list) {
-			mapped[i.id] = i;
-			mapped[i.id].version = 1;
+			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			mapped[key] = i;
+			mapped[key].version = 1;
 		}
 
 		// upsert
@@ -286,13 +295,16 @@ export class ChallengesService {
 	// --------------------------------------------------------------------------
 	async updateChallengeV2s() {
 		this.logger.debug('Updating Challenges V2');
-		const challenges = await PONDER_CLIENT.query({
+		const challenges = await PONDER_CLIENT.query<{
+			mintingHubV2ChallengeV2s: {
+				items: ChallengesQueryItem[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					challengeV2s(orderBy: "status", orderDirection: "asc", limit: 1000) {
+					mintingHubV2ChallengeV2s(orderBy: "status", orderDirection: "asc", limit: 1000) {
 						items {
-							id
 							position
 							number
 							challenger
@@ -311,17 +323,18 @@ export class ChallengesService {
 			`,
 		});
 
-		if (!challenges.data || !challenges?.data?.challengeV2s?.items?.length) {
+		if (!challenges.data || !challenges?.data?.mintingHubV2ChallengeV2s?.items?.length) {
 			this.logger.warn('No Challenge V2 found.');
 			return;
 		}
 
 		// mapping
-		const list = challenges.data.challengeV2s.items as ChallengesQueryItem[];
+		const list = challenges.data.mintingHubV2ChallengeV2s.items as ChallengesQueryItem[];
 		const mapped: ChallengesQueryItemMapping = {};
 		for (const i of list) {
-			mapped[i.id] = i;
-			mapped[i.id].version = 2;
+			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			mapped[key] = i;
+			mapped[key].version = 2;
 		}
 
 		// upsert
@@ -331,13 +344,16 @@ export class ChallengesService {
 	// --------------------------------------------------------------------------
 	async updateBidV2s() {
 		this.logger.debug('Updating Bids V2');
-		const bids = await PONDER_CLIENT.query({
+		const bids = await PONDER_CLIENT.query<{
+			mintingHubV2ChallengeBidV2s: {
+				items: BidsQueryItem[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					challengeBidV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
+					mintingHubV2ChallengeBidV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
-							id
 							position
 							number
 							numberBid
@@ -355,17 +371,18 @@ export class ChallengesService {
 			`,
 		});
 
-		if (!bids.data || !bids.data?.challengeBidV2s?.items?.length) {
+		if (!bids.data || !bids.data?.mintingHubV2ChallengeBidV2s?.items?.length) {
 			this.logger.warn('No Bids V2 found.');
 			return;
 		}
 
 		// mapping
-		const list = bids.data.challengeBidV2s.items as BidsQueryItem[];
+		const list = bids.data.mintingHubV2ChallengeBidV2s.items as BidsQueryItem[];
 		const mapped: BidsQueryItemMapping = {};
 		for (const i of list) {
-			mapped[i.id] = i;
-			mapped[i.id].version = 2;
+			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			mapped[key] = i;
+			mapped[key].version = 2;
 		}
 
 		// upsert

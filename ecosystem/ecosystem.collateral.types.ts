@@ -28,9 +28,11 @@ export type ApiEcosystemCollateralStatsItem = ERC20Info & {
 		originals: number;
 		clones: number;
 	};
+	price: PriceQueryCurrencies;
+	totalMinted: number;
+	totalLimit: number;
 	totalBalanceRaw: string;
 	totalValueLocked: PriceQueryCurrencies;
-	price: PriceQueryCurrencies;
 };
 
 // --------------------------------------------------------------------------

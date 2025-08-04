@@ -9,9 +9,9 @@ import {
 	ApiEcosystemFrankencoinKeyValues,
 	ApiEcosystemFrankencoinInfo,
 } from './ecosystem.frankencoin.types';
-// import { PricesService } from 'prices/prices.service';
+import { PricesService } from 'prices/prices.service';
 import { EcosystemFpsService } from './ecosystem.fps.service';
-// import { EcosystemCollateralService } from './ecosystem.collateral.service';
+import { EcosystemCollateralService } from './ecosystem.collateral.service';
 import { ADDRESS, ChainId } from '@frankencoin/zchf';
 import { formatFloat } from 'utils/format';
 
@@ -22,9 +22,9 @@ export class EcosystemFrankencoinService {
 	private ecosystemFrankencoin: EcosystemFrankencoinMapping = {} as EcosystemFrankencoinMapping;
 
 	constructor(
-		private readonly fpsService: EcosystemFpsService
-		// private readonly collService: EcosystemCollateralService,
-		// private readonly pricesService: PricesService
+		private readonly fpsService: EcosystemFpsService,
+		private readonly collService: EcosystemCollateralService,
+		private readonly pricesService: PricesService
 	) {}
 
 	getEcosystemFrankencoinKeyValues(): ApiEcosystemFrankencoinKeyValues {
@@ -44,15 +44,11 @@ export class EcosystemFrankencoinService {
 			},
 			chains: this.ecosystemFrankencoin,
 			token: {
-				usd: 0,
-				// usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
+				usd: Object.values(this.pricesService.getPrices()).find((p) => p.symbol === 'ZCHF')?.price?.usd || 1,
 				supply,
 			},
 			fps: this.fpsService.getEcosystemFpsInfo()?.token,
-			tvl: {
-				usd: 1,
-			},
-			// tvl: this.collService.getCollateralStats()?.totalValueLocked ?? {},
+			tvl: this.collService.getCollateralStats()?.totalValueLocked ?? {},
 		};
 	}
 

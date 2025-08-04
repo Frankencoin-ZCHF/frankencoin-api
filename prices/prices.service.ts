@@ -18,8 +18,6 @@ import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
 
-const randRef: number = Math.random() * 0.4 + 0.8;
-
 @Injectable()
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
@@ -111,37 +109,13 @@ export class PricesService {
 			return { usd: priceInChf * zchfPrice };
 		}
 
-		// all mainnet addresses
-		if ((mainnet.id as number) === 1) {
-			const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
-			const data = await (await COINGECKO_CLIENT(url)).json();
-			if (data.status) {
-				this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
-				return null;
-			}
-			return Object.values(data)[0] as { usd: number };
-		} else {
-			// all other chain addresses (test deployments)
-			const calc = (value: number) => {
-				const ref: number = 1718033809979;
-				return value * randRef * (1 + ((Date.now() - ref) / (3600 * 24 * 365)) * 0.001 + Math.random() * 0.01);
-			};
-
-			// @dev: this is just for testnet soft price mapping
-			let price = { usd: calc(1) };
-			if (erc.symbol === 'ZCHF') price = { usd: calc(1.12) };
-			if (erc.symbol === 'BTC') price = { usd: calc(69000) };
-			if (erc.symbol === 'WBTC') price = { usd: calc(69000) };
-			if (erc.symbol === 'ETH') price = { usd: calc(3800) };
-			if (erc.symbol === 'WETH') price = { usd: calc(3800) };
-			if (erc.symbol === 'UNI') price = { usd: calc(10.54) };
-			if (erc.symbol === 'SUP') price = { usd: calc(12453) };
-			if (erc.symbol === 'BOSS') price = { usd: calc(11.54) };
-			if (erc.symbol === 'BEES') price = { usd: calc(16) };
-			if (erc.symbol === 'CRV') price = { usd: calc(500) };
-			if (erc.symbol === 'FLOKI') price = { usd: calc(1400) };
-			return price;
+		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
+		const data = await (await COINGECKO_CLIENT(url)).json();
+		if (data.status) {
+			this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
+			return null;
 		}
+		return Object.values(data)[0] || ({ usd: 0 }) as { usd: number };
 	}
 
 	async updatePrices() {

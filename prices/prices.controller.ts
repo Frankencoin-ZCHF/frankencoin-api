@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ApiPriceERC20, ApiPriceERC20Mapping, ApiPriceListing, ApiPriceMapping, PriceQueryCurrencies } from 'prices/prices.types';
 import { PricesService } from './prices.service';
-import { AnalyticsService } from 'analytics/analytics.service';
+// import { AnalyticsService } from 'analytics/analytics.service';
 import { formatUnits } from 'viem';
 
 @ApiTags('Prices Controller')
@@ -10,7 +10,7 @@ import { formatUnits } from 'viem';
 export class PricesController {
 	constructor(
 		private readonly pricesService: PricesService,
-		private readonly analytics: AnalyticsService
+		// private readonly analytics: AnalyticsService
 	) {}
 
 	@Get('ticker/:ticker')
@@ -30,20 +30,20 @@ export class PricesController {
 		}
 	}
 
-	@Get('ticker/FPS/history')
-	@ApiResponse({
-		description: 'Returns trade price history from DailyLog for FPS ticker',
-	})
-	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
-	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
-	getTickerHistory(@Query('start') start: string = '0', @Query('end') end: string | number = Date.now()): { t: number; p: number }[] {
-		const listMapped = this.analytics
-			.getDailyLog()
-			.logs.map((l) => ({ t: Number(l.timestamp), p: Number(formatUnits(l.fpsPrice, 18)) }));
+	// @Get('ticker/FPS/history')
+	// @ApiResponse({
+	// 	description: 'Returns trade price history from DailyLog for FPS ticker',
+	// })
+	// @ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
+	// @ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
+	// getTickerHistory(@Query('start') start: string = '0', @Query('end') end: string | number = Date.now()): { t: number; p: number }[] {
+	// 	const listMapped = this.analytics
+	// 		.getDailyLog()
+	// 		.logs.map((l) => ({ t: Number(l.timestamp), p: Number(formatUnits(l.fpsPrice, 18)) }));
 
-		const listFiltered = listMapped.filter((l) => l.t >= new Date(start).getTime() && l.t <= new Date(end).getTime());
-		return listFiltered;
-	}
+	// 	const listFiltered = listMapped.filter((l) => l.t >= new Date(start).getTime() && l.t <= new Date(end).getTime());
+	// 	return listFiltered;
+	// }
 
 	@Get('list')
 	@ApiResponse({
