@@ -33,16 +33,19 @@ export type AnalyticsExposureItem = {
 };
 
 export type AnalyticsProfitLossLog = {
-	id: string;
-	count: bigint;
-	created: string;
+	chainId: number;
+	minter: Address;
+	created: number;
+	count: number;
 	kind: string;
 	amount: bigint;
+	profits: bigint;
+	losses: bigint;
 	perFPS: bigint;
 };
 
 export type AnalyticsTransactionLog = {
-	id: string;
+	chainId: number;
 	count: number;
 	timestamp: string;
 	kind: string;
@@ -78,7 +81,7 @@ export type AnalyticsTransactionLog = {
 };
 
 export type AnalyticsDailyLog = {
-	id: string;
+	date: string;
 	timestamp: string;
 	txHash: string;
 

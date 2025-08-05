@@ -111,6 +111,7 @@ export type ApiSavingsInfo = {
 	status: SavingsStatusMapping;
 	totalBalance: number;
 	ratioOfSupply: number;
+	totalInterest: number;
 };
 
 export type ApiSavingsBalance = SavingsBalanceAccountMapping;

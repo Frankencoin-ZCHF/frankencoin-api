@@ -32,6 +32,10 @@ export class SavingsCoreService {
 			const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.balance)), 0);
 			return a + modules;
 		}, 0);
+		const totalInterest = Object.values(this.fetchedStatus).reduce((a, b) => {
+			const modules = Object.values(b).reduce((a, b) => a + formatFloat(BigInt(b.interest)), 0);
+			return a + modules;
+		}, 0);
 
 		const totalSupply = this.fc.getEcosystemFrankencoinInfo().token.supply;
 		const ratioOfSupply: number = totalBalance / totalSupply;
@@ -40,6 +44,7 @@ export class SavingsCoreService {
 			status: this.fetchedStatus,
 			totalBalance,
 			ratioOfSupply,
+			totalInterest,
 		};
 	}
 
