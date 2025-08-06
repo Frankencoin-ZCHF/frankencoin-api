@@ -28,15 +28,18 @@ type AnalyticsExposureItem = {
     };
 };
 type AnalyticsProfitLossLog = {
-    id: string;
-    count: bigint;
-    created: string;
+    chainId: number;
+    minter: Address;
+    created: number;
+    count: number;
     kind: string;
     amount: bigint;
+    profits: bigint;
+    losses: bigint;
     perFPS: bigint;
 };
 type AnalyticsTransactionLog = {
-    id: string;
+    chainId: number;
     count: number;
     timestamp: string;
     kind: string;
@@ -53,7 +56,6 @@ type AnalyticsTransactionLog = {
     totalMintedV1: bigint;
     totalMintedV2: bigint;
     currentLeadRate: bigint;
-    claimableInterests: bigint;
     projectedInterests: bigint;
     annualV1Interests: bigint;
     annualV2Interests: bigint;
@@ -64,7 +66,7 @@ type AnalyticsTransactionLog = {
     earningsPerFPS: bigint;
 };
 type AnalyticsDailyLog = {
-    id: string;
+    date: string;
     timestamp: string;
     txHash: string;
     totalInflow: bigint;
@@ -78,7 +80,6 @@ type AnalyticsDailyLog = {
     totalMintedV1: bigint;
     totalMintedV2: bigint;
     currentLeadRate: bigint;
-    claimableInterests: bigint;
     projectedInterests: bigint;
     annualV1Interests: bigint;
     annualV2Interests: bigint;
@@ -546,9 +547,11 @@ type ApiEcosystemCollateralStatsItem = ERC20Info & {
         originals: number;
         clones: number;
     };
+    price: PriceQueryCurrencies;
+    totalMinted: number;
+    totalLimit: number;
     totalBalanceRaw: string;
     totalValueLocked: PriceQueryCurrencies;
-    price: PriceQueryCurrencies;
 };
 type ApiEcosystemCollateralListArray = {
     num: number;
@@ -762,6 +765,7 @@ type ApiSavingsInfo = {
     status: SavingsStatusMapping;
     totalBalance: number;
     ratioOfSupply: number;
+    totalInterest: number;
 };
 type ApiSavingsBalance = SavingsBalanceAccountMapping;
 type ApiSavingsRanked = SavingsBalance[];
