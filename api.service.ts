@@ -13,7 +13,7 @@ import { PricesService } from 'prices/prices.service';
 import { catchError, firstValueFrom } from 'rxjs';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
-// import { TelegramService } from 'telegram/telegram.service';
+import { TelegramService } from 'telegram/telegram.service';
 // import { TransferReferenceService } from 'transfer/transfer.reference.service';
 import { mainnet } from 'viem/chains';
 
@@ -46,7 +46,7 @@ export class ApiService {
 		private readonly frankencoin: EcosystemFrankencoinService,
 		private readonly fps: EcosystemFpsService,
 		private readonly challenges: ChallengesService,
-		// private readonly telegram: TelegramService,
+		private readonly telegram: TelegramService,
 		private readonly leadrate: SavingsLeadrateService,
 		private readonly savings: SavingsCoreService
 		// private readonly transferRef: TransferReferenceService
@@ -77,7 +77,7 @@ export class ApiService {
 			this.challenges.updateBidV2s(),
 			this.challenges.updateChallengesPrices(),
 			// this.transferRef.updateReferences(),
-			// this.telegram.updateTelegram(),
+			this.telegram.updateTelegram(),
 		];
 
 		return Promise.all(promises);

@@ -26,6 +26,7 @@ import { PriceQuery } from 'prices/prices.types';
 import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from './messages/PositionPrice.message';
 import { AnalyticsService } from 'analytics/analytics.service';
 import { DailyInfosMessage } from './messages/DailyInfos.message';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class TelegramService {
@@ -177,18 +178,27 @@ export class TelegramService {
 			}
 		}
 
+		// prepare leadrate
+		const leadrateProposal = Object.values(this.leadrate.getInfo().open[mainnet.id] || {}).filter(
+			(p) => p.details.created * 1000 > this.telegramState.leadrateProposal
+		);
+		const leadrateRates = Object.values(this.leadrate.getInfo().rate[mainnet.id] || {});
+		const leadrateApplied = leadrateRates.filter((r) => r.created * 1000 > this.telegramState.leadrateChanged);
+
 		// Leadrate Proposal
-		const leadrateProposal = this.leadrate.getProposals().list.filter((p) => p.created * 1000 > this.telegramState.leadrateProposal);
-		const leadrateRates = this.leadrate.getRates();
 		if (leadrateProposal.length > 0) {
 			this.telegramState.leadrateProposal = Date.now();
-			this.sendMessageAll(LeadrateProposalMessage(leadrateProposal[0], leadrateRates));
+			for (const p of leadrateProposal) {
+				this.sendMessageAll(LeadrateProposalMessage(p.details, leadrateRates));
+			}
 		}
 
 		// Leadrate Changed
-		if (leadrateRates.created * 1000 > this.telegramState.leadrateChanged) {
+		if (leadrateApplied.length > 0) {
 			this.telegramState.leadrateChanged = Date.now();
-			this.sendMessageAll(LeadrateChangedMessage(leadrateRates.list[0]));
+			for (const r of leadrateApplied) {
+				this.sendMessageAll(LeadrateChangedMessage(r));
+			}
 		}
 
 		// Positions requested

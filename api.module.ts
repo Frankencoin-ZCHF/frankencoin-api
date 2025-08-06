@@ -16,7 +16,7 @@ import { PricesService } from 'prices/prices.service';
 import { ChallengesService } from 'challenges/challenges.service';
 import { AnalyticsService } from 'analytics/analytics.service';
 // import { TransferReferenceService } from 'transfer/transfer.reference.service';
-// import { TelegramService } from 'telegram/telegram.service';
+import { TelegramService } from 'telegram/telegram.service';
 
 // CONTROLLER IMPORTS
 import { Storj } from 'storj/storj.s3.service';
@@ -61,7 +61,7 @@ import { HttpModule } from '@nestjs/axios';
 		PricesService,
 		ChallengesService,
 		// TransferReferenceService,
-		// TelegramService,
+		TelegramService,
 		ApiService,
 		AnalyticsService,
 	],
