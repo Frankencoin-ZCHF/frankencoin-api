@@ -257,7 +257,6 @@ export class AnalyticsService {
 							totalMintedV2,
 
 							currentLeadRate,
-							claimableInterests,
 							projectedInterests,
 							annualV1Interests,
 							annualV2Interests,
@@ -330,7 +329,6 @@ export class AnalyticsService {
 							totalMintedV2
 
 							currentLeadRate
-							claimableInterests
 							projectedInterests
 							annualV1Interests
 							annualV2Interests
