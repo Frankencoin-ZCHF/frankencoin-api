@@ -22,6 +22,7 @@ import { FrankencoinABI } from '@frankencoin/zchf';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { gql } from '@apollo/client/core';
 import { Interval } from '@nestjs/schedule';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class AnalyticsService {
@@ -41,17 +42,24 @@ export class AnalyticsService {
 
 	async getProfitLossLog(): Promise<ApiAnalyticsProfitLossLog> {
 		this.logger.debug('Fetching profit loss log...');
-		const response = await PONDER_CLIENT.query({
+		const response = await PONDER_CLIENT.query<{
+			frankencoinProfitLosss: {
+				items: AnalyticsProfitLossLog[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					profitLosss(orderBy: "count", orderDirection: "desc", limit: 1000) {
+					frankencoinProfitLosss(orderBy: "count", orderDirection: "desc", limit: 1000) {
 						items {
-							id
-							count
+							chainId
+							minter
 							created
+							count
 							kind
 							amount
+							profits
+							losses
 							perFPS
 						}
 					}
@@ -59,12 +67,12 @@ export class AnalyticsService {
 			`,
 		});
 
-		if (!response.data || !response.data.profitLosss.items) {
+		if (!response.data || !response.data.frankencoinProfitLosss.items) {
 			this.logger.warn('No profitloss data found.');
 			return;
 		}
 
-		const logs = response.data.profitLosss.items as AnalyticsProfitLossLog[];
+		const logs = response.data.frankencoinProfitLosss.items as AnalyticsProfitLossLog[];
 
 		return {
 			num: logs.length,
@@ -81,17 +89,17 @@ export class AnalyticsService {
 		let positionsTheta: number = 0;
 		let positionsThetaPerToken: number = 0;
 
-		const minterReserveRaw = await VIEM_CONFIG.readContract({
-			address: ADDRESS[VIEM_CONFIG.chain.id].frankenCoin,
+		const minterReserveRaw = await VIEM_CONFIG[mainnet.id].readContract({
+			address: ADDRESS[mainnet.id].frankencoin,
 			abi: FrankencoinABI,
 			functionName: 'minterReserve',
 		});
 
-		const balanceReserveRaw = await VIEM_CONFIG.readContract({
-			address: ADDRESS[VIEM_CONFIG.chain.id].frankenCoin,
+		const balanceReserveRaw = await VIEM_CONFIG[mainnet.id].readContract({
+			address: ADDRESS[mainnet.id].frankencoin,
 			abi: FrankencoinABI,
 			functionName: 'balanceOf',
-			args: [ADDRESS[VIEM_CONFIG.chain.id].equity],
+			args: [ADDRESS[mainnet.id].equity],
 		});
 
 		const equityInReserveRaw = balanceReserveRaw - minterReserveRaw;
@@ -123,7 +131,7 @@ export class AnalyticsService {
 
 			const totalTheta = (interestAvg * parseFloat(totalMinted)) / 365;
 			positionsTheta += totalTheta;
-			const thetaPerToken = totalTheta / fps.values.totalSupply;
+			const thetaPerToken = totalTheta / fps.token.totalSupply;
 			positionsThetaPerToken += thetaPerToken;
 
 			const totalContributionMul = pos.reduce<bigint>((a, b) => {
@@ -132,13 +140,13 @@ export class AnalyticsService {
 
 			const totalContributionRaw = BigInt(Math.floor(parseInt(formatUnits(totalContributionMul, 6))));
 			const equityInReserveWipedRaw = equityInReserveRaw + totalContributionRaw - totalMintedRaw;
-			const fpsPriceWiped = (parseFloat(formatUnits(equityInReserveWipedRaw, 18)) * 3) / fps.values.totalSupply;
-			const riskRatioWiped = Math.round(1_000_000 * (1 - fpsPriceWiped / fps.values.price)) / 1_000_000;
+			const fpsPriceWiped = (parseFloat(formatUnits(equityInReserveWipedRaw, 18)) * 3) / fps.token.totalSupply;
+			const riskRatioWiped = Math.round(1_000_000 * (1 - fpsPriceWiped / fps.token.price)) / 1_000_000;
 
 			const data: AnalyticsExposureItem = {
 				collateral: {
 					address: c,
-					chainId: VIEM_CONFIG.chain.id,
+					chainId: mainnet.id,
 					name: pos.at(0).collateralName,
 					symbol: pos.at(0).collateralSymbol,
 				},
@@ -170,13 +178,13 @@ export class AnalyticsService {
 				balanceInReserve: parseFloat(balanceReserve),
 				mintersContribution: parseFloat(minterReserve),
 				equityInReserve: parseFloat(equityInReserve),
-				fpsPrice: fps.values.price,
-				fpsTotalSupply: fps.values.totalSupply,
+				fpsPrice: fps.token.price,
+				fpsTotalSupply: fps.token.totalSupply,
 				thetaFromPositions: positionsTheta,
 				thetaPerToken: positionsThetaPerToken,
 				earningsPerAnnum: positionsTheta * 365,
 				earningsPerToken: positionsThetaPerToken * 365,
-				priceToEarnings: fps.values.price / (positionsThetaPerToken * 365),
+				priceToEarnings: fps.token.price / (positionsThetaPerToken * 365),
 				priceToBookValue: 3,
 			},
 			exposures: returnData,
@@ -217,13 +225,17 @@ export class AnalyticsService {
 
 	async getTransactionLog(latest: boolean, limit: number = 50, after: string = ''): Promise<ApiTransactionLog> {
 		this.logger.debug('Fetching transaction log...');
-		const txLog = await PONDER_CLIENT.query({
+		const txLog = await PONDER_CLIENT.query<{
+			analyticTransactionLogs: {
+				items: AnalyticsTransactionLog[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					transactionLogs(orderBy: "count", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
+					analyticTransactionLogs(orderBy: "count", orderDirection: "${latest ? 'desc' : 'asc'}", limit: ${limit}, ${after.length > 0 ? `after: "${after}"` : ''}) {
 						items {
-							id
+							chainId,
 							count,
 							timestamp,
 							kind,
@@ -245,7 +257,6 @@ export class AnalyticsService {
 							totalMintedV2,
 
 							currentLeadRate,
-							claimableInterests,
 							projectedInterests,
 							annualV1Interests,
 							annualV2Interests,
@@ -267,17 +278,18 @@ export class AnalyticsService {
 			`,
 		});
 
-		if (!txLog.data || !txLog.data.transactionLogs.items) {
+		if (!txLog.data || !txLog.data.analyticTransactionLogs.items) {
 			this.logger.warn('No transaction log data found.');
 			return;
 		}
 
-		const logs = txLog.data.transactionLogs.items as AnalyticsTransactionLog[];
+		const logs = txLog.data.analyticTransactionLogs.items;
 
 		return {
 			num: logs.length,
 			logs,
-			pageInfo: txLog.data?.transactionLogs?.pageInfo ?? {
+			// @ts-expect-error not in type
+			pageInfo: txLog.data.analyticTransactionLogs.pageInfo ?? {
 				startCursor: '',
 				endCursor: '',
 				hasNextPage: false,
@@ -288,13 +300,17 @@ export class AnalyticsService {
 	@Interval(10 * 60 * 1000) // 10min
 	async updateDailyLog() {
 		this.logger.debug('Fetching daily log...');
-		const fetched = await PONDER_CLIENT.query({
+		const fetched = await PONDER_CLIENT.query<{
+			analyticDailyLogs: {
+				items: AnalyticsDailyLog[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					dailyLogs(orderBy: "timestamp", orderDirection: "asc", limit: 1000) {
+					analyticDailyLogs(orderBy: "timestamp", orderDirection: "asc", limit: 1000) {
 						items {
-							id
+							date
 							timestamp
 							txHash
 
@@ -313,7 +329,6 @@ export class AnalyticsService {
 							totalMintedV2
 
 							currentLeadRate
-							claimableInterests
 							projectedInterests
 							annualV1Interests
 							annualV2Interests
@@ -330,12 +345,12 @@ export class AnalyticsService {
 			`,
 		});
 
-		if (!fetched.data || !fetched.data.dailyLogs.items) {
+		if (!fetched.data || !fetched.data.analyticDailyLogs.items) {
 			this.logger.warn('No daily log data found.');
 			return;
 		}
 
-		this.fetchedDailyLogs = fetched.data.dailyLogs.items as AnalyticsDailyLog[];
+		this.fetchedDailyLogs = fetched.data.analyticDailyLogs.items;
 	}
 
 	getDailyLog(): ApiDailyLog {

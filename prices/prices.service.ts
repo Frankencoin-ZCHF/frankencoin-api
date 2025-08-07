@@ -10,14 +10,13 @@ import {
 	PriceQueryObjectArray,
 } from './prices.types';
 import { PositionsService } from 'positions/positions.service';
-import { COINGECKO_CLIENT, VIEM_CHAIN } from 'api.config';
+import { COINGECKO_CLIENT } from 'api.config';
 import { Address } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { ADDRESS } from '@frankencoin/zchf';
 import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
-
-const randRef: number = Math.random() * 0.4 + 0.8;
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class PricesService {
@@ -77,7 +76,7 @@ export class PricesService {
 
 	getFps(): ApiPriceERC20 {
 		return {
-			address: ADDRESS[VIEM_CHAIN.id].equity,
+			address: ADDRESS[mainnet.id].equity,
 			name: 'Frankencoin Pool Share',
 			symbol: 'FPS',
 			decimals: 18,
@@ -102,45 +101,21 @@ export class PricesService {
 
 	async fetchSourcesCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		// override for Frankencoin Pool Share
-		if (erc.address.toLowerCase() === ADDRESS[VIEM_CHAIN.id].equity.toLowerCase()) {
-			const priceInChf = this.fps.getEcosystemFpsInfo()?.values?.price;
-			const zchfAddress = ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase();
+		if (erc.address.toLowerCase() === ADDRESS[mainnet.id].equity.toLowerCase()) {
+			const priceInChf = this.fps.getEcosystemFpsInfo()?.token?.price;
+			const zchfAddress = ADDRESS[mainnet.id].frankencoin.toLowerCase();
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice) return null;
 			return { usd: priceInChf * zchfPrice };
 		}
 
-		// all mainnet addresses
-		if ((VIEM_CHAIN.id as number) === 1) {
-			const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
-			const data = await (await COINGECKO_CLIENT(url)).json();
-			if (data.status) {
-				this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
-				return null;
-			}
-			return Object.values(data)[0] as { usd: number };
-		} else {
-			// all other chain addresses (test deployments)
-			const calc = (value: number) => {
-				const ref: number = 1718033809979;
-				return value * randRef * (1 + ((Date.now() - ref) / (3600 * 24 * 365)) * 0.001 + Math.random() * 0.01);
-			};
-
-			// @dev: this is just for testnet soft price mapping
-			let price = { usd: calc(1) };
-			if (erc.symbol === 'ZCHF') price = { usd: calc(1.12) };
-			if (erc.symbol === 'BTC') price = { usd: calc(69000) };
-			if (erc.symbol === 'WBTC') price = { usd: calc(69000) };
-			if (erc.symbol === 'ETH') price = { usd: calc(3800) };
-			if (erc.symbol === 'WETH') price = { usd: calc(3800) };
-			if (erc.symbol === 'UNI') price = { usd: calc(10.54) };
-			if (erc.symbol === 'SUP') price = { usd: calc(12453) };
-			if (erc.symbol === 'BOSS') price = { usd: calc(11.54) };
-			if (erc.symbol === 'BEES') price = { usd: calc(16) };
-			if (erc.symbol === 'CRV') price = { usd: calc(500) };
-			if (erc.symbol === 'FLOKI') price = { usd: calc(1400) };
-			return price;
+		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
+		const data = await (await COINGECKO_CLIENT(url)).json();
+		if (data.status) {
+			this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
+			return null;
 		}
+		return Object.values(data)[0] || ({ usd: 0 }) as { usd: number };
 	}
 
 	async updatePrices() {
@@ -161,7 +136,7 @@ export class PricesService {
 
 		for (const erc of a) {
 			const addr = erc.address.toLowerCase() as Address;
-			const zchfPrice: number = this.fetchedPrices[ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase()]?.price?.usd || 1;
+			const zchfPrice: number = this.fetchedPrices[ADDRESS[mainnet.id].frankencoin.toLowerCase()]?.price?.usd || 1;
 			const oldEntry = this.fetchedPrices[addr];
 
 			if (!oldEntry) {
@@ -205,7 +180,7 @@ export class PricesService {
 		}
 
 		// make chf conversion available
-		const frankencoin = ADDRESS[VIEM_CHAIN.id].frankenCoin.toLowerCase();
+		const frankencoin = ADDRESS[mainnet.id].frankencoin.toLowerCase();
 		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
 		for (const addr of Object.keys(this.fetchedPrices)) {
 			// calculate chf value for erc token

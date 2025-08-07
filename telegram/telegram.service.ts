@@ -24,6 +24,9 @@ import { PositionExpiredMessage } from './messages/PositionExpired.message';
 import { Address, formatUnits } from 'viem';
 import { PriceQuery } from 'prices/prices.types';
 import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from './messages/PositionPrice.message';
+import { AnalyticsService } from 'analytics/analytics.service';
+import { DailyInfosMessage } from './messages/DailyInfos.message';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class TelegramService {
@@ -31,7 +34,7 @@ export class TelegramService {
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 	private readonly storjPath: string = '/telegram.groups.json';
-	private telegramHandles: string[] = ['/MintingUpdates', '/help'];
+	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/DailyInfos', '/help'];
 	private telegramState: TelegramState;
 	private telegramGroupState: TelegramGroupState;
 
@@ -41,7 +44,8 @@ export class TelegramService {
 		private readonly leadrate: SavingsLeadrateService,
 		private readonly position: PositionsService,
 		private readonly prices: PricesService,
-		private readonly challenge: ChallengesService
+		private readonly challenge: ChallengesService,
+		private readonly analytics: AnalyticsService
 	) {
 		this.telegramState = {
 			minterApplied: this.startUpTime,
@@ -112,9 +116,6 @@ export class TelegramService {
 	}
 
 	async sendMessage(group: string | number, message: string) {
-		// give indexer and start up some time before starting with msg, alert, ...
-		if (Date.now() < this.startUpTime + 25 * 60 * 1000) return; // 20min for updates, +5min for sending
-
 		try {
 			this.logger.log(`Sending message to group id: ${group}`);
 			await this.bot.sendMessage(group.toString(), message, { parse_mode: 'Markdown', disable_web_page_preview: true });
@@ -145,8 +146,10 @@ export class TelegramService {
 	}
 
 	async updateTelegram() {
+		// @dev: deactivated, verify indexer status before running workflow.
 		// give indexer and start up some time before starting with msg, alert, ...
-		if (Date.now() < this.startUpTime + 20 * 60 * 1000) return; // 20min
+		// if (Date.now() < this.startUpTime + 20 * 60 * 1000) return; // 20min
+		const isSoftStart = Date.now() < this.startUpTime + 2 * 60 * 1000;
 
 		this.logger.debug('Updating Telegram');
 
@@ -175,18 +178,27 @@ export class TelegramService {
 			}
 		}
 
+		// prepare leadrate
+		const leadrateProposal = Object.values(this.leadrate.getInfo().open[mainnet.id] || {}).filter(
+			(p) => p.details.created * 1000 > this.telegramState.leadrateProposal
+		);
+		const leadrateRates = Object.values(this.leadrate.getInfo().rate[mainnet.id] || {});
+		const leadrateApplied = leadrateRates.filter((r) => r.created * 1000 > this.telegramState.leadrateChanged);
+
 		// Leadrate Proposal
-		const leadrateProposal = this.leadrate.getProposals().list.filter((p) => p.created * 1000 > this.telegramState.leadrateProposal);
-		const leadrateRates = this.leadrate.getRates();
 		if (leadrateProposal.length > 0) {
 			this.telegramState.leadrateProposal = Date.now();
-			this.sendMessageAll(LeadrateProposalMessage(leadrateProposal[0], leadrateRates));
+			for (const p of leadrateProposal) {
+				this.sendMessageAll(LeadrateProposalMessage(p.details, leadrateRates));
+			}
 		}
 
 		// Leadrate Changed
-		if (leadrateRates.created * 1000 > this.telegramState.leadrateChanged) {
+		if (leadrateApplied.length > 0) {
 			this.telegramState.leadrateChanged = Date.now();
-			this.sendMessageAll(LeadrateChangedMessage(leadrateRates.list[0]));
+			for (const r of leadrateApplied) {
+				this.sendMessageAll(LeadrateChangedMessage(r));
+			}
 		}
 
 		// Positions requested
@@ -283,12 +295,14 @@ export class TelegramService {
 				};
 			}
 
+			const groups = this.telegramGroupState.subscription['/PriceAlerts']?.groups || [];
+
 			if (price < posPrice * THRES_LOWEST) {
 				// below 100%
 				if (last.lowestTimestamp + DELAY_LOWEST < Date.now()) {
 					// delay guard passed
 					if (last.lowestPrice == 0 || last.lowestPrice > price) {
-						this.sendMessageAll(PositionPriceLowest(p, priceQuery, last));
+						!isSoftStart && this.sendMessageGroup(groups, PositionPriceLowest(p, priceQuery, last));
 						last.lowestPrice = price;
 					}
 					last.lowestTimestamp = Date.now();
@@ -297,7 +311,7 @@ export class TelegramService {
 				// below 105%
 				if (last.alertTimestamp + DELAY_ALERT < Date.now()) {
 					// delay guard passed
-					this.sendMessageAll(PositionPriceAlert(p, priceQuery, last));
+					!isSoftStart && this.sendMessageGroup(groups, PositionPriceAlert(p, priceQuery, last));
 					last.alertTimestamp = Date.now();
 					last.alertPrice = price;
 				}
@@ -306,7 +320,7 @@ export class TelegramService {
 				if (last.alertTimestamp + DELAY_WARNING < Date.now()) {
 					if (last.warningTimestamp + DELAY_WARNING < Date.now()) {
 						// delay guard passed
-						this.sendMessageAll(PositionPriceWarning(p, priceQuery, last));
+						!isSoftStart && this.sendMessageGroup(groups, PositionPriceWarning(p, priceQuery, last));
 						last.warningTimestamp = Date.now();
 						last.warningPrice = price;
 					}
@@ -438,5 +452,17 @@ export class TelegramService {
 		await this.writeBackupGroups();
 		this.logger.warn('Weekly job done, cleared ignore telegram group array');
 		return true;
+	}
+
+	@Cron(CronExpression.EVERY_WEEKEND)
+	scheduleDailyInfos() {
+		const days = 1000 * 3600 * 24 * 30;
+		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() - days);
+		const groups = this.telegramGroupState.subscription['/DailyInfos']?.groups || [];
+
+		const before = infos.at(0);
+		const now = infos.at(-1);
+
+		this.sendMessageGroup(groups, DailyInfosMessage(before, now));
 	}
 }

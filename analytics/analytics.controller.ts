@@ -94,7 +94,6 @@ export class AnalyticsController {
 				formatUnits(e.totalMintedV2, 18),
 
 				formatUnits(e.currentLeadRate, 18),
-				formatUnits(e.claimableInterests, 18),
 				formatUnits(e.projectedInterests, 18),
 
 				formatUnits(e.annualV1Interests, 18),
@@ -135,7 +134,7 @@ export class AnalyticsController {
 
 		for (const e of data.logs) {
 			const toStrore = [
-				e.id,
+				e.date,
 				e.timestamp,
 
 				formatUnits(e.totalInflow, 18),
@@ -153,7 +152,6 @@ export class AnalyticsController {
 				formatUnits(e.totalMintedV2, 18),
 
 				formatUnits(e.currentLeadRate, 18),
-				formatUnits(e.claimableInterests, 18),
 				formatUnits(e.projectedInterests, 18),
 
 				formatUnits(e.annualV1Interests, 18),

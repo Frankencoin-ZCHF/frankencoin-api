@@ -2,9 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT, VIEM_CONFIG } from 'api.config';
 import { ApiEcosystemFpsInfo } from './ecosystem.fps.types';
 import { gql } from '@apollo/client/core';
-import { formatUnits } from 'viem';
 import { ADDRESS } from '@frankencoin/zchf';
-import { EquityABI, FrankencoinABI } from '@frankencoin/zchf';
+import { EquityABI, FrankencoinABI, ChainIdMain } from '@frankencoin/zchf';
+import { mainnet } from 'viem/chains';
+import { formatFloat } from 'utils/format';
 
 @Injectable()
 export class EcosystemFpsService {
@@ -18,79 +19,86 @@ export class EcosystemFpsService {
 	async updateFpsInfo() {
 		this.logger.debug('Updating EcosystemFpsInfo');
 
-		const chainId = VIEM_CONFIG.chain.id;
+		const chainId = mainnet.id;
 		const addr = ADDRESS[chainId].equity;
 
-		const fetchedPrice = await VIEM_CONFIG.readContract({
+		const fetchedPrice = await VIEM_CONFIG[chainId].readContract({
 			address: addr,
 			abi: EquityABI,
 			functionName: 'price',
 		});
-		const fetchedTotalSupply = await VIEM_CONFIG.readContract({
+		const fetchedTotalSupply = await VIEM_CONFIG[chainId].readContract({
 			address: addr,
 			abi: EquityABI,
 			functionName: 'totalSupply',
 		});
 
-		const minterReserveRaw = await VIEM_CONFIG.readContract({
-			address: ADDRESS[VIEM_CONFIG.chain.id].frankenCoin,
+		const fetchedMinterReserve = await VIEM_CONFIG[chainId].readContract({
+			address: ADDRESS[chainId].frankencoin,
 			abi: FrankencoinABI,
 			functionName: 'minterReserve',
 		});
 
-		const balanceReserveRaw = await VIEM_CONFIG.readContract({
-			address: ADDRESS[VIEM_CONFIG.chain.id].frankenCoin,
+		const fetchedBalanceReserve = await VIEM_CONFIG[chainId].readContract({
+			address: ADDRESS[chainId].frankencoin,
 			abi: FrankencoinABI,
 			functionName: 'balanceOf',
-			args: [ADDRESS[VIEM_CONFIG.chain.id].equity],
+			args: [ADDRESS[chainId].equity],
 		});
 
-		const p = parseInt(fetchedPrice.toString()) / 1e18;
-		const s = parseInt(fetchedTotalSupply.toString()) / 1e18;
-
-		const profitLossPonder = await PONDER_CLIENT.query({
+		const response = await PONDER_CLIENT.query<{
+			frankencoinProfitLosss: {
+				items: {
+					profits: bigint;
+					losses: bigint;
+				}[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					fPSs(orderBy: "id", limit: 1000) {
+					frankencoinProfitLosss(orderBy: "count", orderDirection: "DESC", limit: 1) {
 						items {
-							id
+							losses
 							profits
-							loss
 						}
 					}
 				}
 			`,
 		});
 
-		if (!profitLossPonder.data || !profitLossPonder.data.fPSs.items) {
+		if (!response.data || !response.data.frankencoinProfitLosss.items) {
 			this.logger.warn('No profitLossPonder data found.');
 			return;
 		}
 
-		const d = profitLossPonder.data.fPSs.items.at(0);
-		const earningsData: ApiEcosystemFpsInfo['earnings'] = {
-			profit: parseFloat(formatUnits(d.profits, 18)),
-			loss: parseFloat(formatUnits(d.loss, 18)),
-		};
-
-		const equityInReserveRaw = balanceReserveRaw - minterReserveRaw;
-
-		const balanceReserve = parseFloat(formatUnits(balanceReserveRaw, 18));
-		const equityInReserve = parseFloat(formatUnits(equityInReserveRaw, 18));
-		const minterReserve = parseFloat(formatUnits(minterReserveRaw, 18));
+		const d = response.data.frankencoinProfitLosss.items.at(0);
 
 		this.fpsInfo = {
-			earnings: earningsData,
-			values: {
-				price: p,
-				totalSupply: s,
-				fpsMarketCapInChf: p * s,
+			erc20: {
+				name: 'Frankencoin Pool Share',
+				symbol: 'FPS',
+				decimals: 18,
+			},
+			chains: {
+				[mainnet.id as ChainIdMain]: {
+					chainId: mainnet.id,
+					address: addr,
+				},
+			},
+			token: {
+				price: formatFloat(fetchedPrice),
+				totalSupply: formatFloat(fetchedTotalSupply),
+				marketCap: formatFloat(fetchedPrice * fetchedTotalSupply, 18 * 2),
+			},
+			earnings: {
+				profit: formatFloat(d.profits),
+				loss: formatFloat(d.losses),
 			},
 			reserve: {
-				balance: balanceReserve,
-				equity: equityInReserve,
-				minter: minterReserve,
+				balance: formatFloat(fetchedBalanceReserve),
+				equity: formatFloat(fetchedBalanceReserve - fetchedMinterReserve),
+				minter: formatFloat(fetchedMinterReserve),
 			},
 		};
 	}

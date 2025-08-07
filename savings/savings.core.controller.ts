@@ -1,7 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SavingsCoreService } from './savings.core.service';
-import { ApiSavingsBalance, ApiSavingsInfo, ApiSavingsUserTable } from './savings.core.types';
+import { ApiSavingsActivity, ApiSavingsBalance, ApiSavingsInfo, ApiSavingsRanked } from './savings.core.types';
 import { Address, isAddress, zeroAddress } from 'viem';
 
 @ApiTags('Savings Controller')
@@ -11,30 +11,53 @@ export class SavingsCoreController {
 
 	@Get('info')
 	@ApiResponse({
-		description: 'returns the current savings information.',
+		description: 'returns all savings-module information.',
 	})
 	getInfo(): ApiSavingsInfo {
 		return this.savings.getInfo();
 	}
 
-	@Get('balances')
+	// TODO: endpoint could be deactivated, if work load and data load is to high
+	@Get('balance')
 	@ApiResponse({
-		description: 'returns information about balances, max. 100',
+		description: 'returns information about balance',
 	})
-	// async getBalance(@Param('limit') limit: number): Promise<ApiSavingsBalance> {
-	// if (isNaN(limit)) limit = undefined;
-	async getBalance(): Promise<ApiSavingsBalance> {
-		return await this.savings.getBalanceTable(100);
+	getBalance(): ApiSavingsBalance {
+		return this.savings.getBalance();
 	}
 
-	@Get('user/:address')
+	@Get('balance/:account')
 	@ApiResponse({
-		description: 'returns the latest user table history or recent entries from all users',
+		description: 'returns information about balance of an account',
 	})
-	async getUserTable(@Param('address') address: string): Promise<ApiSavingsUserTable> {
-		const keywords: string[] = ['0', 'all', 'zero', 'zeroAddress', zeroAddress];
-		if (keywords.includes(address)) address = zeroAddress;
-		if (!isAddress(address)) address = zeroAddress;
-		return await this.savings.getUserTable(address as Address);
+	getBalanceAccount(@Param('account') account: string): ApiSavingsBalance {
+		if (!isAddress(account)) account = zeroAddress;
+		return this.savings.getBalance()[account.toLowerCase() as Address] || {};
+	}
+
+	@Get('ranked')
+	@ApiResponse({
+		description: 'returns information about balances',
+	})
+	getRanked(): ApiSavingsRanked {
+		return this.savings.getRanked();
+	}
+
+	// TODO: endpoint could be deactivated, if work load and data load is to high
+	@Get('activity')
+	@ApiResponse({
+		description: 'returns the latest activities',
+	})
+	getActivity(): ApiSavingsActivity {
+		return this.savings.getActivity();
+	}
+
+	@Get('activity/:account')
+	@ApiResponse({
+		description: 'returns the latest activities of an account',
+	})
+	getActivityAccount(@Param('account') account: string): ApiSavingsActivity {
+		if (!isAddress(account)) account = zeroAddress;
+		return this.savings.getActivity().filter((i) => i.account.toLowerCase() == account.toLowerCase());
 	}
 }

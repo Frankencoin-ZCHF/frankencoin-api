@@ -1,74 +1,121 @@
+import { ChainId } from '@frankencoin/zchf';
 import { Address } from 'viem';
 
 // --------------------------------------------------------------------------
 // Ponder return types
+export type SavingsStatusQuery = {
+	chainId: ChainId;
+	updated: number;
+	module: Address;
+	balance: string;
+	interest: string;
+	save: string;
+	withdraw: string;
+	rate: number;
+	counterInterest: number;
+	counterRateChanged: number;
+	counterRateProposed: number;
+	counterSave: number;
+	counterWithdraw: number;
+};
+
 export type SavingsBalanceQuery = {
-	id: Address;
+	chainId: ChainId;
+	account: Address;
+	module: Address;
+	balance: string;
 	created: number;
-	blockheight: number;
 	updated: number;
 	interest: string;
-	balance: string;
+	save: string;
+	withdraw: string;
+	counterInterest: number;
+	counterSave: number;
+	counterWithdraw: number;
 };
 
-export type SavingsIdSaved = `${Address}-${number}`;
-export type SavingsSavedQuery = {
-	id: SavingsIdSaved;
+export type SavingsActivityQuery = {
+	chainId: ChainId;
+	account: Address;
+	module: Address;
 	created: number;
 	blockheight: number;
-	txHash: string;
-	account: Address;
+	count: number;
+	balance: string;
+	save: string;
+	interest: string;
+	withdraw: string;
+	kind: string;
 	amount: string;
 	rate: number;
-	total: string;
-	balance: string;
+	txHash: string;
 };
 
-export type SavingsIdInterest = `${Address}-${number}`;
-export type SavingsInterestQuery = {
-	id: SavingsIdInterest;
-	created: number;
-	blockheight: number;
-	txHash: string;
-	account: Address;
-	amount: string;
-	rate: number;
-	total: string;
-	balance: string;
-};
-
-export type SavingsIdWithdraw = `${Address}-${number}`;
-export type SavingsWithdrawQuery = {
-	id: SavingsIdWithdraw;
-	created: number;
-	blockheight: number;
-	txHash: string;
-	account: Address;
-	amount: string;
-	rate: number;
-	total: string;
-	balance: string;
-};
 // --------------------------------------------------------------------------
 // Service
+
+export type SavingsStatus = {
+	chainId: ChainId;
+	updated: number;
+	module: Address;
+	balance: string;
+	interest: string;
+	save: string;
+	withdraw: string;
+	rate: number;
+	counter: {
+		interest: number;
+		rateChanged: number;
+		rateProposed: number;
+		save: number;
+		withdraw: number;
+	};
+};
+
+export type SavingsStatusMapping = {
+	[K in ChainId]: {
+		[key: SavingsStatus['module']]: SavingsStatus;
+	};
+};
+
+export type SavingsBalance = {
+	chainId: ChainId;
+	account: Address;
+	module: Address;
+	balance: string;
+	created: number;
+	updated: number;
+	interest: string;
+	save: string;
+	withdraw: string;
+	counter: {
+		save: number;
+		interest: number;
+		withdraw: number;
+	};
+};
+
+export type SavingsBalanceChainIdMapping = {
+	[K in ChainId]: {
+		[key in SavingsBalance['module'] | SavingsBalanceQuery['module']]: SavingsBalance;
+	};
+};
+
+export type SavingsBalanceAccountMapping = {
+	[key in SavingsBalance['account'] | SavingsBalanceQuery['account']]: SavingsBalanceChainIdMapping;
+};
 
 // --------------------------------------------------------------------------
 // Api
 export type ApiSavingsInfo = {
-	totalSaved: number;
-	totalWithdrawn: number;
+	status: SavingsStatusMapping;
 	totalBalance: number;
-	totalInterest: number;
-	rate: number;
 	ratioOfSupply: number;
+	totalInterest: number;
 };
 
-export type ApiSavingsBalance = {
-	ranked: SavingsBalanceQuery[];
-};
+export type ApiSavingsBalance = SavingsBalanceAccountMapping;
 
-export type ApiSavingsUserTable = {
-	save: SavingsSavedQuery[];
-	interest: SavingsInterestQuery[];
-	withdraw: SavingsWithdrawQuery[];
-};
+export type ApiSavingsRanked = SavingsBalance[];
+
+export type ApiSavingsActivity = SavingsActivityQuery[];

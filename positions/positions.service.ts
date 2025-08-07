@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CONFIG, PONDER_CLIENT, VIEM_CONFIG } from '../api.config';
+import { PONDER_CLIENT, VIEM_CONFIG } from '../api.config';
 import { gql } from '@apollo/client/core';
 import {
 	ApiMintingUpdateListing,
@@ -23,6 +23,7 @@ import { PositionV1ABI } from '@frankencoin/zchf';
 import { ADDRESS } from '@frankencoin/zchf';
 import { SavingsABI } from '@frankencoin/zchf';
 import { PositionV2ABI } from '@frankencoin/zchf';
+import { mainnet } from 'viem/chains';
 
 @Injectable()
 export class PositionsService {
@@ -59,7 +60,7 @@ export class PositionsService {
 
 	getPositionsRequests(): ApiPositionsMapping {
 		const pos = this.getPositionsList().list;
-		// FIXME: make time diff flexable, changeable between chains/SC
+		// @dev: includes 5days created positions
 		const request = pos.filter((p) => p.start * 1000 + FIVEDAYS_MS > Date.now());
 		const mapped: PositionsQueryObjectArray = {};
 		for (const p of request) {
@@ -84,11 +85,15 @@ export class PositionsService {
 
 	async updatePositonV1s() {
 		this.logger.debug('Updating Positions V1');
-		const { data } = await PONDER_CLIENT.query({
+		const { data } = await PONDER_CLIENT.query<{
+			mintingHubV1PositionV1s: {
+				items: PositionQueryV1[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					positionV1s(orderBy: "availableForClones", orderDirection: "desc", limit: 1000) {
+					mintingHubV1PositionV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
 							position
 							owner
@@ -131,12 +136,12 @@ export class PositionsService {
 			`,
 		});
 
-		if (!data || !data?.positionV1s?.items?.length) {
+		if (!data || !data?.mintingHubV1PositionV1s?.items?.length) {
 			this.logger.warn('No Positions V1 found.');
 			return;
 		}
 
-		const items: PositionQuery[] = data.positionV1s.items;
+		const items: PositionQuery[] = data.mintingHubV1PositionV1s.items as PositionQueryV1[];
 		const list: PositionsQueryObjectArray = {};
 		const balanceOfDataPromises: Promise<bigint>[] = [];
 		const mintedDataPromises: Promise<bigint>[] = [];
@@ -147,7 +152,7 @@ export class PositionsService {
 			// This ensures that collateral transfers can be made without using the smart contract or application directly,
 			// and the API will be aware of the updated state.
 			balanceOfDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.collateral,
 					abi: erc20Abi,
 					functionName: 'balanceOf',
@@ -158,7 +163,7 @@ export class PositionsService {
 			// fetch minted - See issue #11
 			// https://github.com/Frankencoin-ZCHF/frankencoin-api/issues/11
 			mintedDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV1ABI,
 					functionName: 'minted',
@@ -166,7 +171,7 @@ export class PositionsService {
 			);
 
 			availableForClonesDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV1ABI,
 					functionName: 'limitForClones',
@@ -194,7 +199,7 @@ export class PositionsService {
 				collateral: getAddress(p.collateral),
 				price: p.price,
 
-				created: p.created,
+				created: parseInt(p.created as any),
 				isOriginal: p.isOriginal,
 				isClone: p.isClone,
 				denied: p.denied,
@@ -204,10 +209,10 @@ export class PositionsService {
 				minimumCollateral: p.minimumCollateral,
 				annualInterestPPM: p.annualInterestPPM,
 				reserveContribution: p.reserveContribution,
-				start: p.start,
-				cooldown: p.cooldown,
-				expiration: p.expiration,
-				challengePeriod: p.challengePeriod,
+				start: parseInt(p.start as any),
+				cooldown: parseInt(p.cooldown as any),
+				expiration: parseInt(p.expiration as any),
+				challengePeriod: parseInt(p.challengePeriod as any),
 
 				zchfName: p.zchfName,
 				zchfSymbol: p.zchfSymbol,
@@ -241,11 +246,15 @@ export class PositionsService {
 
 	async updatePositonV2s() {
 		this.logger.debug('Updating Positions V2');
-		const { data } = await PONDER_CLIENT.query({
+		const { data } = await PONDER_CLIENT.query<{
+			mintingHubV2PositionV2s: {
+				items: PositionQueryV2[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					positionV2s(orderBy: "availableForClones", orderDirection: "desc", limit: 1000) {
+					mintingHubV2PositionV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
 							position
 							owner
@@ -288,20 +297,20 @@ export class PositionsService {
 			`,
 		});
 
-		if (!data || !data?.positionV2s?.items?.length) {
+		if (!data || !data?.mintingHubV2PositionV2s?.items?.length) {
 			this.logger.warn('No Positions V2 found.');
 			return;
 		}
 
-		const items: PositionQuery[] = data.positionV2s.items as PositionQueryV2[];
+		const items: PositionQuery[] = data.mintingHubV2PositionV2s.items as PositionQueryV2[];
 		const list: PositionsQueryObjectArray = {};
 		const balanceOfDataPromises: Promise<bigint>[] = [];
 		const mintedDataPromises: Promise<bigint>[] = [];
 		const availableForClonesDataPromises: Promise<bigint>[] = [];
 		const availableForMintingDataPromises: Promise<bigint>[] = [];
 
-		const leadrate: number = await VIEM_CONFIG.readContract({
-			address: ADDRESS[CONFIG.chain.id].savings,
+		const leadrate: number = await VIEM_CONFIG[mainnet.id].readContract({
+			address: ADDRESS[mainnet.id].savingsV2,
 			abi: SavingsABI,
 			functionName: 'currentRatePPM',
 		});
@@ -311,7 +320,7 @@ export class PositionsService {
 			// This ensures that collateral transfers can be made without using the smart contract or application directly,
 			// and the API will be aware of the updated state.
 			balanceOfDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.collateral,
 					abi: erc20Abi,
 					functionName: 'balanceOf',
@@ -322,7 +331,7 @@ export class PositionsService {
 			// fetch minted - See issue #11
 			// https://github.com/Frankencoin-ZCHF/frankencoin-api/issues/11
 			mintedDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV2ABI,
 					functionName: 'minted',
@@ -332,14 +341,14 @@ export class PositionsService {
 			// make highly available, instead of relying on indexer state
 			// https://github.com/Frankencoin-ZCHF/frankencoin-dapp/issues/144
 			availableForClonesDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.original,
 					abi: PositionV2ABI,
 					functionName: 'availableForClones',
 				})
 			);
 			availableForMintingDataPromises.push(
-				VIEM_CONFIG.readContract({
+				VIEM_CONFIG[mainnet.id].readContract({
 					address: p.position,
 					abi: PositionV2ABI,
 					functionName: 'availableForMinting',
@@ -372,7 +381,7 @@ export class PositionsService {
 				collateral: getAddress(p.collateral),
 				price: p.price,
 
-				created: p.created,
+				created: parseInt(p.created as any),
 				isOriginal: p.isOriginal,
 				isClone: p.isClone,
 				denied: p.denied,
@@ -384,10 +393,10 @@ export class PositionsService {
 				annualInterestPPM: leadrate + p.riskPremiumPPM,
 				riskPremiumPPM: p.riskPremiumPPM,
 				reserveContribution: p.reserveContribution,
-				start: p.start,
-				cooldown: p.cooldown,
-				expiration: p.expiration,
-				challengePeriod: p.challengePeriod,
+				start: parseInt(p.start as any),
+				cooldown: parseInt(p.cooldown as any),
+				expiration: parseInt(p.expiration as any),
+				challengePeriod: parseInt(p.challengePeriod as any),
 
 				zchfName: p.zchfName,
 				zchfSymbol: p.zchfSymbol,
@@ -435,18 +444,21 @@ export class PositionsService {
 
 	async getMintingUpdatesPosition(position: Address, version: number): Promise<ApiMintingUpdateListing> {
 		if (version == 1) {
-			const { data } = await PONDER_CLIENT.query({
+			const { data } = await PONDER_CLIENT.query<{
+				mintingHubV1MintingUpdateV1s: {
+					items: MintingUpdateQueryV1[];
+				};
+			}>({
 				fetchPolicy: 'no-cache',
 				query: gql`
 					query {
-						mintingUpdateV1s(
+						mintingHubV1MintingUpdateV1s(
 							orderBy: "count"
 						 	orderDirection: "desc"
 							where: { position: "${position.toLowerCase()}" }
 							limit: 1000
 							) {
 							items {
-								id
 								count
 								txHash
 								created
@@ -474,7 +486,7 @@ export class PositionsService {
 				`,
 			});
 
-			if (!data || !data?.mintingUpdateV1s?.items?.length) {
+			if (!data || !data?.mintingHubV1MintingUpdateV1s?.items?.length) {
 				this.logger.warn('No MintingUpdates V1 found.');
 				return {
 					num: 0,
@@ -482,20 +494,23 @@ export class PositionsService {
 				};
 			}
 
-			const items: MintingUpdateQuery[] = data.mintingUpdateV1s.items;
+			const items: MintingUpdateQuery[] = data.mintingHubV1MintingUpdateV1s.items;
 
 			return {
 				num: items.length,
 				list: items,
 			};
 		} else {
-			const { data } = await PONDER_CLIENT.query({
+			const { data } = await PONDER_CLIENT.query<{
+				mintingHubV2MintingUpdateV2s: {
+					items: MintingUpdateQueryV2[];
+				};
+			}>({
 				fetchPolicy: 'no-cache',
 				query: gql`
 					query {
-						mintingUpdateV2s(where: { position: "${position.toLowerCase()}" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
+						mintingHubV2MintingUpdateV2s(where: { position: "${position.toLowerCase()}" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
 							items {
-								id
 								count
 								txHash
 								created
@@ -525,7 +540,7 @@ export class PositionsService {
 				`,
 			});
 
-			if (!data || !data?.mintingUpdateV2s?.items?.length) {
+			if (!data || !data?.mintingHubV2MintingUpdateV2s?.items?.length) {
 				this.logger.warn('No MintingUpdates V2 found.');
 				return {
 					num: 0,
@@ -533,7 +548,7 @@ export class PositionsService {
 				};
 			}
 
-			const items: MintingUpdateQuery[] = data.mintingUpdateV2s.items;
+			const items: MintingUpdateQuery[] = data.mintingHubV2MintingUpdateV2s.items;
 
 			return {
 				num: items.length,
@@ -544,19 +559,18 @@ export class PositionsService {
 
 	async getMintingUpdatesOwner(owner: Address): Promise<ApiMintingUpdateListing> {
 		const { data: version1 } = await PONDER_CLIENT.query<{
-			mintingUpdateV1s: { items: MintingUpdateQueryV1[] };
+			mintingHubV1MintingUpdateV1s: { items: MintingUpdateQueryV1[] };
 		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 					query {
-						mintingUpdateV1s(
-							orderBy: "count"
+						mintingHubV1MintingUpdateV1s(
+							orderBy: "created"
 						 	orderDirection: "desc"
 							where: { owner: "${owner.toLowerCase()}" }
 							limit: 1000
 							) {
 							items {
-								id
 								count
 								txHash
 								created
@@ -584,13 +598,12 @@ export class PositionsService {
 				`,
 		});
 
-		const { data: version2 } = await PONDER_CLIENT.query<{ mintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
+		const { data: version2 } = await PONDER_CLIENT.query<{ mintingHubV2MintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 					query {
-						mintingUpdateV2s(where: { owner: "${owner.toLowerCase()}" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
+						mintingHubV2MintingUpdateV2s(where: { owner: "${owner.toLowerCase()}" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
 							items {
-								id
 								count
 								txHash
 								created
@@ -620,7 +633,7 @@ export class PositionsService {
 				`,
 		});
 
-		const items: MintingUpdateQuery[] = [...version1.mintingUpdateV1s.items, ...version2.mintingUpdateV2s.items];
+		const items: MintingUpdateQuery[] = [...version1.mintingHubV1MintingUpdateV1s.items, ...version2.mintingHubV2MintingUpdateV2s.items];
 
 		return {
 			num: items.length,
@@ -630,19 +643,18 @@ export class PositionsService {
 
 	async getMintingUpdatesOwnerFees(owner: Address): Promise<ApiMintingUpdateListing> {
 		const { data: version1 } = await PONDER_CLIENT.query<{
-			mintingUpdateV1s: { items: MintingUpdateQueryV1[] };
+			mintingHubV1MintingUpdateV1s: { items: MintingUpdateQueryV1[] };
 		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 					query {
-						mintingUpdateV1s(
-							orderBy: "count"
+						mintingHubV1MintingUpdateV1s(
+							orderBy: "created"
 						 	orderDirection: "desc"
 							where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }
 							limit: 1000
 							) {
 							items {
-								id
 								count
 								txHash
 								created
@@ -670,13 +682,12 @@ export class PositionsService {
 				`,
 		});
 
-		const { data: version2 } = await PONDER_CLIENT.query<{ mintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
+		const { data: version2 } = await PONDER_CLIENT.query<{ mintingHubV2MintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 					query {
-						mintingUpdateV2s(where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
+						mintingHubV2MintingUpdateV2s(where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
 							items {
-								id
 								count
 								txHash
 								created
@@ -706,7 +717,7 @@ export class PositionsService {
 				`,
 		});
 
-		const items: MintingUpdateQuery[] = [...version1.mintingUpdateV1s.items, ...version2.mintingUpdateV2s.items];
+		const items: MintingUpdateQuery[] = [...version1.mintingHubV1MintingUpdateV1s.items, ...version2.mintingHubV2MintingUpdateV2s.items];
 
 		return {
 			num: items.length,
@@ -716,14 +727,18 @@ export class PositionsService {
 
 	async updateMintingUpdateV1s() {
 		this.logger.debug('Updating Positions MintingUpdates V1');
-		const { data } = await PONDER_CLIENT.query({
+		const { data } = await PONDER_CLIENT.query<{
+			mintingHubV1MintingUpdateV1s: {
+				items: MintingUpdateQueryV1[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					mintingUpdateV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
+					mintingHubV1MintingUpdateV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
-							id
 							txHash
+							count
 							created
 							position
 							owner
@@ -749,12 +764,12 @@ export class PositionsService {
 			`,
 		});
 
-		if (!data || !data?.mintingUpdateV1s?.items?.length) {
+		if (!data || !data?.mintingHubV1MintingUpdateV1s?.items?.length) {
 			this.logger.warn('No MintingUpdates V1 found.');
 			return;
 		}
 
-		const items: MintingUpdateQuery[] = data.mintingUpdateV1s.items;
+		const items: MintingUpdateQuery[] = data.mintingHubV1MintingUpdateV1s.items;
 		const list: MintingUpdateQueryObjectArray = {};
 
 		for (let idx = 0; idx < items.length; idx++) {
@@ -805,14 +820,18 @@ export class PositionsService {
 
 	async updateMintingUpdateV2s() {
 		this.logger.debug('Updating Positions MintingUpdates V2');
-		const { data } = await PONDER_CLIENT.query({
+		const { data } = await PONDER_CLIENT.query<{
+			mintingHubV2MintingUpdateV2s: {
+				items: MintingUpdateQueryV2[];
+			};
+		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					mintingUpdateV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
+					mintingHubV2MintingUpdateV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
-							id
 							txHash
+							count
 							created
 							position
 							owner
@@ -840,12 +859,12 @@ export class PositionsService {
 			`,
 		});
 
-		if (!data || !data?.mintingUpdateV2s?.items?.length) {
+		if (!data || !data?.mintingHubV2MintingUpdateV2s?.items?.length) {
 			this.logger.warn('No MintingUpdates V2 found.');
 			return;
 		}
 
-		const items: MintingUpdateQuery[] = data.mintingUpdateV2s.items;
+		const items: MintingUpdateQuery[] = data.mintingHubV2MintingUpdateV2s.items;
 		const list: MintingUpdateQueryObjectArray = {};
 
 		for (let idx = 0; idx < items.length; idx++) {

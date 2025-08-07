@@ -14,3 +14,7 @@ export const formatCurrency = (value: string | number, minimumFractionDigits = 0
 
 	return formatter.format(amount).split(',').join(`'`);
 };
+
+export function formatFloat(value: bigint, digits: number = 18) {
+	return parseInt(value.toString()) / 10 ** digits;
+}

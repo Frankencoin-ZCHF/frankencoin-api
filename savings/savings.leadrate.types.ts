@@ -1,18 +1,23 @@
+import { ChainId } from '@frankencoin/zchf';
 import { Address } from 'viem';
 // --------------------------------------------------------------------------
 // Ponder return types
 export type LeadrateRateQuery = {
-	id: string;
+	chainId: ChainId;
 	created: number;
+	count: number;
 	blockheight: number;
-	txHash: string;
+	module: Address;
 	approvedRate: number;
+	txHash: string;
 };
 
-export type LeadrateProposed = {
-	id: string;
+export type LeadrateProposedQuery = {
+	chainId: ChainId;
 	created: number;
+	count: number;
 	blockheight: number;
+	module: Address;
 	txHash: string;
 	proposer: Address;
 	nextRate: number;
@@ -21,37 +26,54 @@ export type LeadrateProposed = {
 
 // --------------------------------------------------------------------------
 // Service
-export type LeadrateRateObjectArray = {
-	[key: number]: LeadrateRateQuery;
+export type LeadrateRateMapping = {
+	[K in ChainId]: {
+		[key: LeadrateRateQuery['module']]: LeadrateRateQuery[];
+	};
 };
 
-export type LeadrateRateProposedObjectArray = {
-	[key: string]: LeadrateProposed;
+export type LeadrateProposedMapping = {
+	[K in ChainId]: {
+		[L in LeadrateProposedQuery['module']]: LeadrateProposedQuery[];
+	};
+};
+
+export type LeadrateProposedOpen = {
+	details: LeadrateProposedQuery;
+	currentRate: number;
+	nextRate: number;
+	nextChange: number;
+	isProposal: boolean;
+	isPending: boolean;
+	isSynced: boolean;
 };
 
 // --------------------------------------------------------------------------
 // Api
 export type ApiLeadrateInfo = {
-	rate: number;
-	nextRate: number;
-	nextchange: number;
-	isProposal: boolean;
-	isPending: boolean;
+	rate: ApiLeadrateRate['rate'];
+	proposed: ApiLeadrateProposed['proposed'];
+	open: {
+		[K in ChainId]: {
+			[L in LeadrateProposedQuery['module']]: LeadrateProposedOpen;
+		};
+	};
 };
 
 export type ApiLeadrateRate = {
-	created: number;
-	blockheight: number;
-	rate: number;
-	num: number;
-	list: LeadrateRateQuery[];
+	rate: {
+		[K in ChainId]: {
+			[L in LeadrateRateQuery['module']]: LeadrateRateQuery;
+		};
+	};
+	list: LeadrateRateMapping;
 };
 
 export type ApiLeadrateProposed = {
-	created: number;
-	blockheight: number;
-	nextRate: number;
-	nextchange: number;
-	num: number;
-	list: LeadrateProposed[];
+	proposed: {
+		[K in ChainId]: {
+			[L in LeadrateProposedQuery['module']]: LeadrateProposedQuery;
+		};
+	};
+	list: LeadrateProposedMapping;
 };

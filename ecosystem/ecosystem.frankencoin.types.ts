@@ -1,92 +1,66 @@
+import { ChainId } from '@frankencoin/zchf';
 import { PriceQueryCurrencies } from '../prices/prices.types';
 import { Address } from 'viem';
 
 // --------------------------------------------------------------------------
 // Ponder return types
-export type EcosystemQueryItem = {
+
+export type EcosystemQuery = {
 	id: string;
 	value: string;
 	amount: bigint;
 };
-
-export type EcosystemMintQueryItem = {
-	id: string;
-	to: string;
-	value: bigint;
-	blockheight: bigint;
-	timestamp: bigint;
-};
-
-export type EcosystemBurnQueryItem = {
-	id: string;
-	from: string;
-	value: bigint;
-	blockheight: bigint;
-	timestamp: bigint;
-};
-
-export type MintBurnAddressMapperQueryItem = {
-	id: Address;
-	mint: number;
-	burn: number;
+export type EcosystemERC20StatusQuery = {
+	chainId: ChainId;
+	updated: number;
+	supply: bigint;
+	burn: bigint;
+	mint: bigint;
+	balance: bigint;
+	token: Address;
 };
 
 // --------------------------------------------------------------------------
 // Service
-export type ServiceEcosystemFrankencoinKeyValues = {
-	[key: string]: EcosystemQueryItem;
+export type EcosystemFrankencoinKeyValues = {
+	[key: EcosystemQuery['id']]: EcosystemQuery;
 };
 
-export type ServiceEcosystemFrankencoin = {
-	raw: {
-		mint: string;
-		burn: string;
-	};
-	total: {
-		mint: number;
-		burn: number;
-		supply: number;
-	};
+export type EcosystemFrankencoin = {
+	chainId: ChainId;
+	updated: number;
+	address: Address;
+	supply: number;
 	counter: {
+		balance: number;
 		mint: number;
 		burn: number;
 	};
 };
 
-export type ServiceEcosystemMintBurnMapping = {
-	[key: Address]: { mint: number; burn: number };
+export type EcosystemFrankencoinMapping = {
+	[K in ChainId]: EcosystemFrankencoin;
 };
 
 // --------------------------------------------------------------------------
 // Api
-export type ApiEcosystemFrankencoinKeyValues = ServiceEcosystemFrankencoinKeyValues;
+export type ApiEcosystemFrankencoinKeyValues = EcosystemFrankencoinKeyValues;
 
-export type ApiEcosystemFrankencoinInfo = ServiceEcosystemFrankencoin & {
+export type ApiEcosystemFrankencoinInfo = {
 	erc20: {
 		name: string;
-		address: Address;
 		symbol: string;
 		decimals: number;
 	};
-	chain: {
-		name: string;
-		id: number;
-	};
-	price: {
+	chains: EcosystemFrankencoinMapping;
+	token: {
 		usd: number;
+		supply: number;
 	};
 	fps: {
 		price: number;
 		totalSupply: number;
-		fpsMarketCapInChf: number;
+		marketCap: number;
 	};
 	tvl: PriceQueryCurrencies;
-};
-
-export type ApiEcosystemMintBurnMapping = {
-	num: number;
-	addresses: Address[];
-	map: {
-		[key: Address]: { mint: number; burn: number };
-	};
 };
