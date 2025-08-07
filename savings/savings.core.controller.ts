@@ -1,7 +1,13 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SavingsCoreService } from './savings.core.service';
-import { ApiSavingsActivity, ApiSavingsBalance, ApiSavingsInfo, ApiSavingsRanked } from './savings.core.types';
+import {
+	ApiSavingsActivity,
+	ApiSavingsBalance,
+	ApiSavingsInfo,
+	ApiSavingsRanked,
+	SavingsBalanceChainIdMapping,
+} from './savings.core.types';
 import { Address, isAddress, zeroAddress } from 'viem';
 
 @ApiTags('Savings Controller')
@@ -32,7 +38,8 @@ export class SavingsCoreController {
 	})
 	getBalanceAccount(@Param('account') account: string): ApiSavingsBalance {
 		if (!isAddress(account)) account = zeroAddress;
-		return this.savings.getBalance()[account.toLowerCase() as Address] || {};
+		const data = this.savings.getBalance()[account.toLowerCase() as Address] || ({} as SavingsBalanceChainIdMapping);
+		return { [account.toLowerCase()]: data };
 	}
 
 	@Get('ranked')
