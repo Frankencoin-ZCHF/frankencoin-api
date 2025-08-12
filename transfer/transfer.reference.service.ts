@@ -13,46 +13,48 @@ export class TransferReferenceService {
 		const m = Object.values(this.fetchedReferences);
 		return {
 			num: m.length,
-			list: m,
+			list: m.reverse(),
 		};
 	}
 
 	async getByCount(count: string): Promise<TransferReferenceQuery | undefined> {
 		try {
-			const cachedItem = this.fetchedReferences[count];
-			if (cachedItem != undefined) return cachedItem;
+			// const cachedItem = this.fetchedReferences[count];
+			// if (cachedItem != undefined) return cachedItem;
 
 			const { data } = await PONDER_CLIENT.query<{
-				referenceTransfers: { items: TransferReferenceQuery[] };
+				transferReferences: { items: TransferReferenceQuery[] };
 			}>({
 				fetchPolicy: 'cache-first',
 				query: gql`
 				query {
-					referenceTransfers(where: {count: "${count}" }, limit: 1) {
+					transferReferences(where: {count: "${count}" }, limit: 1) {
 						items {
-							id
+							amount
+							chainId
 							count
 							created
-							txHash
 							from
+							reference
+							sender
+							targetChain
 							to
-							amount
-							ref
-							autoSaved
+							txHash
 						}
 					}
 				}
 			`,
 			});
 
-			if (!data || !data.referenceTransfers.items) {
+			if (!data || !data.transferReferences.items) {
 				return undefined;
 			} else {
-				const item = data.referenceTransfers.items.at(0);
+				const item = data.transferReferences.items.at(0);
 				this.fetchedReferences[count] = item;
 				return item;
 			}
 		} catch (error) {
+			console.error(error);
 			return undefined;
 		}
 	}
@@ -71,10 +73,11 @@ export class TransferReferenceService {
 
 			let filtered = Object.values(this.fetchedReferences).filter((i) => i.from.toLowerCase() == from.toLowerCase());
 			if (to != undefined) filtered = filtered.filter((i) => i.to.toLowerCase() == to.toLowerCase());
-			if (ref != undefined) filtered = filtered.filter((i) => i.ref == ref);
+			if (ref != undefined) filtered = filtered.filter((i) => i.reference == ref);
 
 			return filtered.filter((i) => i.created >= Math.round(startTimestamp) && i.created < Math.round(endTimestamp));
 		} catch (error) {
+			console.error(error);
 			return { error };
 		}
 	}
@@ -93,10 +96,11 @@ export class TransferReferenceService {
 
 			let filtered = Object.values(this.fetchedReferences).filter((i) => i.to.toLowerCase() == to.toLowerCase());
 			if (from != undefined) filtered = filtered.filter((i) => i.from.toLowerCase() == from.toLowerCase());
-			if (ref != undefined) filtered = filtered.filter((i) => i.ref == ref);
+			if (ref != undefined) filtered = filtered.filter((i) => i.reference == ref);
 
 			return filtered.filter((i) => i.created >= Math.round(startTimestamp) && i.created < Math.round(endTimestamp));
 		} catch (error) {
+			console.error(error);
 			return { error };
 		}
 	}
@@ -115,12 +119,12 @@ export class TransferReferenceService {
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
 			const { data } = await PONDER_CLIENT.query<{
-				referenceTransfers: { items: TransferReferenceQuery[] };
+				transferReferences: { items: TransferReferenceQuery[] };
 			}>({
 				fetchPolicy: 'cache-first',
 				query: gql`
 				query {
-					referenceTransfers(
+					transferReferences(
 						where: {
 							from: "${from.toLowerCase()}",
 							${to != undefined ? `to: "${to.toLowerCase()}",` : ''}
@@ -131,21 +135,23 @@ export class TransferReferenceService {
 						orderBy: "count",
 						limit: 1000) {
 							items {
-								id
+								amount
+								chainId
 								count
 								created
-								txHash
 								from
+								reference
+								sender
+								targetChain
 								to
-								amount
-								ref
-								autoSaved
+								txHash
 							}
 						}
 					}`,
 			});
-			return data.referenceTransfers.items;
+			return data.transferReferences.items;
 		} catch (error) {
+			console.error(error);
 			return { error };
 		}
 	}
@@ -164,12 +170,12 @@ export class TransferReferenceService {
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
 			const { data } = await PONDER_CLIENT.query<{
-				referenceTransfers: { items: TransferReferenceQuery[] };
+				transferReferences: { items: TransferReferenceQuery[] };
 			}>({
 				fetchPolicy: 'cache-first',
 				query: gql`
 				query {
-					referenceTransfers(
+					transferReferences(
 						where: {
 							to: "${to.toLowerCase()}",
 							${from != undefined ? `from: "${from.toLowerCase()}",` : ''}
@@ -180,21 +186,23 @@ export class TransferReferenceService {
 						orderBy: "count",
 						limit: 1000) {
 							items {
-								id
+								amount
+								chainId
 								count
 								created
-								txHash
 								from
+								reference
+								sender
+								targetChain
 								to
-								amount
-								ref
-								autoSaved
+								txHash
 							}
 						}
 					}`,
 			});
-			return data.referenceTransfers.items;
+			return data.transferReferences.items;
 		} catch (error) {
+			console.error(error);
 			return { error };
 		}
 	}
@@ -202,35 +210,36 @@ export class TransferReferenceService {
 	async updateReferences() {
 		this.logger.debug('Updating transfer references...');
 		const { data } = await PONDER_CLIENT.query<{
-			referenceTransfers: { items: TransferReferenceQuery[] };
+			transferReferences: { items: TransferReferenceQuery[] };
 		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					referenceTransfers(orderBy: "count", limit: 1000) {
+					transferReferences(orderBy: "count", limit: 1000) {
 						items {
-							id
+							amount
+							chainId
 							count
 							created
-							txHash
 							from
+							reference
+							sender
+							targetChain
 							to
-							amount
-							ref
-							autoSaved
+							txHash
 						}
 					}
 				}
 			`,
 		});
 
-		if (!data || !data.referenceTransfers.items) {
+		if (!data || !data.transferReferences.items) {
 			this.logger.warn('No transfer references found.');
 			return;
 		}
 
 		const list: TransferReferenceObjectArray = {};
-		for (const i of data.referenceTransfers.items) {
+		for (const i of data.transferReferences.items) {
 			list[i.count] = i;
 		}
 

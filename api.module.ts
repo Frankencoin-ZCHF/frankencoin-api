@@ -15,7 +15,7 @@ import { PositionsService } from 'positions/positions.service';
 import { PricesService } from 'prices/prices.service';
 import { ChallengesService } from 'challenges/challenges.service';
 import { AnalyticsService } from 'analytics/analytics.service';
-// import { TransferReferenceService } from 'transfer/transfer.reference.service';
+import { TransferReferenceService } from 'transfer/transfer.reference.service';
 import { TelegramService } from 'telegram/telegram.service';
 
 // CONTROLLER IMPORTS
@@ -30,7 +30,7 @@ import { PositionsController } from 'positions/positions.controller';
 import { PricesController } from 'prices/prices.controller';
 import { ChallengesController } from 'challenges/challenges.controller';
 import { AnalyticsController } from 'analytics/analytics.controller';
-// import { TransferReferenceController } from 'transfer/tranfer.reference.controller';
+import { TransferReferenceController } from 'transfer/tranfer.reference.controller';
 import { HttpModule } from '@nestjs/axios';
 
 // APP MODULE
@@ -46,7 +46,7 @@ import { HttpModule } from '@nestjs/axios';
 		SavingsCoreController,
 		PricesController,
 		ChallengesController,
-		// TransferReferenceController,
+		TransferReferenceController,
 		AnalyticsController,
 	],
 	providers: [
@@ -60,7 +60,7 @@ import { HttpModule } from '@nestjs/axios';
 		SavingsCoreService,
 		PricesService,
 		ChallengesService,
-		// TransferReferenceService,
+		TransferReferenceService,
 		TelegramService,
 		ApiService,
 		AnalyticsService,

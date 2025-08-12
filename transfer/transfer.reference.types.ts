@@ -3,15 +3,16 @@ import { Address } from 'viem';
 // --------------------------------------------------------------------------
 // Ponder return types
 export type TransferReferenceQuery = {
-	id: `${Address}-${Address}-${number}`;
+	amount: bigint;
+	chainId: number;
 	count: number;
 	created: number;
-	txHash: string;
 	from: Address;
+	reference: string;
+	sender: Address;
+	targetChain: number;
 	to: Address;
-	amount: bigint;
-	ref: string;
-	autoSaved: Address;
+	txHash: string;
 };
 
 // --------------------------------------------------------------------------

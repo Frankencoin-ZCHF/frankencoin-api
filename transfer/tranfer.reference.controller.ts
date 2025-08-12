@@ -22,7 +22,7 @@ export class TransferReferenceController {
 		description: 'Returns the counter of latest transfer reference',
 	})
 	getCounter(): number {
-		return this.transfer.getList().list.at(-1)?.count ?? 0;
+		return this.transfer.getList().list.at(0)?.count ?? 0;
 	}
 
 	@Get('by/count/:count')
