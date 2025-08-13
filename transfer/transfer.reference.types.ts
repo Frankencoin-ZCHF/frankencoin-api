@@ -10,7 +10,7 @@ export type TransferReferenceQuery = {
 	from: Address;
 	reference: string;
 	sender: Address;
-	targetChain: number;
+	targetChain: string;
 	to: Address;
 	txHash: string;
 };

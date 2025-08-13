@@ -40,13 +40,13 @@ export class TransferReferenceController {
 		description: 'Returns the latest of transfer references by "from" address',
 	})
 	@ApiQuery({ name: 'to', required: false, description: 'Enter the recipiant address' })
-	@ApiQuery({ name: 'ref', required: false, description: 'Enter the reference' })
+	@ApiQuery({ name: 'reference', required: false, description: 'Enter the reference' })
 	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
 	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
 	async getByFrom(
 		@Param('from') from: string,
 		@Query('to') to?: string,
-		@Query('ref') ref?: string,
+		@Query('reference') reference?: string,
 		@Query('start') start: string = '0',
 		@Query('end') end: string | number = Date.now()
 	): Promise<TransferReferenceQuery[] | { error: string }> {
@@ -55,7 +55,7 @@ export class TransferReferenceController {
 		return await this.transfer.getByFromFilter({
 			from,
 			to: to as Address | undefined,
-			ref,
+			reference,
 			start,
 			end,
 		});
@@ -66,13 +66,13 @@ export class TransferReferenceController {
 		description: 'Returns the latest of transfer references by "to" address',
 	})
 	@ApiQuery({ name: 'from', required: false, description: 'Enter the senders address' })
-	@ApiQuery({ name: 'ref', required: false, description: 'Enter the reference' })
+	@ApiQuery({ name: 'reference', required: false, description: 'Enter the reference' })
 	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
 	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
 	async getByTo(
 		@Param('to') to: string,
 		@Query('from') from?: string,
-		@Query('ref') ref?: string,
+		@Query('reference') reference?: string,
 		@Query('start') start: string = '0',
 		@Query('end') end: string | number = Date.now()
 	): Promise<TransferReferenceQuery[] | { error: string }> {
@@ -81,7 +81,7 @@ export class TransferReferenceController {
 		return await this.transfer.getByToFilter({
 			from: from as Address | undefined,
 			to,
-			ref,
+			reference,
 			start,
 			end,
 		});
@@ -92,13 +92,13 @@ export class TransferReferenceController {
 		description: 'Returns the history query of transfer references by "from" address',
 	})
 	@ApiQuery({ name: 'to', required: false, description: 'Enter the recipiant address' })
-	@ApiQuery({ name: 'ref', required: false, description: 'Enter the reference' })
+	@ApiQuery({ name: 'reference', required: false, description: 'Enter the reference' })
 	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
 	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
 	async getHistoryByFrom(
 		@Param('from') from: string,
 		@Query('to') to?: string,
-		@Query('ref') ref?: string,
+		@Query('reference') reference?: string,
 		@Query('start') start: string = '0',
 		@Query('end') end: string | number = Date.now()
 	): Promise<TransferReferenceQuery[] | { error: string }> {
@@ -107,7 +107,7 @@ export class TransferReferenceController {
 		return await this.transfer.getHistoryByFromFilter({
 			from,
 			to: to as Address | undefined,
-			ref,
+			reference,
 			start,
 			end,
 		});
@@ -118,13 +118,13 @@ export class TransferReferenceController {
 		description: 'Returns the history query of transfer references by "to" address',
 	})
 	@ApiQuery({ name: 'from', required: false, description: 'Enter the senders address' })
-	@ApiQuery({ name: 'ref', required: false, description: 'Enter the reference' })
+	@ApiQuery({ name: 'reference', required: false, description: 'Enter the reference' })
 	@ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
 	@ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
 	async getHistoryByTo(
 		@Param('to') to: string,
 		@Query('from') from?: string,
-		@Query('ref') ref?: string,
+		@Query('reference') reference?: string,
 		@Query('start') start: string = '0',
 		@Query('end') end: string | number = Date.now()
 	): Promise<TransferReferenceQuery[] | { error: string }> {
@@ -133,7 +133,7 @@ export class TransferReferenceController {
 		return await this.transfer.getHistoryByToFilter({
 			from: from as Address | undefined,
 			to,
-			ref,
+			reference,
 			start,
 			end,
 		});

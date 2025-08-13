@@ -19,8 +19,8 @@ export class TransferReferenceService {
 
 	async getByCount(count: string): Promise<TransferReferenceQuery | undefined> {
 		try {
-			// const cachedItem = this.fetchedReferences[count];
-			// if (cachedItem != undefined) return cachedItem;
+			const cachedItem = this.fetchedReferences[count];
+			if (cachedItem != undefined) return cachedItem;
 
 			const { data } = await PONDER_CLIENT.query<{
 				transferReferences: { items: TransferReferenceQuery[] };
@@ -62,18 +62,18 @@ export class TransferReferenceService {
 	async getByFromFilter(Props: {
 		from: Address;
 		to?: Address | undefined;
-		ref?: string | undefined;
+		reference?: string | undefined;
 		start?: string | number;
 		end?: string | number;
 	}) {
 		try {
-			const { from, to, ref, start, end } = Props;
+			const { from, to, reference, start, end } = Props;
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
 			let filtered = Object.values(this.fetchedReferences).filter((i) => i.from.toLowerCase() == from.toLowerCase());
 			if (to != undefined) filtered = filtered.filter((i) => i.to.toLowerCase() == to.toLowerCase());
-			if (ref != undefined) filtered = filtered.filter((i) => i.reference == ref);
+			if (reference != undefined) filtered = filtered.filter((i) => i.reference == reference);
 
 			return filtered.filter((i) => i.created >= Math.round(startTimestamp) && i.created < Math.round(endTimestamp));
 		} catch (error) {
@@ -85,18 +85,18 @@ export class TransferReferenceService {
 	async getByToFilter(Props: {
 		to: Address;
 		from?: Address | undefined;
-		ref?: string | undefined;
+		reference?: string | undefined;
 		start?: string | number;
 		end?: string | number;
 	}) {
 		try {
-			const { from, to, ref, start, end } = Props;
+			const { from, to, reference, start, end } = Props;
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
 			let filtered = Object.values(this.fetchedReferences).filter((i) => i.to.toLowerCase() == to.toLowerCase());
 			if (from != undefined) filtered = filtered.filter((i) => i.from.toLowerCase() == from.toLowerCase());
-			if (ref != undefined) filtered = filtered.filter((i) => i.reference == ref);
+			if (reference != undefined) filtered = filtered.filter((i) => i.reference == reference);
 
 			return filtered.filter((i) => i.created >= Math.round(startTimestamp) && i.created < Math.round(endTimestamp));
 		} catch (error) {
@@ -108,13 +108,13 @@ export class TransferReferenceService {
 	async getHistoryByFromFilter(Props: {
 		from: Address;
 		to?: Address | undefined;
-		ref?: string | undefined;
+		reference?: string | undefined;
 		start?: string | number;
 		end?: string | number;
 	}) {
 		// fetch from indexer
 		try {
-			const { from, to, ref, start, end } = Props;
+			const { from, to, reference, start, end } = Props;
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
@@ -128,7 +128,7 @@ export class TransferReferenceService {
 						where: {
 							from: "${from.toLowerCase()}",
 							${to != undefined ? `to: "${to.toLowerCase()}",` : ''}
-							${ref != undefined ? `ref: "${ref}",` : ''}
+							${reference != undefined ? `reference: "${reference}",` : ''}
 							created_gte: "${Math.round(startTimestamp)}",
 							created_lt: "${Math.round(endTimestamp)}",
 						},
@@ -159,13 +159,13 @@ export class TransferReferenceService {
 	async getHistoryByToFilter(Props: {
 		to: Address;
 		from?: Address | undefined;
-		ref?: string | undefined;
+		reference?: string | undefined;
 		start?: string | number;
 		end?: string | number;
 	}) {
 		// fetch from indexer
 		try {
-			const { from, to, ref, start, end } = Props;
+			const { from, to, reference, start, end } = Props;
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
@@ -179,7 +179,7 @@ export class TransferReferenceService {
 						where: {
 							to: "${to.toLowerCase()}",
 							${from != undefined ? `from: "${from.toLowerCase()}",` : ''}
-							${ref != undefined ? `ref: "${ref}",` : ''}
+							${reference != undefined ? `reference: "${reference}",` : ''}
 							created_gte: "${Math.round(startTimestamp)}",
 							created_lt: "${Math.round(endTimestamp)}",
 						},
@@ -247,7 +247,7 @@ export class TransferReferenceService {
 		const b = Object.keys(this.fetchedReferences).length;
 		const isDiff = a !== b;
 
-		if (isDiff) this.logger.log(`Transfer Ref. merging, from ${b} to ${a} entries`);
+		if (isDiff) this.logger.log(`Transfer reference. merging, from ${b} to ${a} entries`);
 		this.fetchedReferences = { ...this.fetchedReferences, ...list };
 
 		return list;
