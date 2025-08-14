@@ -810,15 +810,16 @@ type TelegramGroupState = {
 };
 
 type TransferReferenceQuery = {
-    id: `${Address}-${Address}-${number}`;
+    amount: bigint;
+    chainId: number;
     count: number;
     created: number;
-    txHash: string;
     from: Address;
+    reference: string;
+    sender: Address;
+    targetChain: string;
     to: Address;
-    amount: bigint;
-    ref: string;
-    autoSaved: Address;
+    txHash: string;
 };
 type TransferReferenceObjectArray = {
     [key: number]: TransferReferenceQuery;
