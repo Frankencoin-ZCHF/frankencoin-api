@@ -995,6 +995,10 @@ export class PositionsService {
 			}
 		}
 
+		if (yearlyPositions[currentYear].length == 0) {
+			delete yearlyPositions[currentYear];
+		}
+
 		return yearlyPositions;
 	}
 
