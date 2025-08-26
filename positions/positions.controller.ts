@@ -3,12 +3,13 @@ import { PositionsService } from './positions.service';
 import {
 	ApiMintingUpdateListing,
 	ApiMintingUpdateMapping,
-	ApiMintingUpdateOwnerDebt,
-	ApiMintingUpdateOwnerFees,
+	ApiOwnerDebt,
+	ApiOwnerFees,
+	ApiOwnerHistory,
+	ApiOwnerTransfersListing,
 	ApiPositionsListing,
 	ApiPositionsMapping,
 	ApiPositionsOwners,
-	MintingUpdateQuery,
 } from './positions.types';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Address, isAddress, zeroAddress } from 'viem';
@@ -96,52 +97,50 @@ export class PositionsController {
 		return await this.positionsService.getMintingUpdatesOwner(owner);
 	}
 
-	@Get('mintingupdates/owner/:address/fees')
+	@Get('owner/:address/fees')
 	@ApiResponse({
 		description: 'Returns a list of all latest fees paid by owner, limit: 1000',
 	})
-	async getMintingOwnerFees(@Param('address') owner: string): Promise<ApiMintingUpdateOwnerFees> {
+	async getMintingOwnerFees(@Param('address') owner: string): Promise<ApiOwnerFees | { error: string }> {
 		if (!isAddress(owner)) {
 			return { error: 'Address not valid' };
 		}
-		const updates = await this.positionsService.getMintingUpdatesOwnerFees(owner);
+		const updates = await this.positionsService.getOwnerFees(owner);
 		const entries = updates.list.filter((l) => BigInt(l.feePaid) > 0).map((l) => ({ t: Number(l.created), f: l.feePaid }));
 		return entries;
 	}
 
-	@Get('mintingupdates/owner/:address/debt')
+	@Get('owner/:address/debt')
 	@ApiResponse({
-		description: 'Returns a list of yearly latest debt entry of an owner, limit: 1000',
+		description: 'Returns a list of ownership transfers of positions reflecting the owner, limit: 1000',
 	})
-	async getMintingOwnerDebt(@Param('address') owner: string): Promise<ApiMintingUpdateOwnerDebt> {
+	async getOwnerDebt(@Param('address') owner: string): Promise<ApiOwnerDebt | { error: string }> {
 		if (!isAddress(owner)) {
 			return { error: 'Address not valid' };
 		}
-		const updates = (await this.positionsService.getMintingUpdatesOwner(owner)).list;
-		const mapping: { [key: Address]: MintingUpdateQuery[] } = {};
+		return await this.positionsService.getOwnerDebt(owner);
+	}
 
-		// mapping to position
-		for (const m of updates) {
-			const k = m.position.toLowerCase();
-			if (mapping[k] == undefined) mapping[k] = [m];
-			else mapping[k].push(m);
+	@Get('owner/:address/history')
+	@ApiResponse({
+		description: 'Returns a list of ownership history of positions reflecting the owner, limit: 1000',
+	})
+	async getOwnerHistory(@Param('address') owner: string): Promise<ApiOwnerHistory | { error: string }> {
+		if (!isAddress(owner)) {
+			return { error: 'Address not valid' };
+		}
+		return await this.positionsService.getOwnerHistory(owner);
+	}
+
+	@Get('owner/:address/transfers')
+	@ApiResponse({
+		description: 'Returns a list of ownership transfers of positions reflecting the owner, limit: 1000',
+	})
+	async getOwnerTransfers(@Param('address') owner: string): Promise<ApiOwnerTransfersListing | { error: string }> {
+		if (!isAddress(owner)) {
+			return { error: 'Address not valid' };
 		}
 
-		const positions = Object.keys(mapping);
-		const latestByPos: ApiMintingUpdateOwnerDebt = {}; // mapped by year and address, latest entry
-
-		for (const p of positions) {
-			const items = mapping[p] as MintingUpdateQuery[];
-			const sorted = items.sort((a, b) => (BigInt(a.count) > BigInt(b.count) ? 1 : -1));
-
-			for (const i of sorted) {
-				const year = new Date(i.created * 1000).getFullYear();
-				const payload = { t: i.created, p: i.position.toLowerCase() as Address, m: i.minted, r: i.reserveContribution };
-				if (latestByPos[year] == undefined) latestByPos[year] = {};
-				latestByPos[year][p] = payload;
-			}
-		}
-
-		return latestByPos;
+		return await this.positionsService.getOwnerTransfers(owner);
 	}
 }
