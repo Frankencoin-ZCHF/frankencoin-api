@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
+	ApiOwnerValueLocked,
 	ApiPriceERC20,
 	ApiPriceERC20Mapping,
 	ApiPriceListing,
@@ -11,12 +12,13 @@ import {
 } from './prices.types';
 import { PositionsService } from 'positions/positions.service';
 import { COINGECKO_CLIENT } from 'api.config';
-import { Address } from 'viem';
+import { Address, parseUnits } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { ADDRESS } from '@frankencoin/zchf';
 import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
+import { getEndOfYearPrice } from './yearly.service';
 
 @Injectable()
 export class PricesService {
@@ -115,7 +117,54 @@ export class PricesService {
 			this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
 			return null;
 		}
-		return Object.values(data)[0] || ({ usd: 0 }) as { usd: number };
+		return Object.values(data)[0] || ({ usd: 0 } as { usd: number });
+	}
+
+	async getOwnerValueLocked(owner: Address): Promise<ApiOwnerValueLocked> {
+		owner = owner.toLowerCase() as Address;
+		const history = await this.positionsService.getOwnerHistory(owner);
+
+		const years = Object.keys(history).map((i) => Number(i));
+
+		const yearlyValue: {
+			[key: number]: string;
+		} = {};
+
+		for (const y of years) {
+			const positions = history[y];
+
+			let value = 0n;
+			for (const pos of positions) {
+				const updates = this.positionsService.getMintingUpdatesMapping().map[pos.toLowerCase() as Address] || [];
+				const itemsUntil = updates.filter((i) => i.created * 1000 < new Date(String(y + 1)).getTime());
+				const selected = itemsUntil.at(0);
+				if (selected != undefined) {
+					const isCurrentYear = new Date().getFullYear() == y;
+					const c = selected.collateral.toLowerCase() as Address;
+					const d = selected.collateralDecimals;
+					const s = BigInt(selected.size);
+
+					let p = 0n;
+
+					if (isCurrentYear) {
+						const priceCurrent = parseUnits(String(this.fetchedPrices[c].price.chf), 18);
+						console.log({ priceCurrent });
+						p = priceCurrent;
+					} else {
+						const priceHistory = getEndOfYearPrice({ year: y, contract: selected.collateral });
+						console.log({ priceHistory });
+						p = priceHistory;
+					}
+
+					const v = (s * p) / BigInt(10 ** d);
+					value += v;
+				}
+			}
+
+			yearlyValue[y] = String(value);
+		}
+
+		return yearlyValue;
 	}
 
 	async updatePrices() {

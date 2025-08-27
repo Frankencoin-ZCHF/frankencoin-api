@@ -112,7 +112,7 @@ export class PositionsController {
 
 	@Get('owner/:address/debt')
 	@ApiResponse({
-		description: 'Returns a list of ownership transfers of positions reflecting the owner, limit: 1000',
+		description: 'Returns a yearly list of open debt reflecting the owner, limit: 1000',
 	})
 	async getOwnerDebt(@Param('address') owner: string): Promise<ApiOwnerDebt | { error: string }> {
 		if (!isAddress(owner)) {
@@ -123,7 +123,7 @@ export class PositionsController {
 
 	@Get('owner/:address/history')
 	@ApiResponse({
-		description: 'Returns a list of ownership history of positions reflecting the owner, limit: 1000',
+		description: 'Returns a yearly list of hold ownership history of positions reflecting the owner, limit: 1000',
 	})
 	async getOwnerHistory(@Param('address') owner: string): Promise<ApiOwnerHistory | { error: string }> {
 		if (!isAddress(owner)) {
