@@ -1,15 +1,22 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ApiPriceERC20, ApiPriceERC20Mapping, ApiPriceListing, ApiPriceMapping, PriceQueryCurrencies } from 'prices/prices.types';
+import { Controller, Get, Param } from '@nestjs/common';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+	ApiOwnerValueLocked,
+	ApiPriceERC20,
+	ApiPriceERC20Mapping,
+	ApiPriceListing,
+	ApiPriceMapping,
+	PriceQueryCurrencies,
+} from 'prices/prices.types';
 import { PricesService } from './prices.service';
 // import { AnalyticsService } from 'analytics/analytics.service';
-import { formatUnits } from 'viem';
+import { isAddress } from 'viem';
 
 @ApiTags('Prices Controller')
 @Controller('prices')
 export class PricesController {
 	constructor(
-		private readonly pricesService: PricesService,
+		private readonly pricesService: PricesService
 		// private readonly analytics: AnalyticsService
 	) {}
 
@@ -83,5 +90,16 @@ export class PricesController {
 	})
 	getCollateral(): ApiPriceERC20Mapping {
 		return this.pricesService.getCollateral();
+	}
+
+	@Get('owner/:address/valueLocked')
+	@ApiResponse({
+		description: 'Returns a yearly list of collateral value of positions reflecting the owner, limit: 1000',
+	})
+	async getOwnerValueLocked(@Param('address') owner: string): Promise<ApiOwnerValueLocked | { error: string }> {
+		if (!isAddress(owner)) {
+			return { error: 'Address not valid' };
+		}
+		return await this.pricesService.getOwnerValueLocked(owner);
 	}
 }

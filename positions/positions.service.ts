@@ -4,6 +4,9 @@ import { gql } from '@apollo/client/core';
 import {
 	ApiMintingUpdateListing,
 	ApiMintingUpdateMapping,
+	ApiOwnerDebt,
+	ApiOwnerHistory,
+	ApiOwnerTransfersListing,
 	ApiPositionsListing,
 	ApiPositionsMapping,
 	ApiPositionsOwners,
@@ -12,6 +15,7 @@ import {
 	MintingUpdateQueryV1,
 	MintingUpdateQueryV2,
 	OwnersPositionsObjectArray,
+	OwnerTransferQuery,
 	PositionQuery,
 	PositionQueryV1,
 	PositionQueryV2,
@@ -633,91 +637,10 @@ export class PositionsService {
 				`,
 		});
 
-		const items: MintingUpdateQuery[] = [...version1.mintingHubV1MintingUpdateV1s.items, ...version2.mintingHubV2MintingUpdateV2s.items];
-
-		return {
-			num: items.length,
-			list: items,
-		};
-	}
-
-	async getMintingUpdatesOwnerFees(owner: Address): Promise<ApiMintingUpdateListing> {
-		const { data: version1 } = await PONDER_CLIENT.query<{
-			mintingHubV1MintingUpdateV1s: { items: MintingUpdateQueryV1[] };
-		}>({
-			fetchPolicy: 'no-cache',
-			query: gql`
-					query {
-						mintingHubV1MintingUpdateV1s(
-							orderBy: "created"
-						 	orderDirection: "desc"
-							where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }
-							limit: 1000
-							) {
-							items {
-								count
-								txHash
-								created
-								position
-								owner
-								isClone
-								collateral
-								collateralName
-								collateralSymbol
-								collateralDecimals
-								size
-								price
-								minted
-								sizeAdjusted
-								priceAdjusted
-								mintedAdjusted
-								annualInterestPPM
-								reserveContribution
-								feeTimeframe
-								feePPM
-								feePaid
-							}
-						}
-					}
-				`,
-		});
-
-		const { data: version2 } = await PONDER_CLIENT.query<{ mintingHubV2MintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
-			fetchPolicy: 'no-cache',
-			query: gql`
-					query {
-						mintingHubV2MintingUpdateV2s(where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
-							items {
-								count
-								txHash
-								created
-								position
-								owner
-								isClone
-								collateral
-								collateralName
-								collateralSymbol
-								collateralDecimals
-								size
-								price
-								minted
-								sizeAdjusted
-								priceAdjusted
-								mintedAdjusted
-								annualInterestPPM
-								basePremiumPPM
-								riskPremiumPPM
-								reserveContribution
-								feeTimeframe
-								feePPM
-								feePaid
-							}
-						}
-					}
-				`,
-		});
-
-		const items: MintingUpdateQuery[] = [...version1.mintingHubV1MintingUpdateV1s.items, ...version2.mintingHubV2MintingUpdateV2s.items];
+		const items: MintingUpdateQuery[] = [
+			...version1.mintingHubV1MintingUpdateV1s.items,
+			...version2.mintingHubV2MintingUpdateV2s.items,
+		];
 
 		return {
 			num: items.length,
@@ -913,5 +836,233 @@ export class PositionsService {
 		this.fetchedMintingUpdates = { ...this.fetchedMintingUpdates, ...list };
 
 		return list;
+	}
+
+	async getOwnerFees(owner: Address): Promise<ApiMintingUpdateListing> {
+		const { data: version1 } = await PONDER_CLIENT.query<{
+			mintingHubV1MintingUpdateV1s: { items: MintingUpdateQueryV1[] };
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingHubV1MintingUpdateV1s(
+							orderBy: "created"
+						 	orderDirection: "desc"
+							where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }
+							limit: 1000
+							) {
+							items {
+								count
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+		});
+
+		const { data: version2 } = await PONDER_CLIENT.query<{ mintingHubV2MintingUpdateV2s: { items: MintingUpdateQueryV2[] } }>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingHubV2MintingUpdateV2s(where: { owner: "${owner.toLowerCase()}", feePaid_gt: "0" }, orderBy: "count", orderDirection: "desc", limit: 1000) {
+							items {
+								count
+								txHash
+								created
+								position
+								owner
+								isClone
+								collateral
+								collateralName
+								collateralSymbol
+								collateralDecimals
+								size
+								price
+								minted
+								sizeAdjusted
+								priceAdjusted
+								mintedAdjusted
+								annualInterestPPM
+								basePremiumPPM
+								riskPremiumPPM
+								reserveContribution
+								feeTimeframe
+								feePPM
+								feePaid
+							}
+						}
+					}
+				`,
+		});
+
+		const items: MintingUpdateQuery[] = [
+			...version1.mintingHubV1MintingUpdateV1s.items,
+			...version2.mintingHubV2MintingUpdateV2s.items,
+		];
+
+		return {
+			num: items.length,
+			list: items,
+		};
+	}
+
+	async getOwnerDebt(owner: Address): Promise<ApiOwnerDebt> {
+		owner = owner.toLowerCase() as Address;
+		const history = await this.getOwnerHistory(owner);
+
+		const years = Object.keys(history).map((i) => Number(i));
+
+		const yearlyDebt: {
+			[key: number]: string;
+		} = {};
+
+		for (const y of years) {
+			const positions = history[y];
+
+			let debt = 0n;
+			for (const pos of positions) {
+				const updates = this.fetchedMintingUpdates[pos.toLowerCase() as Address] || [];
+				const itemsUntil = updates.filter((i) => i.created * 1000 < new Date(String(y + 1)).getTime());
+				const selected = itemsUntil.at(0);
+				if (selected != undefined) {
+					const m = BigInt(selected.minted);
+					const r = BigInt(selected.reserveContribution);
+					debt += (m * (BigInt(1_000_000) - r)) / BigInt(1_000_000);
+				}
+			}
+
+			yearlyDebt[y] = String(debt);
+		}
+
+		return yearlyDebt;
+	}
+
+	async getOwnerHistory(owner: Address): Promise<ApiOwnerHistory> {
+		owner = owner.toLowerCase() as Address;
+		const transfers = await this.getOwnerTransfers(owner);
+
+		const years = transfers.list
+			.map((i) => new Date(i.created * 1000).getFullYear())
+			.reduce((a, b) => {
+				return a.includes(b) ? a : [...a, b];
+			}, [] as number[]);
+
+		const currentYear = new Date().getFullYear();
+		if (!years.includes(currentYear)) years.push(currentYear);
+
+		const yearlyPositions: {
+			[key: number]: Address[];
+		} = {};
+
+		for (const y of years) {
+			if (yearlyPositions[y] == undefined) yearlyPositions[y] = [] as Address[];
+			const isCurrentYear = new Date().getFullYear() == y;
+			const itemsUntil = transfers.list.filter((i) => new Date(i.created * 1000).getFullYear() <= y);
+
+			for (const tr of itemsUntil) {
+				if (tr.newOwner == owner && !yearlyPositions[y].includes(tr.position)) {
+					yearlyPositions[y].push(tr.position);
+				} else if (tr.previousOwner == owner && yearlyPositions[y].includes(tr.position)) {
+					yearlyPositions[y] = yearlyPositions[y].filter((p) => p != tr.position);
+				}
+
+				const position = this.getPositionsList().list.find((p) => p.position.toLowerCase() == tr.position.toLowerCase());
+
+				if (!isCurrentYear && position.expiration * 1000 < new Date(String(y + 1)).getTime()) {
+					yearlyPositions[y] = yearlyPositions[y].filter((p) => p != tr.position);
+				} else if (isCurrentYear && position.expiration * 1000 < new Date().getTime()) {
+					yearlyPositions[y] = yearlyPositions[y].filter((p) => p != tr.position);
+				}
+			}
+		}
+
+		if (yearlyPositions[currentYear].length == 0) {
+			delete yearlyPositions[currentYear];
+		}
+
+		return yearlyPositions;
+	}
+
+	async getOwnerTransfers(owner: Address): Promise<ApiOwnerTransfersListing> {
+		const { data: version1 } = await PONDER_CLIENT.query<{
+			mintingHubV1OwnerTransfersV1s: { items: OwnerTransferQuery[] };
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingHubV1OwnerTransfersV1s(
+							orderBy: "created"
+						 	orderDirection: "desc"
+							where: { OR: [ { previousOwner: "${owner.toLowerCase()}" }, { newOwner: "${owner.toLowerCase()}" }] }
+							limit: 1000
+							) {
+							items {
+								version
+								count
+								txHash
+								created
+								position
+								previousOwner
+								newOwner
+							}
+						}
+					}
+				`,
+		});
+
+		const { data: version2 } = await PONDER_CLIENT.query<{
+			mintingHubV2OwnerTransfersV2s: { items: OwnerTransferQuery[] };
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+					query {
+						mintingHubV2OwnerTransfersV2s(
+							orderBy: "created"
+						 	orderDirection: "desc"
+							where: { OR: [ { previousOwner: "${owner.toLowerCase()}" }, { newOwner: "${owner.toLowerCase()}" }] }
+							limit: 1000
+							) {
+							items {
+								version
+								count
+								txHash
+								created
+								position
+								previousOwner
+								newOwner
+							}
+						}
+					}
+				`,
+		});
+
+		const items: OwnerTransferQuery[] = [
+			...version1.mintingHubV1OwnerTransfersV1s.items,
+			...version2.mintingHubV2OwnerTransfersV2s.items,
+		].sort((a, b) => a.created - b.created);
+
+		return {
+			num: items.length,
+			list: items,
+		};
 	}
 }

@@ -35,3 +35,7 @@ export type ApiPriceListing = PriceQuery[];
 export type ApiPriceMapping = PriceQueryObjectArray;
 export type ApiPriceERC20 = ERC20Info;
 export type ApiPriceERC20Mapping = ERC20InfoObjectArray;
+
+export type ApiOwnerValueLocked = {
+	[key: number]: string;
+};

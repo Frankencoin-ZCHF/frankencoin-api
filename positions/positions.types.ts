@@ -86,6 +86,16 @@ export type PositionQueryV2 = {
 
 export type PositionQuery = PositionQueryV1 | PositionQueryV2;
 
+export type OwnerTransferQuery = {
+	version: number;
+	count: number;
+	txHash: string;
+	created: number;
+	position: Address;
+	previousOwner: Address;
+	newOwner: Address;
+};
+
 export type MintingUpdateQueryId = `${Address}-${number}`;
 
 export type MintingUpdateQueryV1 = {
@@ -189,8 +199,17 @@ export type ApiMintingUpdateMapping = {
 	map: MintingUpdateQueryObjectArray;
 };
 
-export type ApiMintingUpdateOwnerFees = { t: number; f: string }[] | { error: string };
+export type ApiOwnerFees = { t: number; f: string }[];
 
-export type ApiMintingUpdateOwnerDebt =
-	| { [key: string]: { [key: Address]: { t: number; p: Address; m: string; r: number }[] } }
-	| { error: string };
+export type ApiOwnerDebt = {
+	[key: number]: string;
+};
+
+export type ApiOwnerHistory = {
+	[key: number]: `0x${string}`[];
+};
+
+export type ApiOwnerTransfersListing = {
+	num: number;
+	list: OwnerTransferQuery[];
+};
