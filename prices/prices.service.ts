@@ -5,8 +5,10 @@ import {
 	ApiPriceERC20Mapping,
 	ApiPriceListing,
 	ApiPriceMapping,
+	ApiPriceMarketChart,
 	ERC20Info,
 	ERC20InfoObjectArray,
+	PriceMarketChartObject,
 	PriceQueryCurrencies,
 	PriceQueryObjectArray,
 } from './prices.types';
@@ -19,12 +21,14 @@ import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly storjPath: string = '/prices.query.json';
 	private fetchedPrices: PriceQueryObjectArray = {};
+	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
 
 	constructor(
 		private readonly storj: Storj,
@@ -32,6 +36,7 @@ export class PricesService {
 		private readonly fps: EcosystemFpsService
 	) {
 		this.readBackupPriceQuery();
+		this.updateMarketChart();
 	}
 
 	async readBackupPriceQuery() {
@@ -99,6 +104,20 @@ export class PricesService {
 		}
 
 		return c;
+	}
+
+	getMarketChart(): ApiPriceMarketChart {
+		return this.fetchedMarketChart;
+	}
+
+	async fetchMarketChartCoingecko(): Promise<PriceMarketChartObject | null> {
+		const url = `/api/v3/coins/frankencoin/market_chart?vs_currency=chf&days=90`;
+		const data = await (await COINGECKO_CLIENT(url)).json();
+		if (data.status) {
+			this.logger.debug(data.status?.error_message || 'Error fetching market chart from coingecko');
+			return null;
+		}
+		return data;
 	}
 
 	async fetchSourcesCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
@@ -244,5 +263,13 @@ export class PricesService {
 				}
 			}
 		}
+	}
+
+	@Cron(CronExpression.EVERY_10_MINUTES)
+	async updateMarketChart() {
+		this.logger.debug('Updating Market Chart');
+
+		const data = await this.fetchMarketChartCoingecko();
+		if (data) this.fetchedMarketChart = data;
 	}
 }

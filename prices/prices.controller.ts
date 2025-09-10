@@ -9,16 +9,12 @@ import {
 	PriceQueryCurrencies,
 } from 'prices/prices.types';
 import { PricesService } from './prices.service';
-// import { AnalyticsService } from 'analytics/analytics.service';
 import { isAddress } from 'viem';
 
 @ApiTags('Prices Controller')
 @Controller('prices')
 export class PricesController {
-	constructor(
-		private readonly pricesService: PricesService
-		// private readonly analytics: AnalyticsService
-	) {}
+	constructor(private readonly pricesService: PricesService) {}
 
 	@Get('ticker/:ticker')
 	@ApiResponse({
@@ -36,21 +32,6 @@ export class PricesController {
 			return matching.price;
 		}
 	}
-
-	// @Get('ticker/FPS/history')
-	// @ApiResponse({
-	// 	description: 'Returns trade price history from DailyLog for FPS ticker',
-	// })
-	// @ApiQuery({ name: 'start', required: false, description: 'Start date for price history (YYYY-MM-DD)' })
-	// @ApiQuery({ name: 'end', required: false, description: 'End date for price history (YYYY-MM-DD)' })
-	// getTickerHistory(@Query('start') start: string = '0', @Query('end') end: string | number = Date.now()): { t: number; p: number }[] {
-	// 	const listMapped = this.analytics
-	// 		.getDailyLog()
-	// 		.logs.map((l) => ({ t: Number(l.timestamp), p: Number(formatUnits(l.fpsPrice, 18)) }));
-
-	// 	const listFiltered = listMapped.filter((l) => l.t >= new Date(start).getTime() && l.t <= new Date(end).getTime());
-	// 	return listFiltered;
-	// }
 
 	@Get('list')
 	@ApiResponse({
@@ -101,5 +82,13 @@ export class PricesController {
 			return { error: 'Address not valid' };
 		}
 		return await this.pricesService.getOwnerValueLocked(owner);
+	}
+
+	@Get('marketChart')
+	@ApiResponse({
+		description: 'This endpoint allows you to get the historical chart data of frankencoin from coingecko',
+	})
+	getPeg() {
+		return this.pricesService.getMarketChart();
 	}
 }

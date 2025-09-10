@@ -29,6 +29,12 @@ export type PriceQueryObjectArray = {
 	[key: Address]: PriceQuery;
 };
 
+export type PriceMarketChartObject = {
+	prices: [timestamp: number, value: number][];
+	market_caps: [timestamp: number, value: number][];
+	total_volumes: [timestamp: number, value: number][];
+};
+
 // --------------------------------------------------------------------------------
 // Api
 export type ApiPriceListing = PriceQuery[];
@@ -39,3 +45,5 @@ export type ApiPriceERC20Mapping = ERC20InfoObjectArray;
 export type ApiOwnerValueLocked = {
 	[key: number]: string;
 };
+
+export type ApiPriceMarketChart = PriceMarketChartObject;

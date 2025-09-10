@@ -18,7 +18,7 @@ import { TransferReferenceService } from 'transfer/transfer.reference.service';
 import { mainnet } from 'viem/chains';
 
 export const INDEXING_TIMEOUT_COUNT: number = 3;
-export const POLLING_DELAY: number = 2_000; // 2000ms (= 2sec)
+export const POLLING_DELAY: number = 3_000; // 3000ms (= 3sec)
 
 export type IndexerStatus = {
 	id: ChainId;
