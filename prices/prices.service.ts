@@ -111,7 +111,7 @@ export class PricesService {
 	}
 
 	async fetchMarketChartCoingecko(): Promise<PriceMarketChartObject | null> {
-		const url = `/api/v3/coins/frankencoin/market_chart?vs_currency=chf&days=365`;
+		const url = `/api/v3/coins/frankencoin/market_chart?vs_currency=chf&days=90`;
 		const data = await (await COINGECKO_CLIENT(url)).json();
 		if (data.status) {
 			this.logger.debug(data.status?.error_message || 'Error fetching market chart from coingecko');
