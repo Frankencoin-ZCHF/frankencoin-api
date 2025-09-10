@@ -5,7 +5,7 @@ import { AppModule } from './api.module';
 // dotenv.config();
 
 async function bootstrap() {
-	const api = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error'], cors: true });
+	const api = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error' /*, 'debug' */], cors: true });
 
 	const config = new DocumentBuilder()
 		.setTitle(process.env.npm_package_name)

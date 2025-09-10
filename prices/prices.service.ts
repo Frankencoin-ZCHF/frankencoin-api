@@ -110,7 +110,7 @@ export class PricesService {
 		return this.fetchedMarketChart;
 	}
 
-	async fetchMarketChartCoingecko(): Promise<PriceMarketChartObject> {
+	async fetchMarketChartCoingecko(): Promise<PriceMarketChartObject | null> {
 		const url = `/api/v3/coins/frankencoin/market_chart?vs_currency=chf&days=365`;
 		const data = await (await COINGECKO_CLIENT(url)).json();
 		if (data.status) {
@@ -268,6 +268,8 @@ export class PricesService {
 	@Cron(CronExpression.EVERY_10_MINUTES)
 	async updateMarketChart() {
 		this.logger.debug('Updating Market Chart');
-		this.fetchedMarketChart = await this.fetchMarketChartCoingecko();
+
+		const data = await this.fetchMarketChartCoingecko();
+		if (data) this.fetchedMarketChart = data;
 	}
 }
