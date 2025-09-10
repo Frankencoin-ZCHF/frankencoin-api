@@ -21,7 +21,7 @@ import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
-import { Interval } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class PricesService {
@@ -265,7 +265,7 @@ export class PricesService {
 		}
 	}
 
-	@Interval(10 * 60 * 1000)
+	@Cron(CronExpression.EVERY_10_MINUTES)
 	async updateMarketChart() {
 		this.logger.debug('Updating Market Chart');
 		this.fetchedMarketChart = await this.fetchMarketChartCoingecko();
