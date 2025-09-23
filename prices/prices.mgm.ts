@@ -5,7 +5,7 @@ export const ContractBlacklist: Address[] = [
 	'0x5601b88A3F6700dd5cc9B94941431c6BfC077163',
 	'0x691b4bAcBfE0e3bea191420e96ef41aA76729889',
 	'0xCAf237F016CbA0E41b271E88e9088c09d495ee05',
-] as const;
+].map((i) => i.toLowerCase() as Address);
 
 export const ContractWhitelist: ERC20Info[] = [
 	{
