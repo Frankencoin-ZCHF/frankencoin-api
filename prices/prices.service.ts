@@ -22,6 +22,7 @@ import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ContractBlacklist, ContractWhitelist } from './prices.mgm';
 
 @Injectable()
 export class PricesService {
@@ -191,10 +192,10 @@ export class PricesService {
 
 		const fps = this.getFps();
 		const m = this.getMint();
-		const c = this.getCollateral();
+		const c = Object.values(this.getCollateral());
 
-		if (!m || Object.values(c).length == 0) return;
-		const a = [fps, m, ...Object.values(c)];
+		if (!m || c.length == 0) return;
+		const a = [fps, m, ...c.filter((i) => !ContractBlacklist.includes(i.address.toLowerCase() as Address)), ...ContractWhitelist];
 
 		const pricesQuery: PriceQueryObjectArray = {};
 		let pricesQueryNewCount: number = 0;
