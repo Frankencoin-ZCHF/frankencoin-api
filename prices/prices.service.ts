@@ -192,10 +192,10 @@ export class PricesService {
 
 		const fps = this.getFps();
 		const m = this.getMint();
-		const c = Object.values(this.getCollateral());
+		const c = Object.values(this.getCollateral()).filter((i) => !ContractBlacklist.includes(i.address.toLowerCase() as Address));
 
 		if (!m || c.length == 0) return;
-		const a = [fps, m, ...c.filter((i) => !ContractBlacklist.includes(i.address.toLowerCase() as Address)), ...ContractWhitelist];
+		const a = [fps, m, ...c, ...ContractWhitelist];
 
 		const pricesQuery: PriceQueryObjectArray = {};
 		let pricesQueryNewCount: number = 0;
@@ -273,4 +273,15 @@ export class PricesService {
 		const data = await this.fetchMarketChartCoingecko();
 		if (data) this.fetchedMarketChart = data;
 	}
+
+	// @Cron(CronExpression.EVERY_30_SECONDS)
+	// async entryForHistoricalPrices() {
+	// 	this.logger.debug('Entry for historical prices');
+
+	// 	const allPrices = Object.values(this.fetchedPrices);
+	// 	const withTimestamps = allPrices.filter((i) => i.timestamp != 0);
+	// 	const validPrices = withTimestamps.filter((i) => i.price.chf != 0 && i.price.usd != 0);
+
+	// 	console.log(validPrices);
+	// }
 }
