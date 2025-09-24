@@ -96,6 +96,7 @@ export class PricesService {
 		const c: ERC20InfoObjectArray = {};
 
 		for (const p of pos) {
+			if (ContractBlacklist.includes(p.collateral.toLowerCase() as Address)) continue;
 			c[p.collateral.toLowerCase()] = {
 				address: p.collateral,
 				name: p.collateralName,
@@ -192,7 +193,7 @@ export class PricesService {
 
 		const fps = this.getFps();
 		const m = this.getMint();
-		const c = Object.values(this.getCollateral()).filter((i) => !ContractBlacklist.includes(i.address.toLowerCase() as Address));
+		const c = Object.values(this.getCollateral());
 
 		if (!m || c.length == 0) return;
 		const a = [fps, m, ...c, ...ContractWhitelist];
