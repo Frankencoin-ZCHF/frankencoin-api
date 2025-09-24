@@ -20,7 +20,7 @@ export type SavingsReferrerEarningsQuery = {
 	created: number;
 	updated: number;
 	referrer: Address;
-	earnings: bigint;
+	earnings: string;
 };
 
 // --------------------------------------------------------------------------
@@ -29,7 +29,7 @@ export type SavingsReferrerEarningsQuery = {
 export type SavingsReferrerEarnings = {
 	[K in ChainId]: {
 		[key: SavingsReferrerEarningsQuery['module']]: {
-			[key: SavingsReferrerEarningsQuery['account']]: SavingsReferrerEarningsQuery['earnings'];
+			[key: SavingsReferrerEarningsQuery['account']]: number;
 		};
 	};
 };
@@ -41,7 +41,7 @@ export type SavingsReferrerEarnings = {
 export type ApiSavingsReferrerEarnings = {
 	earnings: SavingsReferrerEarnings;
 	chains: {
-		[K in ChainId]: bigint;
+		[K in ChainId]: number;
 	};
-	total: bigint;
+	total: number;
 };

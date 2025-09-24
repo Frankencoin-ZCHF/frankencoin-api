@@ -2,7 +2,8 @@ import { gql } from '@apollo/client/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT } from 'api.config';
 import { Address } from 'viem';
-import { SavingsReferrerEarningsQuery } from './savings.referrer.types';
+import { ApiSavingsReferrerEarnings, SavingsReferrerEarnings, SavingsReferrerEarningsQuery } from './savings.referrer.types';
+import { formatFloat } from 'utils/format';
 
 @Injectable()
 export class SavingsReferrerService {
@@ -16,7 +17,7 @@ export class SavingsReferrerService {
 		return this.fetchReferrerEarnings(referrer);
 	}
 
-	async fetchReferrerEarnings(referrer: Address) {
+	async fetchReferrerEarnings(referrer: Address): Promise<ApiSavingsReferrerEarnings> {
 		this.logger.debug('Fetching savings referrer earnings');
 		referrer = referrer.toLowerCase() as Address;
 
@@ -48,41 +49,37 @@ export class SavingsReferrerService {
 			`,
 		});
 
-		console.log(response);
-
 		if (!response.data || !response.data.savingsReferrerEarningss?.items) {
 			this.logger.warn('No savingsReferrerEarningss data found.');
 			return;
 		}
 
 		const d = response.data.savingsReferrerEarningss.items;
-		return d;
 
-		// const list: SavingsStatusMapping = {} as SavingsStatusMapping;
-		// for (const r of d) {
-		// 	// make object available
-		// 	if (list[r.chainId] == undefined) list[r.chainId] = {};
+		const earnings: SavingsReferrerEarnings = {} as SavingsReferrerEarnings;
+		const chains: ApiSavingsReferrerEarnings['chains'] = {} as ApiSavingsReferrerEarnings['chains'];
+		let total: number = 0;
 
-		// 	// set state and overwrite type conform
-		// 	list[r.chainId][r.module] = {
-		// 		chainId: r.chainId,
-		// 		updated: parseInt(r.updated as any),
-		// 		module: r.module,
-		// 		balance: r.balance,
-		// 		interest: r.interest,
-		// 		save: r.save,
-		// 		withdraw: r.withdraw,
-		// 		rate: r.rate,
-		// 		counter: {
-		// 			interest: parseInt(r.counterInterest as any),
-		// 			rateChanged: parseInt(r.counterRateChanged as any),
-		// 			rateProposed: parseInt(r.counterRateProposed as any),
-		// 			save: parseInt(r.counterSave as any),
-		// 			withdraw: parseInt(r.counterWithdraw as any),
-		// 		},
-		// 	};
-		// }
+		for (const r of d) {
+			// make object available
+			if (earnings[r.chainId] == undefined) earnings[r.chainId] = {};
+			if (earnings[r.chainId][r.module] == undefined) earnings[r.chainId][r.module] = {};
 
-		// this.fetchedStatus = list;
+			// set state and overwrite type conform
+			earnings[r.chainId][r.module][r.account] = formatFloat(BigInt(r.earnings), 18);
+
+			// make object available
+			if (chains[r.chainId] == undefined) chains[r.chainId] = formatFloat(BigInt(r.earnings), 18);
+			else chains[r.chainId] += formatFloat(BigInt(r.earnings), 18);
+
+			// accum. total
+			total += formatFloat(BigInt(r.earnings), 18);
+		}
+
+		return {
+			earnings,
+			chains,
+			total,
+		};
 	}
 }

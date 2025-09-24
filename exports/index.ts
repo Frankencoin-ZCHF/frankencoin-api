@@ -6,6 +6,7 @@ export * from '../ecosystem/ecosystem.collateral.types';
 export * from '../ecosystem/ecosystem.fps.types';
 export * from '../savings/savings.leadrate.types';
 export * from '../savings/savings.core.types';
+export * from '../savings/savings.referrer.types';
 export * from '../positions/positions.types';
 export * from '../prices/prices.types';
 export * from '../telegram/telegram.types';
