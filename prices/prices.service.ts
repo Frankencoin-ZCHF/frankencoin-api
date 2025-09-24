@@ -22,6 +22,7 @@ import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ContractBlacklist, ContractWhitelist } from './prices.mgm';
 
 @Injectable()
 export class PricesService {
@@ -95,6 +96,7 @@ export class PricesService {
 		const c: ERC20InfoObjectArray = {};
 
 		for (const p of pos) {
+			if (ContractBlacklist.includes(p.collateral.toLowerCase() as Address)) continue;
 			c[p.collateral.toLowerCase()] = {
 				address: p.collateral,
 				name: p.collateralName,
@@ -191,10 +193,10 @@ export class PricesService {
 
 		const fps = this.getFps();
 		const m = this.getMint();
-		const c = this.getCollateral();
+		const c = Object.values(this.getCollateral());
 
-		if (!m || Object.values(c).length == 0) return;
-		const a = [fps, m, ...Object.values(c)];
+		if (!m || c.length == 0) return;
+		const a = [fps, m, ...c, ...ContractWhitelist];
 
 		const pricesQuery: PriceQueryObjectArray = {};
 		let pricesQueryNewCount: number = 0;
@@ -272,4 +274,15 @@ export class PricesService {
 		const data = await this.fetchMarketChartCoingecko();
 		if (data) this.fetchedMarketChart = data;
 	}
+
+	// @Cron(CronExpression.EVERY_30_SECONDS)
+	// async entryForHistoricalPrices() {
+	// 	this.logger.debug('Entry for historical prices');
+
+	// 	const allPrices = Object.values(this.fetchedPrices);
+	// 	const withTimestamps = allPrices.filter((i) => i.timestamp != 0);
+	// 	const validPrices = withTimestamps.filter((i) => i.price.chf != 0 && i.price.usd != 0);
+
+	// 	console.log(validPrices);
+	// }
 }
