@@ -2,19 +2,87 @@ import { gql } from '@apollo/client/core';
 import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT } from 'api.config';
 import { Address } from 'viem';
-import { ApiSavingsReferrerEarnings, SavingsReferrerEarnings, SavingsReferrerEarningsQuery } from './savings.referrer.types';
+import {
+	ApiSavingsReferrerEarnings,
+	ApiSavingsReferrerMapping,
+	SavingsReferrerEarnings,
+	SavingsReferrerEarningsQuery,
+	SavingsReferrerMapping,
+	SavingsReferrerMappingQuery,
+} from './savings.referrer.types';
 import { formatFloat } from 'utils/format';
 
 @Injectable()
 export class SavingsReferrerService {
 	private readonly logger = new Logger(this.constructor.name);
 
-	// getMapping(referrer: Address): ApiSavingsBalance {
-	// 	return this.fetchedBalance;
-	// }
+	getMapping(referrer: Address): Promise<ApiSavingsReferrerMapping> {
+		return this.fetchReferrerMapping(referrer);
+	}
 
-	getEarnings(referrer: Address) {
+	getEarnings(referrer: Address): Promise<ApiSavingsReferrerEarnings> {
 		return this.fetchReferrerEarnings(referrer);
+	}
+
+	async fetchReferrerMapping(referrer: Address): Promise<ApiSavingsReferrerMapping> {
+		this.logger.debug('Fetching savings referrer mapping');
+		referrer = referrer.toLowerCase() as Address;
+
+		const response = await PONDER_CLIENT.query<{
+			savingsReferrerMappings: {
+				items: SavingsReferrerMappingQuery[];
+			};
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					savingsReferrerMappings(
+						where: { referrer: "${referrer}" }
+						orderBy: "updated"
+						orderDirection: "DESC"
+						limit: 1000
+					) {
+						items {
+							chainId
+							module
+							account
+							created
+							updated
+							referrer
+							referrerFee
+						}
+					}
+				}
+			`,
+		});
+
+		if (!response.data || !response.data.savingsReferrerMappings?.items) {
+			this.logger.warn('No savingsReferrerMappings data found.');
+			return;
+		}
+
+		const d = response.data.savingsReferrerMappings.items;
+
+		const accounts: Address[] = [];
+		const map: SavingsReferrerMapping = {} as SavingsReferrerMapping;
+
+		for (const r of d) {
+			// make object available
+			if (map[r.chainId] == undefined) map[r.chainId] = {};
+			if (map[r.chainId][r.module] == undefined) map[r.chainId][r.module] = {};
+
+			// set state and overwrite type conform
+			map[r.chainId][r.module][r.account] = r;
+
+			// upsert accounts
+			if (!accounts.includes(r.account)) accounts.push(r.account);
+		}
+
+		return {
+			num: accounts.length,
+			accounts,
+			map,
+		};
 	}
 
 	async fetchReferrerEarnings(referrer: Address): Promise<ApiSavingsReferrerEarnings> {

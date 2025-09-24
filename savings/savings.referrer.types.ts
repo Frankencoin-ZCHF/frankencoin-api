@@ -26,6 +26,14 @@ export type SavingsReferrerEarningsQuery = {
 // --------------------------------------------------------------------------
 // Service
 
+export type SavingsReferrerMapping = {
+	[K in ChainId]: {
+		[key: SavingsReferrerEarningsQuery['module']]: {
+			[key: SavingsReferrerEarningsQuery['account']]: SavingsReferrerMappingQuery;
+		};
+	};
+};
+
 export type SavingsReferrerEarnings = {
 	[K in ChainId]: {
 		[key: SavingsReferrerEarningsQuery['module']]: {
@@ -36,7 +44,12 @@ export type SavingsReferrerEarnings = {
 
 // --------------------------------------------------------------------------
 // Api
-// export type ApiSavingsReferrerMapping = SavingsBalanceAccountMapping;
+
+export type ApiSavingsReferrerMapping = {
+	num: number;
+	accounts: Address[];
+	map: SavingsReferrerMapping;
+};
 
 export type ApiSavingsReferrerEarnings = {
 	earnings: SavingsReferrerEarnings;
