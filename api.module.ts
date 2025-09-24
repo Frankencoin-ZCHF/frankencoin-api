@@ -11,6 +11,7 @@ import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.ser
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 import { SavingsCoreService } from 'savings/savings.core.service';
+import { SavingsReferrerService } from 'savings/savings.referrer.service';
 import { PositionsService } from 'positions/positions.service';
 import { PricesService } from 'prices/prices.service';
 import { ChallengesService } from 'challenges/challenges.service';
@@ -26,6 +27,7 @@ import { EcosystemFpsController } from 'ecosystem/ecosystem.fps.controller';
 import { EcosystemFrankencoinController } from 'ecosystem/ecosystem.frankencoin.controller';
 import { SavingsLeadrateController } from 'savings/savings.leadrate.controller';
 import { SavingsCoreController } from 'savings/savings.core.controller';
+import { SavingsReferrerController } from 'savings/savings.referrer.controller';
 import { PositionsController } from 'positions/positions.controller';
 import { PricesController } from 'prices/prices.controller';
 import { ChallengesController } from 'challenges/challenges.controller';
@@ -44,6 +46,7 @@ import { HttpModule } from '@nestjs/axios';
 		EcosystemFrankencoinController,
 		SavingsLeadrateController,
 		SavingsCoreController,
+		SavingsReferrerController,
 		PricesController,
 		ChallengesController,
 		TransferReferenceController,
@@ -58,6 +61,7 @@ import { HttpModule } from '@nestjs/axios';
 		EcosystemFrankencoinService,
 		SavingsLeadrateService,
 		SavingsCoreService,
+		SavingsReferrerService,
 		PricesService,
 		ChallengesService,
 		TransferReferenceService,
