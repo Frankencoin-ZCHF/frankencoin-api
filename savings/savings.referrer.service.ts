@@ -37,8 +37,8 @@ export class SavingsReferrerService {
 			query: gql`
 				query {
 					savingsReferrerMappings(
-						where: { referrer: "${referrer}" }
-						orderBy: "updated"
+						where: { referrer: "${referrer}", balance_gt: "0" }
+						orderBy: "balance"
 						orderDirection: "DESC"
 						limit: 1000
 					) {
@@ -48,6 +48,7 @@ export class SavingsReferrerService {
 							account
 							created
 							updated
+							balance
 							referrer
 							referrerFee
 						}
@@ -72,7 +73,13 @@ export class SavingsReferrerService {
 			if (map[r.chainId][r.module] == undefined) map[r.chainId][r.module] = {};
 
 			// set state and overwrite type conform
-			map[r.chainId][r.module][r.account] = r;
+			map[r.chainId][r.module][r.account] = {
+				created: r.created,
+				updated: r.updated,
+				balance: formatFloat(BigInt(r.balance), 18),
+				referrer: r.referrer,
+				referrerFee: r.referrerFee,
+			};
 
 			// upsert accounts
 			if (!accounts.includes(r.account)) accounts.push(r.account);
@@ -98,8 +105,8 @@ export class SavingsReferrerService {
 			query: gql`
 				query {
 					savingsReferrerEarningss(
-						where: { referrer: "${referrer}" }
-						orderBy: "updated"
+						where: { referrer: "${referrer}", earnings_gt: "0" }
+						orderBy: "earnings"
 						orderDirection: "DESC"
 						limit: 1000
 					) {
