@@ -9,6 +9,7 @@ export type SavingsReferrerMappingQuery = {
 	account: Address;
 	created: number;
 	updated: number;
+	balance: number;
 	referrer: Address;
 	referrerFee: number;
 };
@@ -26,10 +27,18 @@ export type SavingsReferrerEarningsQuery = {
 // --------------------------------------------------------------------------
 // Service
 
+export type SavingsReferrerAccountItem = {
+	created: number;
+	updated: number;
+	balance: number;
+	referrer: Address;
+	referrerFee: number;
+};
+
 export type SavingsReferrerMapping = {
 	[K in ChainId]: {
 		[key: SavingsReferrerEarningsQuery['module']]: {
-			[key: SavingsReferrerEarningsQuery['account']]: SavingsReferrerMappingQuery;
+			[key: SavingsReferrerEarningsQuery['account']]: SavingsReferrerAccountItem;
 		};
 	};
 };
