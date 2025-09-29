@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PricesService } from './prices.service';
-import { ERC20Info, PriceMarketChartObject } from './prices.types';
-import { COINGECKO_CLIENT } from 'api.config';
+import { ERC20Info, PriceQueryObjectArray } from './prices.types';
 import { PriceHistoryQueryObjectArray } from 'exports';
 import { Storj } from 'storj/storj.s3.service';
 import { HistoryQueryObjectDTO } from './dtos/history.query.dto';
 import { Address } from 'viem';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class PricesHistoryService {
@@ -51,25 +51,24 @@ export class PricesHistoryService {
 		return this.fetchedHistory[contract.toLowerCase()];
 	}
 
-	async fetchSourcesCoingecko(network: string, erc: ERC20Info): Promise<PriceMarketChartObject | null> {
-		const contract = erc.address.toLowerCase();
-		network = network.toLowerCase();
+	async fetchSources(prices: PriceQueryObjectArray, erc: ERC20Info): Promise<number | null> {
+		const contract = erc.address.toLowerCase() as Address;
 
-		const url = `/api/v3/coins/${network}/contract/${contract}/market_chart?vs_currency=chf&days=365`;
-
-		const data = await (await COINGECKO_CLIENT(url)).json();
-		if (data.status) {
-			this.logger.debug(data.status?.error_message || 'Error fetching market chart from coingecko');
+		const data = prices[contract];
+		if (data == undefined || data.timestamp == 0) {
 			return null;
 		}
 
-		return data as PriceMarketChartObject;
+		return data.price.chf;
 	}
 
+	@Cron(CronExpression.EVERY_HOUR)
 	async updateHistory() {
 		this.logger.debug('Updating Prices History');
 
-		const coll = Object.values(this.prices.getCollateral());
+		const prices = this.prices.getPricesMapping();
+		const coll = Object.values(prices);
+		const timestamp = Date.now();
 
 		if (!coll || coll.length == 0) return;
 
@@ -85,36 +84,38 @@ export class PricesHistoryService {
 
 			if (!oldEntry) {
 				pricesQueryNewCount += 1;
-				this.logger.debug(`History for ${erc.name} not available, trying to fetch from coingecko`);
-				const data = await this.fetchSourcesCoingecko('ethereum', erc);
+				this.logger.debug(`History for ${erc.name} not available, trying to fetch`);
+				const data = await this.fetchSources(prices, erc);
 
 				if (data == null) {
 					pricesQueryNewCountFailed += 1;
-				} else {
-					const map: PriceHistoryQueryObjectArray[Address]['history'] = {};
-					data?.prices?.forEach((i) => (map[i[0]] = i[1]));
-
 					pricesQuery[addr] = {
 						...erc,
-						timestamp: data === null ? 0 : Date.now(),
-						history: data === null ? {} : map,
+						timestamp: 0,
+						history: {},
+					};
+				} else {
+					pricesQuery[addr] = {
+						...erc,
+						timestamp,
+						history: {
+							[timestamp]: data,
+						},
 					};
 				}
-			} else if (oldEntry.timestamp + 30 * 60_000 < Date.now()) {
+			} else {
 				// needs to update => try to fetch
 				pricesQueryUpdateCount += 1;
-				this.logger.debug(`History for ${erc.name} out of date, trying to fetch from coingecko`);
-				const data = await this.fetchSourcesCoingecko('ethereum', erc);
+				this.logger.debug(`History for ${erc.name} out of date, trying to fetch`);
+				const data = await this.fetchSources(prices, erc);
 
 				if (data == null) {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
-					const map: PriceHistoryQueryObjectArray[Address]['history'] = {};
-					data?.prices?.forEach((i) => (map[i[0]] = i[1]));
 					pricesQuery[addr] = {
 						...oldEntry,
-						timestamp: Date.now(),
-						history: { ...oldEntry.history, ...map },
+						timestamp,
+						history: { ...oldEntry.history, [timestamp]: data },
 					};
 				}
 			}
