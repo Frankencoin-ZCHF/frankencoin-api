@@ -16,6 +16,14 @@ export class PricesHistoryController {
 		return this.history.getHistory();
 	}
 
+	@Get('ratio')
+	@ApiResponse({
+		description: 'Retrieves a list of the latest collat. ratio',
+	})
+	getRetio() {
+		return this.history.getRatio();
+	}
+
 	@Get(':address')
 	@ApiResponse({
 		description: 'Retrieves the price history for a specific contract address.',

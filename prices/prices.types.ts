@@ -37,6 +37,7 @@ export type PriceMarketChartObject = {
 
 export type PriceHistoryQuery = ERC20Info & {
 	timestamp: number;
+	price: PriceQueryCurrencies;
 	history: {
 		[key: number]: number;
 	};
@@ -44,6 +45,16 @@ export type PriceHistoryQuery = ERC20Info & {
 
 export type PriceHistoryQueryObjectArray = {
 	[k in PriceHistoryQuery['address']]: PriceHistoryQuery;
+};
+
+export type PriceHistoryRatio = {
+	timestamp: number;
+	collateralRatioBySupply: {
+		[key: number]: number;
+	};
+	collateralRatioByFreeFloat: {
+		[key: number]: number;
+	};
 };
 
 // --------------------------------------------------------------------------------
