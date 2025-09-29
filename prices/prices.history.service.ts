@@ -133,6 +133,9 @@ export class PricesHistoryService {
 					pricesQuery[addr] = {
 						...erc,
 						timestamp,
+						price: {
+							chf: data,
+						},
 						history: {
 							[timestamp]: data,
 						},
@@ -148,6 +151,9 @@ export class PricesHistoryService {
 					pricesQuery[addr] = {
 						...oldEntry,
 						timestamp,
+						price: {
+							chf: data,
+						},
 						history: { ...oldEntry.history, [timestamp]: data },
 					};
 				}
