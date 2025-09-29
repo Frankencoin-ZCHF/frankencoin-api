@@ -34,6 +34,8 @@ import { ChallengesController } from 'challenges/challenges.controller';
 import { AnalyticsController } from 'analytics/analytics.controller';
 import { TransferReferenceController } from 'transfer/tranfer.reference.controller';
 import { HttpModule } from '@nestjs/axios';
+import { PricesHistoryService } from 'prices/prices.history.service';
+import { PricesHistoryController } from 'prices/prices.history.controller';
 
 // APP MODULE
 @Module({
@@ -48,6 +50,7 @@ import { HttpModule } from '@nestjs/axios';
 		SavingsCoreController,
 		SavingsReferrerController,
 		PricesController,
+		PricesHistoryController,
 		ChallengesController,
 		TransferReferenceController,
 		AnalyticsController,
@@ -63,6 +66,7 @@ import { HttpModule } from '@nestjs/axios';
 		SavingsCoreService,
 		SavingsReferrerService,
 		PricesService,
+		PricesHistoryService,
 		ChallengesService,
 		TransferReferenceService,
 		TelegramService,
