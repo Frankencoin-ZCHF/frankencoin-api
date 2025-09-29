@@ -35,6 +35,17 @@ export type PriceMarketChartObject = {
 	total_volumes: [timestamp: number, value: number][];
 };
 
+export type PriceHistoryQuery = ERC20Info & {
+	timestamp: number;
+	history: {
+		[key: number]: number;
+	};
+};
+
+export type PriceHistoryQueryObjectArray = {
+	[k in PriceHistoryQuery['address']]: PriceHistoryQuery;
+};
+
 // --------------------------------------------------------------------------------
 // Api
 export type ApiPriceListing = PriceQuery[];
