@@ -187,17 +187,18 @@ export class PricesHistoryService {
 			};
 		});
 
+		const stablecoinBridgeVCHF = ADDRESS[mainnet.id].stablecoinBridgeVCHF.toLowerCase() as Address;
 		const stablecoinBridges = [
 			{
 				minted: formatFloat(
 					await VIEM_CONFIG[mainnet.id].readContract({
-						address: ADDRESS[mainnet.id].stablecoinBridgeVCHF,
+						address: stablecoinBridgeVCHF,
 						abi: StablecoinBridgeABI,
 						functionName: 'minted',
 					}),
 					18
 				),
-				marketPrice: this.fetchedHistory[ADDRESS[mainnet.id].stablecoinBridgeVCHF.toLowerCase() as Address].price?.chf || 0,
+				marketPrice: this.fetchedHistory[stablecoinBridgeVCHF]?.price?.chf || 0,
 				liqPrice: 1,
 			},
 		];
