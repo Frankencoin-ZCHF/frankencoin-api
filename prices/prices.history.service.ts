@@ -11,6 +11,9 @@ import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.ser
 import { formatFloat } from 'utils/format';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { HistoryRatioObjectDTO } from './dtos/history.ratio.dto';
+import { VIEM_CONFIG } from 'api.config';
+import { mainnet } from 'viem/chains';
+import { ADDRESS, StablecoinBridgeABI } from '@frankencoin/zchf';
 
 @Injectable()
 export class PricesHistoryService {
@@ -175,7 +178,7 @@ export class PricesHistoryService {
 		const reserve = this.equity.getEcosystemFpsInfo().reserve.balance;
 		const positions = Object.values(this.positions.getPositionsOpen().map);
 
-		const data = positions.map((p) => {
+		const positionData = positions.map((p) => {
 			const key = p.collateral.toLowerCase() as Address;
 			return {
 				minted: formatFloat(BigInt(p.minted), 18),
@@ -183,6 +186,23 @@ export class PricesHistoryService {
 				liqPrice: formatFloat(BigInt(p.price), 36 - p.collateralDecimals),
 			};
 		});
+
+		const stablecoinBridges = [
+			{
+				minted: formatFloat(
+					await VIEM_CONFIG[mainnet.id].readContract({
+						address: ADDRESS[mainnet.id].stablecoinBridgeVCHF,
+						abi: StablecoinBridgeABI,
+						functionName: 'minted',
+					}),
+					18
+				),
+				marketPrice: this.fetchedHistory[ADDRESS[mainnet.id].stablecoinBridgeVCHF.toLowerCase() as Address].price?.chf || 0,
+				liqPrice: 1,
+			},
+		];
+
+		const data = [...positionData, ...stablecoinBridges];
 
 		const collMul = data.reduce((a, b) => {
 			if (b.liqPrice == 0) return a;
