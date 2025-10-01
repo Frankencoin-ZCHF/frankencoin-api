@@ -105,6 +105,10 @@ export class PricesService {
 			};
 		}
 
+		for (const i of ContractWhitelist) {
+			c[i.address.toLowerCase()] = i;
+		}
+
 		return c;
 	}
 
@@ -196,7 +200,7 @@ export class PricesService {
 		const c = Object.values(this.getCollateral());
 
 		if (!m || c.length == 0) return;
-		const a = [fps, m, ...c, ...ContractWhitelist];
+		const a = [fps, m, ...c];
 
 		const pricesQuery: PriceQueryObjectArray = {};
 		let pricesQueryNewCount: number = 0;
