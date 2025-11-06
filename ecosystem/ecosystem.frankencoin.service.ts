@@ -8,12 +8,14 @@ import {
 	EcosystemFrankencoinMapping,
 	ApiEcosystemFrankencoinKeyValues,
 	ApiEcosystemFrankencoinInfo,
+	EcosystemERC20TotalSupply,
 } from './ecosystem.frankencoin.types';
 import { PricesService } from 'prices/prices.service';
 import { EcosystemFpsService } from './ecosystem.fps.service';
 import { EcosystemCollateralService } from './ecosystem.collateral.service';
 import { ADDRESS, ChainId } from '@frankencoin/zchf';
 import { formatFloat } from 'utils/format';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class EcosystemFrankencoinService {
@@ -25,7 +27,9 @@ export class EcosystemFrankencoinService {
 		private readonly fpsService: EcosystemFpsService,
 		private readonly collService: EcosystemCollateralService,
 		private readonly pricesService: PricesService
-	) {}
+	) {
+		setTimeout(() => this.updateTotalSupply(), 500); // FIXME: remove after testing
+	}
 
 	getEcosystemFrankencoinKeyValues(): ApiEcosystemFrankencoinKeyValues {
 		return this.ecosystemFrankencoinKeyValues;
@@ -148,5 +152,47 @@ export class EcosystemFrankencoinService {
 				},
 			};
 		}
+	}
+
+	@Cron(CronExpression.EVERY_HOUR)
+	async updateTotalSupply() {
+		this.logger.debug('Updating updateTotalSupply');
+
+		const chainId = 1;
+		const token = '0xb58e61c3098d85632df34eecfb899a1ed80921cb';
+
+		const response = await PONDER_CLIENT.query<{
+			eRC20TotalSupplys: {
+				items: EcosystemERC20TotalSupply[];
+			};
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					eRC20TotalSupplys(
+						orderBy: "created"
+						orderDirection: "asc"
+						where: { chainId: ${chainId}, token: "${token}" }
+						limit: 1000
+					) {
+						items {
+							supply
+							created
+						}
+					}
+				}
+			`,
+		});
+
+		if (!response.data || !response.data.eRC20TotalSupplys.items) {
+			this.logger.warn('No eRC20TotalSupplys data found.');
+			return;
+		}
+
+		const data = response.data.eRC20TotalSupplys.items;
+
+		console.log(data);
+
+		return data;
 	}
 }

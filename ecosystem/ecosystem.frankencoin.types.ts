@@ -19,6 +19,12 @@ export type EcosystemERC20StatusQuery = {
 	balance: bigint;
 	token: Address;
 };
+export type EcosystemERC20TotalSupply = {
+	chainId: ChainId;
+	created: number;
+	token: Address;
+	supply: bigint;
+};
 
 // --------------------------------------------------------------------------
 // Service
