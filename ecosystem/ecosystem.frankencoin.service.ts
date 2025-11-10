@@ -49,6 +49,10 @@ export class EcosystemFrankencoinService {
 			this.ecosystemTotalSupply = { ...this.ecosystemTotalSupply, ...response.data };
 			this.logger.log(`readBackupSupplyQuery state restored...`);
 		}
+
+		if (Object.keys(this.ecosystemTotalSupply).length == 0) {
+			this.updateTotalSupply();
+		}
 	}
 	async writeBackupSupplyQuery() {
 		const response = await this.storj.write(this.storjPath, this.ecosystemTotalSupply);
