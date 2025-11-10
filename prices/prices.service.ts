@@ -173,11 +173,9 @@ export class PricesService {
 
 					if (isCurrentYear) {
 						const priceCurrent = parseUnits(String(this.fetchedPrices[c].price.chf), 18);
-						console.log({ priceCurrent });
 						p = priceCurrent;
 					} else {
 						const priceHistory = getEndOfYearPrice({ year: y, contract: selected.collateral });
-						console.log({ priceHistory });
 						p = priceHistory;
 					}
 
@@ -278,15 +276,4 @@ export class PricesService {
 		const data = await this.fetchMarketChartCoingecko();
 		if (data) this.fetchedMarketChart = data;
 	}
-
-	// @Cron(CronExpression.EVERY_30_SECONDS)
-	// async entryForHistoricalPrices() {
-	// 	this.logger.debug('Entry for historical prices');
-
-	// 	const allPrices = Object.values(this.fetchedPrices);
-	// 	const withTimestamps = allPrices.filter((i) => i.timestamp != 0);
-	// 	const validPrices = withTimestamps.filter((i) => i.price.chf != 0 && i.price.usd != 0);
-
-	// 	console.log(validPrices);
-	// }
 }
