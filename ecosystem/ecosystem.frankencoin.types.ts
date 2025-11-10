@@ -86,3 +86,5 @@ export type ApiEcosystemFrankencoinInfo = {
 	};
 	tvl: PriceQueryCurrencies;
 };
+
+export type ApiEcosystemFrankencoinSupply = FrankencoinSupplyQueryObject;

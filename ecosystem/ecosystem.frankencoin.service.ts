@@ -90,6 +90,10 @@ export class EcosystemFrankencoinService {
 		return this.ecosystemFrankencoinKeyValues?.[key];
 	}
 
+	getTotalSupply() {
+		return this.ecosystemTotalSupply;
+	}
+
 	async updateEcosystemKeyValues() {
 		this.logger.debug('Updating EcosystemKeyValues');
 		const response = await PONDER_CLIENT.query<{

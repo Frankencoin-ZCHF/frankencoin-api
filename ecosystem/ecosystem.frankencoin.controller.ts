@@ -24,11 +24,11 @@ export class EcosystemFrankencoinController {
 		return this.frankencoin.getEcosystemFrankencoinKeyValues();
 	}
 
-	@Get('totalSupply')
+	@Get('totalsupply')
 	@ApiResponse({
-		description: 'Returns Frankencoin totalSupply history, latest 1000 days and multichain',
+		description: 'Returns Frankencoin totalSupply history, latest 1000 days and multichain allocation',
 	})
 	getTotalSupply() {
-		return this.frankencoin.updateTotalSupply();
+		return this.frankencoin.getTotalSupply();
 	}
 }
