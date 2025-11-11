@@ -23,4 +23,12 @@ export class EcosystemFrankencoinController {
 	getFrankencoinKeyValues(): ApiEcosystemFrankencoinKeyValues {
 		return this.frankencoin.getEcosystemFrankencoinKeyValues();
 	}
+
+	@Get('totalsupply')
+	@ApiResponse({
+		description: 'Returns Frankencoin totalSupply history, latest 1000 days and multichain allocation',
+	})
+	getTotalSupply() {
+		return this.frankencoin.getTotalSupply();
+	}
 }

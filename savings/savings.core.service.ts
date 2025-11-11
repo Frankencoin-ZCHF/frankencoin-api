@@ -8,7 +8,6 @@ import {
 	ApiSavingsRanked,
 	SavingsActivityQuery,
 	SavingsBalance,
-	SavingsBalanceAccountMapping,
 	SavingsBalanceChainIdMapping,
 	SavingsBalanceQuery,
 	SavingsStatusMapping,
@@ -16,14 +15,13 @@ import {
 } from './savings.core.types';
 import { PONDER_CLIENT } from 'api.config';
 import { formatFloat } from 'utils/format';
+import { Address } from 'viem';
 
 @Injectable()
 export class SavingsCoreService {
 	private readonly logger = new Logger(this.constructor.name);
 	private fetchedStatus: SavingsStatusMapping = {} as SavingsStatusMapping;
-	private fetchedBalance: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
 	private fetchedRanked: SavingsBalance[] = [];
-	private fetchedActivity: SavingsActivityQuery[] = [];
 
 	constructor(private readonly fc: EcosystemFrankencoinService) {}
 
@@ -48,16 +46,137 @@ export class SavingsCoreService {
 		};
 	}
 
-	getBalance(): ApiSavingsBalance {
-		return this.fetchedBalance;
-	}
-
 	getRanked(): ApiSavingsRanked {
 		return this.fetchedRanked;
 	}
 
-	getActivity(): ApiSavingsActivity {
-		return this.fetchedActivity;
+	async getBalance(account: Address): Promise<ApiSavingsBalance> {
+		this.logger.debug('getting getBalance');
+		const response = await PONDER_CLIENT.query<{
+			savingsMappings: {
+				items: SavingsBalanceQuery[];
+			};
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					savingsMappings(where: { balance_gt: "0", account: "${account}" }, orderBy: "balance", orderDirection: "DESC", limit: 1000) {
+						items {
+							account
+							balance
+							chainId
+							counterInterest
+							counterSave
+							counterWithdraw
+							created
+							interest
+							module
+							save
+							updated
+							withdraw
+						}
+					}
+				}
+			`,
+		});
+
+		if (!response.data || !response.data.savingsMappings?.items) {
+			this.logger.warn('No savingsMappings data found.');
+			return {} as ApiSavingsBalance;
+		}
+
+		const data = response.data.savingsMappings.items;
+
+		const list: SavingsBalanceChainIdMapping = {} as SavingsBalanceChainIdMapping;
+		for (const r of data) {
+			// make object available, chainId -> balance
+			if (list[r.chainId] == undefined) list[r.chainId] = {};
+
+			// set state and overwrite type conform
+			const data: SavingsBalance = {
+				chainId: r.chainId,
+				account: r.account,
+				module: r.module,
+				balance: r.balance,
+				created: parseInt(r.created as any),
+				updated: parseInt(r.updated as any),
+				save: r.save,
+				interest: r.interest,
+				withdraw: r.withdraw,
+				counter: {
+					save: parseInt(r.counterSave as any),
+					interest: parseInt(r.counterInterest as any),
+					withdraw: parseInt(r.counterWithdraw as any),
+				},
+			};
+
+			list[r.chainId][r.module] = data;
+		}
+
+		return list;
+	}
+
+	async getActivity(account: Address): Promise<ApiSavingsActivity> {
+		this.logger.debug('getting getActivity');
+		const response = await PONDER_CLIENT.query<{
+			savingsActivitys: {
+				items: SavingsActivityQuery[];
+			};
+		}>({
+			fetchPolicy: 'no-cache',
+			query: gql`
+				query {
+					savingsActivitys(where: { account: "${account}" }, orderBy: "created", orderDirection: "DESC", limit: 1000) {
+						items {
+							account
+							amount
+							balance
+							blockheight
+							chainId
+							count
+							created
+							interest
+							kind
+							module
+							rate
+							save
+							txHash
+							withdraw
+						}
+					}
+				}
+			`,
+		});
+
+		if (!response.data || !response.data.savingsActivitys?.items) {
+			this.logger.warn('No savingsActivitys data found.');
+			return {} as ApiSavingsActivity;
+		}
+
+		const data = response.data.savingsActivitys.items;
+
+		const list: SavingsActivityQuery[] = [];
+		for (const r of data) {
+			// set state and overwrite type conform
+			list.push({
+				chainId: r.chainId,
+				account: r.account,
+				module: r.module,
+				created: parseInt(r.created as any),
+				blockheight: parseInt(r.blockheight as any),
+				count: parseInt(r.count as any),
+				balance: r.balance,
+				save: r.save,
+				interest: r.interest,
+				withdraw: r.withdraw,
+				kind: r.kind,
+				amount: r.amount,
+				rate: r.rate,
+				txHash: r.txHash,
+			});
+		}
+
+		return list;
 	}
 
 	async updateSavingsStatus() {
@@ -126,8 +245,8 @@ export class SavingsCoreService {
 		this.fetchedStatus = list;
 	}
 
-	async updateSavingsBalance() {
-		this.logger.debug('Updating savings balance');
+	async updateSavingsRank() {
+		this.logger.debug('Updating updateSavingsRank');
 		const response = await PONDER_CLIENT.query<{
 			savingsMappings: {
 				items: SavingsBalanceQuery[];
@@ -136,7 +255,7 @@ export class SavingsCoreService {
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					savingsMappings(where: { balance_gt: "0" }, orderBy: "balance", orderDirection: "DESC", limit: 1000) {
+					savingsMappings(where: { balance_gt: "0" }, orderBy: "balance", orderDirection: "DESC", limit: 20) {
 						items {
 							account
 							balance
@@ -163,13 +282,8 @@ export class SavingsCoreService {
 
 		const d = response.data.savingsMappings.items;
 
-		const list: SavingsBalanceAccountMapping = {} as SavingsBalanceAccountMapping;
 		const ranked: SavingsBalance[] = [];
 		for (const r of d) {
-			// make object available, account -> chainId -> balance
-			if (list[r.account] == undefined) list[r.account] = {} as SavingsBalanceChainIdMapping;
-			if (list[r.account][r.chainId] == undefined) list[r.account][r.chainId] = {};
-
 			// set state and overwrite type conform
 			const data: SavingsBalance = {
 				chainId: r.chainId,
@@ -188,77 +302,9 @@ export class SavingsCoreService {
 				},
 			};
 
-			list[r.account][r.chainId][r.module] = data;
-
-			if (ranked.length < 20) {
-				ranked.push(data);
-			}
+			ranked.push(data);
 		}
 
-		this.fetchedBalance = list;
 		this.fetchedRanked = ranked;
-	}
-
-	async updateSavingsActivity() {
-		this.logger.debug('Updating savings activity');
-		const response = await PONDER_CLIENT.query<{
-			savingsActivitys: {
-				items: SavingsActivityQuery[];
-			};
-		}>({
-			fetchPolicy: 'no-cache',
-			query: gql`
-				query {
-					savingsActivitys(orderBy: "created", orderDirection: "DESC", limit: 1000) {
-						items {
-							account
-							amount
-							balance
-							blockheight
-							chainId
-							count
-							created
-							interest
-							kind
-							module
-							rate
-							save
-							txHash
-							withdraw
-						}
-					}
-				}
-			`,
-		});
-
-		if (!response.data || !response.data.savingsActivitys?.items) {
-			this.logger.warn('No savingsActivitys data found.');
-			return;
-		}
-
-		const d = response.data.savingsActivitys.items;
-
-		const list: SavingsActivityQuery[] = [];
-		for (const r of d) {
-			// set state and overwrite type conform
-			list.push({
-				chainId: r.chainId,
-				account: r.account,
-				module: r.module,
-				created: parseInt(r.created as any),
-				blockheight: parseInt(r.blockheight as any),
-				count: parseInt(r.count as any),
-				balance: r.balance,
-				save: r.save,
-				interest: r.interest,
-				withdraw: r.withdraw,
-				kind: r.kind,
-				amount: r.amount,
-				rate: r.rate,
-				txHash: r.txHash,
-			});
-		}
-
-		this.fetchedActivity = d;
 	}
 }

@@ -8,24 +8,62 @@ import {
 	EcosystemFrankencoinMapping,
 	ApiEcosystemFrankencoinKeyValues,
 	ApiEcosystemFrankencoinInfo,
+	EcosystemERC20TotalSupply,
+	FrankencoinSupplyQueryObject,
+	FrankencoinSupplyQuery,
 } from './ecosystem.frankencoin.types';
 import { PricesService } from 'prices/prices.service';
 import { EcosystemFpsService } from './ecosystem.fps.service';
 import { EcosystemCollateralService } from './ecosystem.collateral.service';
-import { ADDRESS, ChainId } from '@frankencoin/zchf';
+import { ADDRESS, ChainId, SupportedChainIds, SupportedChains } from '@frankencoin/zchf';
 import { formatFloat } from 'utils/format';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { Address, formatUnits } from 'viem';
+import { Storj } from 'storj/storj.s3.service';
+import { SupplyQueryObjectDTO } from './dtos/supply.query.dto';
 
 @Injectable()
 export class EcosystemFrankencoinService {
 	private readonly logger = new Logger(this.constructor.name);
+	private readonly storjPath: string = '/ecosystem.totalSupply.json';
 	private ecosystemFrankencoinKeyValues: EcosystemFrankencoinKeyValues;
 	private ecosystemFrankencoin: EcosystemFrankencoinMapping = {} as EcosystemFrankencoinMapping;
+	private ecosystemTotalSupply: FrankencoinSupplyQueryObject = {} as FrankencoinSupplyQueryObject;
 
 	constructor(
+		private readonly storj: Storj,
 		private readonly fpsService: EcosystemFpsService,
 		private readonly collService: EcosystemCollateralService,
 		private readonly pricesService: PricesService
-	) {}
+	) {
+		this.readBackupSupplyQuery();
+	}
+
+	async readBackupSupplyQuery() {
+		this.logger.log(`Reading backup readBackupSupplyQuery from storj`);
+		const response = await this.storj.read(this.storjPath, SupplyQueryObjectDTO);
+
+		if (response.messageError || response.validationError.length > 0) {
+			this.logger.error(response.messageError);
+		} else {
+			this.ecosystemTotalSupply = { ...this.ecosystemTotalSupply, ...response.data };
+			this.logger.log(`readBackupSupplyQuery state restored...`);
+		}
+
+		if (Object.keys(this.ecosystemTotalSupply).length == 0) {
+			this.updateTotalSupply();
+		}
+	}
+	async writeBackupSupplyQuery() {
+		const response = await this.storj.write(this.storjPath, this.ecosystemTotalSupply);
+		const httpStatusCode = response['$metadata'].httpStatusCode;
+
+		if (httpStatusCode == 200) {
+			this.logger.log(`writeBackupSupplyQuery backup stored`);
+		} else {
+			this.logger.error(`writeBackupSupplyQuery backup failed. httpStatusCode: ${httpStatusCode}`);
+		}
+	}
 
 	getEcosystemFrankencoinKeyValues(): ApiEcosystemFrankencoinKeyValues {
 		return this.ecosystemFrankencoinKeyValues;
@@ -54,6 +92,10 @@ export class EcosystemFrankencoinService {
 
 	getKeyValueItem(key: string) {
 		return this.ecosystemFrankencoinKeyValues?.[key];
+	}
+
+	getTotalSupply() {
+		return this.ecosystemTotalSupply;
 	}
 
 	async updateEcosystemKeyValues() {
@@ -148,5 +190,108 @@ export class EcosystemFrankencoinService {
 				},
 			};
 		}
+	}
+
+	@Cron(CronExpression.EVERY_10_MINUTES)
+	async updateTotalSupply() {
+		this.logger.debug('Updating updateTotalSupply');
+
+		const data: EcosystemERC20TotalSupply = {} as EcosystemERC20TotalSupply;
+		const returnData: FrankencoinSupplyQueryObject = {};
+
+		for (const chain of Object.values(SupportedChains)) {
+			const chainId = chain.id;
+			let frankencoin: Address;
+
+			if (chainId == 1) {
+				frankencoin = ADDRESS[chainId].frankencoin;
+			} else {
+				frankencoin = ADDRESS[chainId].ccipBridgedFrankencoin;
+			}
+
+			const response = await PONDER_CLIENT.query<{
+				eRC20TotalSupplys: {
+					items: EcosystemERC20TotalSupply[];
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query: gql`
+				query {
+					eRC20TotalSupplys(
+						orderBy: "created"
+						orderDirection: "asc"
+						where: { chainId: ${chainId}, token: "${frankencoin}" }
+						limit: 1000
+					) {
+						items {
+							supply
+							created
+						}
+					}
+				}
+			`,
+			});
+
+			if (!response.data || !response.data.eRC20TotalSupplys.items) {
+				this.logger.warn(`No eRC20TotalSupplys data (chain: ${chain.name}) found.`);
+				return;
+			}
+
+			const items = response.data.eRC20TotalSupplys.items;
+
+			data[chainId] = items;
+
+			items.forEach((i) => {
+				if (returnData[i.created] == undefined)
+					returnData[i.created] = {
+						created: i.created,
+						supply: 0,
+						allocation: {
+							[chainId]: parseFloat(formatUnits(i.supply, 18)),
+						} as FrankencoinSupplyQuery['allocation'],
+					};
+				else {
+					const alloc = returnData[i.created]['allocation'];
+					returnData[i.created]['allocation'] = { ...alloc, [chainId]: parseFloat(formatUnits(i.supply, 18)) };
+				}
+			});
+		}
+
+		const timestampKeys = Object.keys(returnData);
+
+		for (let i = 0; i < timestampKeys.length; i++) {
+			let prev: FrankencoinSupplyQuery['allocation'] = {} as FrankencoinSupplyQuery['allocation'];
+			if (i == 0) {
+				SupportedChainIds.forEach((id) => {
+					prev[id] = 0;
+				});
+			} else {
+				prev = returnData[timestampKeys[i - 1]].allocation;
+			}
+
+			const created = parseInt(timestampKeys[i]) as FrankencoinSupplyQuery['created'];
+			const data = returnData[created];
+
+			const alloc = {
+				...prev,
+				...data.allocation,
+			};
+
+			const supply = Object.values(alloc).reduce((a, b) => a + b, 0);
+
+			returnData[created] = {
+				created,
+				supply,
+				allocation: {
+					...alloc,
+				},
+			};
+		}
+
+		const snapshotBefore = JSON.stringify(this.ecosystemTotalSupply);
+		this.ecosystemTotalSupply = { ...this.ecosystemTotalSupply, ...returnData };
+		const snapshotAfter = JSON.stringify(this.ecosystemTotalSupply);
+
+		if (snapshotAfter != snapshotBefore) this.writeBackupSupplyQuery();
 	}
 }

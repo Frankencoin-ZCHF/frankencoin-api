@@ -114,7 +114,7 @@ export type ApiSavingsInfo = {
 	totalInterest: number;
 };
 
-export type ApiSavingsBalance = SavingsBalanceAccountMapping;
+export type ApiSavingsBalance = SavingsBalanceChainIdMapping;
 
 export type ApiSavingsRanked = SavingsBalance[];
 

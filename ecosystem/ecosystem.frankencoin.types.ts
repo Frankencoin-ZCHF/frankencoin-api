@@ -1,4 +1,4 @@
-import { ChainId } from '@frankencoin/zchf';
+import { ChainId, SupportedChain } from '@frankencoin/zchf';
 import { PriceQueryCurrencies } from '../prices/prices.types';
 import { Address } from 'viem';
 
@@ -18,6 +18,12 @@ export type EcosystemERC20StatusQuery = {
 	mint: bigint;
 	balance: bigint;
 	token: Address;
+};
+export type EcosystemERC20TotalSupply = {
+	chainId: ChainId;
+	created: number;
+	token: Address;
+	supply: bigint;
 };
 
 // --------------------------------------------------------------------------
@@ -42,6 +48,22 @@ export type EcosystemFrankencoinMapping = {
 	[K in ChainId]: EcosystemFrankencoin;
 };
 
+export type EcosystemFrankencoinSupplyListing = {
+	[K in SupportedChain['id']]: EcosystemERC20TotalSupply[];
+};
+
+export type FrankencoinSupplyQuery = {
+	supply: number;
+	created: number;
+	allocation: {
+		[K in SupportedChain['id']]?: number;
+	};
+};
+
+export type FrankencoinSupplyQueryObject = {
+	[K in FrankencoinSupplyQuery['created']]: FrankencoinSupplyQuery;
+};
+
 // --------------------------------------------------------------------------
 // Api
 export type ApiEcosystemFrankencoinKeyValues = EcosystemFrankencoinKeyValues;
@@ -64,3 +86,5 @@ export type ApiEcosystemFrankencoinInfo = {
 	};
 	tvl: PriceQueryCurrencies;
 };
+
+export type ApiEcosystemFrankencoinSupply = FrankencoinSupplyQueryObject;
