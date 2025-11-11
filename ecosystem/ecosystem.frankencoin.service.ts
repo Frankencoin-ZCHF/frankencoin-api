@@ -192,7 +192,7 @@ export class EcosystemFrankencoinService {
 		}
 	}
 
-	@Cron(CronExpression.EVERY_HOUR)
+	@Cron(CronExpression.EVERY_10_MINUTES)
 	async updateTotalSupply() {
 		this.logger.debug('Updating updateTotalSupply');
 
