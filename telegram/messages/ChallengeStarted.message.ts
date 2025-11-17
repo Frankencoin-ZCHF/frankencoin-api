@@ -20,9 +20,9 @@ export function ChallengeStartedMessage(position: PositionQuery, challenge: Chal
 	return `
 *New Challenge Started*
 
-Id: ${challenge.id}
+Number: ${challenge.number}
 Challenger: ${challenge.challenger}
-Position: ${position.position}
+Position: ${position.position} (v${position.version})
 Owner: ${position.owner}
 
 Collateral: ${position.collateralName} (${position.collateralSymbol})

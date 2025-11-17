@@ -27,6 +27,7 @@ import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from '.
 import { AnalyticsService } from 'analytics/analytics.service';
 import { DailyInfosMessage } from './messages/DailyInfos.message';
 import { mainnet } from 'viem/chains';
+import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 
 @Injectable()
 export class TelegramService {
@@ -40,6 +41,7 @@ export class TelegramService {
 
 	constructor(
 		private readonly storj: Storj,
+		private readonly frankencoin: EcosystemFrankencoinService,
 		private readonly minter: EcosystemMinterService,
 		private readonly leadrate: SavingsLeadrateService,
 		private readonly position: PositionsService,
@@ -344,7 +346,7 @@ export class TelegramService {
 		if (challengesStarted.length > 0) {
 			this.telegramState.challenges = Date.now();
 			for (const c of challengesStarted) {
-				const pos = this.position.getPositionsList().list.find((p) => p.position == c.position);
+				const pos = this.position.getPositionsList().list.find((p) => p.position.toLowerCase() == c.position.toLowerCase());
 				if (pos == undefined) return;
 				this.sendMessageAll(ChallengeStartedMessage(pos, c));
 			}
@@ -360,7 +362,7 @@ export class TelegramService {
 				const position = this.position.getPositionsList().list.find((p) => p.position.toLowerCase() == b.position.toLowerCase());
 				const challenge = this.challenge
 					.getChallenges()
-					.list.find((c) => c.id == `${b.position.toLowerCase()}-challenge-${b.number}`);
+					.list.find((c) => c.position.toLowerCase() == b.position.toLowerCase() && c.number == b.number);
 				if (position == undefined || challenge == undefined) return;
 				this.sendMessageAll(BidTakenMessage(position, challenge, b));
 			}
