@@ -238,6 +238,7 @@ export class ChallengesService {
 			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
 			mapped[key] = i;
 			mapped[key].version = 1;
+			mapped[key].id = key;
 		}
 
 		// upsert
@@ -286,6 +287,7 @@ export class ChallengesService {
 			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
 			mapped[key] = i;
 			mapped[key].version = 1;
+			mapped[key].id = key;
 		}
 
 		// upsert
@@ -335,6 +337,7 @@ export class ChallengesService {
 			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
 			mapped[key] = i;
 			mapped[key].version = 2;
+			mapped[key].id = key;
 		}
 
 		// upsert
@@ -383,6 +386,7 @@ export class ChallengesService {
 			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
 			mapped[key] = i;
 			mapped[key].version = 2;
+			mapped[key].id = key;
 		}
 
 		// upsert
