@@ -8,7 +8,7 @@ export function BidTakenMessage(position: PositionQuery, challenge: ChallengesQu
 	return `
 *New Bid Taken*
 
-Position: ${bid.position} 
+Position: ${bid.position} (${position.version})
 Bidder: ${bid.bidder}
 Challenge Index: ${bid.number}
 Bid Index: ${bid.numberBid}
