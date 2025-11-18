@@ -272,7 +272,7 @@ export class TelegramService {
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%
 			const THRES_WARN = 1.1; // 110%
-			const DELAY_LOWEST = 10 * 60 * 1000; // 10min guard
+			const DELAY_LOWEST = 2 * 60 * 60 * 1000; // 2h guard
 			const DELAY_ALERT = 12 * 60 * 60 * 1000; // 12h guard
 			const DELAY_WARNING = 24 * 60 * 60 * 1000; // 24h guard
 
