@@ -1,6 +1,7 @@
 import { MinterQuery } from 'ecosystem/ecosystem.minter.types';
 import { formatCurrency } from 'utils/format';
-import { AppUrl, ExplorerTxUrl } from 'utils/func-helper';
+import { AppUrl, ExplorerTxUrl, getChain } from 'utils/func-helper';
+import { Chain } from 'viem';
 
 export function MinterProposalVetoedMessage(minter: MinterQuery): string {
 	return `
@@ -15,6 +16,6 @@ Vetor: ${minter.vetor}
 Message: ${minter.denyMessage}
 
 [Goto Governance](${AppUrl(`/governance`)})
-[Explorer Transaction](${ExplorerTxUrl(minter.denyTxHash)})
+[Explorer Transaction](${ExplorerTxUrl(minter.denyTxHash, getChain(minter.chainId) as Chain)})
 `;
 }
