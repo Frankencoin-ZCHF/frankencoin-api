@@ -196,8 +196,7 @@ export class EcosystemFrankencoinService {
 	async updateTotalSupply() {
 		this.logger.debug('Updating updateTotalSupply');
 
-		const data: EcosystemERC20TotalSupply = {} as EcosystemERC20TotalSupply;
-		const returnData: FrankencoinSupplyQueryObject = {};
+		const returnData: FrankencoinSupplyQueryObject = { ...this.ecosystemTotalSupply };
 
 		for (const chain of Object.values(SupportedChains)) {
 			const chainId = chain.id;
@@ -238,8 +237,6 @@ export class EcosystemFrankencoinService {
 			}
 
 			const items = response.data.eRC20TotalSupplys.items;
-
-			data[chainId] = items;
 
 			items.forEach((i) => {
 				if (returnData[i.created] == undefined)
@@ -289,7 +286,7 @@ export class EcosystemFrankencoinService {
 		}
 
 		const snapshotBefore = JSON.stringify(this.ecosystemTotalSupply);
-		this.ecosystemTotalSupply = { ...this.ecosystemTotalSupply, ...returnData };
+		this.ecosystemTotalSupply = { ...returnData };
 		const snapshotAfter = JSON.stringify(this.ecosystemTotalSupply);
 
 		if (snapshotAfter != snapshotBefore) this.writeBackupSupplyQuery();
