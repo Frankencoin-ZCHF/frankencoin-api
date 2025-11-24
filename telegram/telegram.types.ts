@@ -15,6 +15,8 @@ export type TelegramState = {
 	mintingUpdates: number;
 	challenges: number;
 	bids: number;
+	equityInvested: number;
+	equityRedeemed: number;
 };
 
 export type PositionPriceAlertState = {
