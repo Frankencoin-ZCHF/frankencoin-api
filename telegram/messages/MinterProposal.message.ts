@@ -1,6 +1,7 @@
 import { MinterQuery } from 'ecosystem/ecosystem.minter.types';
 import { formatCurrency } from 'utils/format';
-import { AppUrl, ExplorerTxUrl } from 'utils/func-helper';
+import { AppUrl, ExplorerTxUrl, getChain } from 'utils/func-helper';
+import { Chain } from 'viem';
 
 export function MinterProposalMessage(minter: MinterQuery): string {
 	const d = new Date((minter.applyDate + minter.applicationPeriod) * 1000);
@@ -16,6 +17,6 @@ Application Fee: ${formatCurrency(minter.applicationFee / 1e18, 2, 2)} ZCHF
 Message: ${minter.applyMessage}
 
 [Goto Governance](${AppUrl(`/governance`)})
-[Explorer Transaction](${ExplorerTxUrl(minter.txHash)})
+[Explorer Transaction](${ExplorerTxUrl(minter.txHash, getChain(minter.chainId) as Chain)})
                         `;
 }

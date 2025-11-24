@@ -28,6 +28,9 @@ import { AnalyticsService } from 'analytics/analytics.service';
 import { DailyInfosMessage } from './messages/DailyInfos.message';
 import { mainnet } from 'viem/chains';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
+import { formatFloat } from 'utils/format';
+import { EquityInvestedMessage } from './messages/EquityInvested.message';
+import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
 
 @Injectable()
 export class TelegramService {
@@ -62,6 +65,8 @@ export class TelegramService {
 			mintingUpdates: this.startUpTime,
 			challenges: this.startUpTime,
 			bids: this.startUpTime,
+			equityInvested: this.startUpTime,
+			equityRedeemed: this.startUpTime,
 		};
 
 		this.telegramGroupState = {
@@ -272,7 +277,7 @@ export class TelegramService {
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%
 			const THRES_WARN = 1.1; // 110%
-			const DELAY_LOWEST = 10 * 60 * 1000; // 10min guard
+			const DELAY_LOWEST = 2 * 60 * 60 * 1000; // 2h guard
 			const DELAY_ALERT = 12 * 60 * 60 * 1000; // 12h guard
 			const DELAY_WARNING = 24 * 60 * 60 * 1000; // 24h guard
 
@@ -302,8 +307,8 @@ export class TelegramService {
 			if (price < posPrice * THRES_LOWEST) {
 				// below 100%
 				if (last.lowestTimestamp + DELAY_LOWEST < Date.now()) {
-					// delay guard passed
-					if (last.lowestPrice == 0 || last.lowestPrice > price) {
+					// delay guard passed // @dev: -2% threshold
+					if (last.lowestPrice == 0 || last.lowestPrice * 0.98 > price) {
 						!isSoftStart && this.sendMessageGroup(groups, PositionPriceLowest(p, priceQuery, last));
 						last.lowestPrice = price;
 					}
@@ -375,10 +380,34 @@ export class TelegramService {
 			.list.filter((m) => m.created * 1000 > this.telegramState.mintingUpdates && BigInt(m.mintedAdjusted) > 0n);
 		if (requestedMintingUpdates.length > 0) {
 			this.telegramState.mintingUpdates = Date.now();
+			const prices = this.prices.getPricesMapping();
 			for (const m of requestedMintingUpdates) {
 				const groups = this.telegramGroupState.subscription['/MintingUpdates']?.groups || [];
-				const prices = this.prices.getPricesMapping();
 				this.sendMessageGroup(groups, MintingUpdateMessage(m, prices));
+			}
+		}
+
+		const { logs } = await this.analytics.getTransactionLog(true, 100);
+		const equityMinAmount = 10000;
+		const equityInvested = logs
+			.filter((i) => Number(i.timestamp) * 1000 > this.telegramState.equityInvested)
+			.filter((i) => i.kind == 'Equity:Invested')
+			.filter((i) => formatFloat(i.amount, 18) >= equityMinAmount);
+		if (equityInvested.length > 0) {
+			this.telegramState.equityInvested = Date.now();
+			for (const i of equityInvested) {
+				this.sendMessageAll(EquityInvestedMessage(i));
+			}
+		}
+
+		const equityRedeemed = logs
+			.filter((i) => Number(i.timestamp) * 1000 > this.telegramState.equityRedeemed)
+			.filter((i) => i.kind == 'Equity:Redeemed')
+			.filter((i) => formatFloat(i.amount, 18) >= equityMinAmount);
+		if (equityRedeemed.length > 0) {
+			this.telegramState.equityRedeemed = Date.now();
+			for (const i of equityRedeemed) {
+				this.sendMessageAll(EquityRedeemedMessage(i));
 			}
 		}
 	}

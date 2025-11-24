@@ -8,7 +8,7 @@ export function BidTakenMessage(position: PositionQuery, challenge: ChallengesQu
 	return `
 *New Bid Taken*
 
-Position: ${bid.position} (${position.version})
+Position: ${bid.position} (v${position.version})
 Bidder: ${bid.bidder}
 Challenge Index: ${bid.number}
 Bid Index: ${bid.numberBid}
@@ -21,7 +21,7 @@ Bid Amount: ${formatCurrency(formatUnits(bid.bid, 18))} ZCHF
 Bid Filled: ${formatCurrency(formatUnits(bid.filledSize, position.collateralDecimals))} ${position.collateralSymbol}
 Bid Price: ${formatCurrency(formatUnits(bid.price, 36 - position.collateralDecimals))} ZCHF/${position.collateralSymbol}
 
-[Buy ${position.collateralSymbol} in Auction](${AppUrl(`/challenges/${challenge.id}/bid`)})
+[Buy ${position.collateralSymbol} in Auction](${AppUrl(`/monitoring/${bid.position}/auction/${bid.number}`)})
 [Goto Position](${AppUrl(`/monitoring/${bid.position}`)})
 
 [Explorer Bidder](${ExplorerAddressUrl(bid.bidder)}) 

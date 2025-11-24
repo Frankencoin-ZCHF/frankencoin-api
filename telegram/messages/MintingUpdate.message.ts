@@ -23,7 +23,7 @@ export function MintingUpdateMessage(minting: MintingUpdateQuery, prices: PriceQ
 	return `
 *New Minting Update*
 
-Position: ${minting.position}
+Position: ${minting.position} (v${minting.version})
 Owner: ${minting.owner}
 [App Position](${AppUrl(`/monitoring/${minting.position}`)})
 
