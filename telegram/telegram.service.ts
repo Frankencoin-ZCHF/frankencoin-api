@@ -485,7 +485,7 @@ export class TelegramService {
 		return true;
 	}
 
-	@Cron(CronExpression.EVERY_WEEKEND)
+	@Cron(CronExpression.EVERY_WEEK)
 	scheduleDailyInfos() {
 		const days = 1000 * 3600 * 24 * 30;
 		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() - days);
@@ -494,6 +494,8 @@ export class TelegramService {
 		const before = infos.at(0);
 		const now = infos.at(-1);
 
-		this.sendMessageGroup(groups, DailyInfosMessage(before, now));
+		const supply = this.frankencoin.getTotalSupply();
+
+		this.sendMessageGroup(groups, DailyInfosMessage(before, now, supply));
 	}
 }
