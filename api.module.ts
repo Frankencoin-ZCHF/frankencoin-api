@@ -25,6 +25,7 @@ import { EcosystemMinterController } from 'ecosystem/ecosystem.minter.controller
 import { EcosystemCollateralController } from 'ecosystem/ecosystem.collateral.controller';
 import { EcosystemFpsController } from 'ecosystem/ecosystem.fps.controller';
 import { EcosystemFrankencoinController } from 'ecosystem/ecosystem.frankencoin.controller';
+import { EcosystemCoinmarketcapController } from 'ecosystem/ecosystem.coinmarketcap.controller';
 import { SavingsLeadrateController } from 'savings/savings.leadrate.controller';
 import { SavingsCoreController } from 'savings/savings.core.controller';
 import { SavingsReferrerController } from 'savings/savings.referrer.controller';
@@ -46,6 +47,7 @@ import { PricesHistoryController } from 'prices/prices.history.controller';
 		EcosystemCollateralController,
 		EcosystemFpsController,
 		EcosystemFrankencoinController,
+		EcosystemCoinmarketcapController,
 		SavingsLeadrateController,
 		SavingsCoreController,
 		SavingsReferrerController,
