@@ -37,7 +37,7 @@ Begin: ${new Date(startChallenge).toString().split(' ').slice(0, 5).join(' ')}
 Phase1 End: ${new Date(expirationPhase1).toString().split(' ').slice(0, 5).join(' ')}
 Phase2 End: ${new Date(expirationChallenge).toString().split(' ').slice(0, 5).join(' ')}
 
-[Buy ${position.collateralSymbol} in Auction](${AppUrl(`/monitoring/${challenge.position}/auction/${challenge.number}`)})
+[Buy ${position.collateralSymbol} in Auction](${AppUrl(`/monitoring/${position.position}/auction/${challenge.number}`)})
 [Goto Position](${AppUrl(`/monitoring/${position.position}`)})
 
 [Explorer Challenger](${ExplorerAddressUrl(challenge.challenger)}) 

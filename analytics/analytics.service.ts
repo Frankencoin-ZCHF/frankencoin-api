@@ -37,7 +37,7 @@ export class AnalyticsService {
 		private readonly minters: EcosystemMinterService,
 		private readonly save: SavingsCoreService
 	) {
-		setTimeout(() => this.updateDailyLog(), 1000);
+		setTimeout(() => this.updateDailyLog(), 10000);
 	}
 
 	async getProfitLossLog(): Promise<ApiAnalyticsProfitLossLog> {

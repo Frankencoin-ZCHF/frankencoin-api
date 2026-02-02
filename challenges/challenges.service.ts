@@ -135,37 +135,37 @@ export class ChallengesService {
 
 	// bids/challenges
 	getBidsChallengesMapping(): ApiBidsChallenges {
-		const challengesMapping: BidsChallengesMapping = {};
+		const bidChallengesMapping: BidsChallengesMapping = {};
 		for (const bid of Object.values(this.fetchedBidsMapping)) {
 			const challengeId = `${bid.position.toLowerCase()}-challenge-${bid.number}`;
-			if (!challengesMapping[challengeId]) {
-				challengesMapping[challengeId] = [];
+			if (!bidChallengesMapping[challengeId]) {
+				bidChallengesMapping[challengeId] = [];
 			}
-			challengesMapping[challengeId].push(bid);
+			bidChallengesMapping[challengeId].push(bid);
 		}
 
 		return {
-			num: Object.keys(challengesMapping).length,
-			challenges: Object.keys(challengesMapping) as Address[],
-			map: challengesMapping,
+			num: Object.keys(bidChallengesMapping).length,
+			challenges: Object.keys(bidChallengesMapping) as Address[],
+			map: bidChallengesMapping,
 		};
 	}
 
 	// bids/positions
 	getBidsPositionsMapping(): ApiBidsPositions {
-		const positionsMapping: BidsPositionsMapping = {};
+		const bidPositionsMapping: BidsPositionsMapping = {};
 		for (const bid of Object.values(this.fetchedBidsMapping)) {
 			const key = bid.position.toLowerCase();
-			if (!positionsMapping[key]) {
-				positionsMapping[key] = [];
+			if (!bidPositionsMapping[key]) {
+				bidPositionsMapping[key] = [];
 			}
-			positionsMapping[key].push(bid);
+			bidPositionsMapping[key].push(bid);
 		}
 
 		return {
-			num: Object.keys(positionsMapping).length,
-			positions: Object.keys(positionsMapping) as Address[],
-			map: positionsMapping,
+			num: Object.keys(bidPositionsMapping).length,
+			positions: Object.keys(bidPositionsMapping) as Address[],
+			map: bidPositionsMapping,
 		};
 	}
 
@@ -284,7 +284,7 @@ export class ChallengesService {
 		const list = bids.data.mintingHubV1ChallengeBidV1s.items as BidsQueryItem[];
 		const mapped: BidsQueryItemMapping = {};
 		for (const i of list) {
-			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			const key = `${i.position.toLowerCase()}-challenge-${i.number}-bid-${i.numberBid}`;
 			mapped[key] = i;
 			mapped[key].version = 1;
 			mapped[key].id = key;
@@ -383,7 +383,7 @@ export class ChallengesService {
 		const list = bids.data.mintingHubV2ChallengeBidV2s.items as BidsQueryItem[];
 		const mapped: BidsQueryItemMapping = {};
 		for (const i of list) {
-			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			const key = `${i.position.toLowerCase()}-challenge-${i.number}-bid-${i.numberBid}`;
 			mapped[key] = i;
 			mapped[key].version = 2;
 			mapped[key].id = key;
