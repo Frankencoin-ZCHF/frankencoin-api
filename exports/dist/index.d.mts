@@ -138,6 +138,7 @@ type ChallengesQueryItem = {
     id: ChallengesId;
     position: Address;
     number: bigint;
+    txHash: Address;
     challenger: Address;
     start: bigint;
     created: bigint;
@@ -155,6 +156,7 @@ type BidsQueryItem = {
     position: Address;
     number: bigint;
     numberBid: bigint;
+    txHash: Address;
     bidder: Address;
     created: bigint;
     bidType: BidsType;
@@ -895,6 +897,8 @@ type TelegramState = {
     mintingUpdates: number;
     challenges: number;
     bids: number;
+    equityInvested: number;
+    equityRedeemed: number;
 };
 type PositionPriceAlertState = {
     warningPrice: number;

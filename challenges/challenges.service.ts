@@ -209,6 +209,7 @@ export class ChallengesService {
 						items {
 							position
 							number
+							txHash
 							challenger
 							start
 							created
@@ -261,6 +262,7 @@ export class ChallengesService {
 							position
 							number
 							numberBid
+							txHash
 							bidder
 							created
 							bidType
@@ -309,6 +311,7 @@ export class ChallengesService {
 						items {
 							position
 							number
+							txHash
 							challenger
 							start
 							created
@@ -360,6 +363,7 @@ export class ChallengesService {
 							position
 							number
 							numberBid
+							txHash
 							bidder
 							created
 							bidType
