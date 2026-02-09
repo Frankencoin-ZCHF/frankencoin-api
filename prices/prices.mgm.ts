@@ -1,3 +1,4 @@
+import { ChainMain } from '@frankencoin/zchf';
 import { ERC20Info } from './prices.types';
 import { Address } from 'viem';
 
@@ -9,6 +10,7 @@ export const ContractBlacklist: Address[] = [
 
 export const ContractWhitelist: ERC20Info[] = [
 	{
+		chainId: ChainMain.mainnet.id,
 		address: '0x79d4f0232A66c4c91b89c76362016A1707CFBF4f',
 		name: 'VNX Franc',
 		symbol: 'VCHF',

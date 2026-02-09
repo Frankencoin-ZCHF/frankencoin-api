@@ -102,9 +102,15 @@ export class EcosystemCollateralService {
 			const denied = c.positions.filter((p: PositionQuery) => p.denied).length;
 			const originals = c.positions.filter((p: PositionQuery) => p.isOriginal).length;
 			const clones = c.positions.filter((p: PositionQuery) => p.isClone).length;
-			const totalMinted = c.positions.filter((p: PositionQuery) => !p.closed && !p.denied).reduce((a: bigint, b: PositionQuery) => a + BigInt(b.minted), 0n);
-			const totalLimit = this.positionsService.getPositionsList().list
-				.filter((p: PositionQuery) => p.collateral.toLowerCase() === c.address.toLowerCase() && p.isOriginal && p.expiration > Date.now()/1000)
+			const totalMinted = c.positions
+				.filter((p: PositionQuery) => !p.closed && !p.denied)
+				.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.minted), 0n);
+			const totalLimit = this.positionsService
+				.getPositionsList()
+				.list.filter(
+					(p: PositionQuery) =>
+						p.collateral.toLowerCase() === c.address.toLowerCase() && p.isOriginal && p.expiration > Date.now() / 1000
+				)
 				.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.limitForClones), 0n);
 			const totalBalance = c.positions.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.collateralBalance), 0n);
 			const totalBalanceNumUsd = parseInt(formatUnits(totalBalance, c.decimals)) * price;
@@ -129,6 +135,7 @@ export class EcosystemCollateralService {
 
 			// upsert map
 			map[c.address.toLowerCase() as Address] = {
+				chainId: c.chainId,
 				address: c.address,
 				name: c.name,
 				symbol: c.symbol,

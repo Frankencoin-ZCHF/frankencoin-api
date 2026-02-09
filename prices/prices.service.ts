@@ -13,10 +13,10 @@ import {
 	PriceQueryObjectArray,
 } from './prices.types';
 import { PositionsService } from 'positions/positions.service';
-import { COINGECKO_CLIENT } from 'api.config';
+import { COINGECKO_CLIENT, CONFIG } from 'api.config';
 import { Address, parseUnits } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
-import { ADDRESS } from '@frankencoin/zchf';
+import { ADDRESS, ChainMain } from '@frankencoin/zchf';
 import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
@@ -75,6 +75,7 @@ export class PricesService {
 		const p = Object.values(this.positionsService.getPositionsList().list)[0];
 		if (!p) return null;
 		return {
+			chainId: ChainMain.mainnet.id,
 			address: p.zchf,
 			name: p.zchfName,
 			symbol: p.zchfSymbol,
@@ -84,6 +85,7 @@ export class PricesService {
 
 	getFps(): ApiPriceERC20 {
 		return {
+			chainId: ChainMain.mainnet.id,
 			address: ADDRESS[mainnet.id].equity,
 			name: 'Frankencoin Pool Share',
 			symbol: 'FPS',
@@ -98,6 +100,7 @@ export class PricesService {
 		for (const p of pos) {
 			if (ContractBlacklist.includes(p.collateral.toLowerCase() as Address)) continue;
 			c[p.collateral.toLowerCase()] = {
+				chainId: ChainMain.mainnet.id,
 				address: p.collateral,
 				name: p.collateralName,
 				symbol: p.collateralSymbol,
@@ -126,6 +129,43 @@ export class PricesService {
 		return data;
 	}
 
+	async fetchPriceFromTheGraph(tokenAddress: string): Promise<number | null> {
+		const url = 'https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR';
+		const query = `{
+			trades(
+				first: 1
+				where: {token: "${tokenAddress.toLowerCase()}"}
+				orderBy: timestamp
+				orderDirection: desc
+			) {
+				pricePerToken
+				timestamp
+			}
+		}`;
+
+		try {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${CONFIG.theGraphKey}`,
+				},
+				body: JSON.stringify({ query }),
+			});
+
+			const data = await response.json();
+			const trade = data?.data?.trades?.[0];
+			if (!trade?.pricePerToken) return null;
+
+			// pricePerToken is in wei (18 decimals)
+			const priceUsd = parseFloat(trade.pricePerToken) / 1e18;
+			return priceUsd;
+		} catch (error) {
+			this.logger.error(`Error fetching price from The Graph: ${error}`);
+			return null;
+		}
+	}
+
 	async fetchSourcesCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		// override for Frankencoin Pool Share
 		if (erc.address.toLowerCase() === ADDRESS[mainnet.id].equity.toLowerCase()) {
@@ -134,6 +174,14 @@ export class PricesService {
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice) return null;
 			return { usd: priceInChf * zchfPrice };
+		}
+
+		// override for custom token from The Graph
+		const LENDS = '0x343324F53CBEEE3Ee6d171f2a20F005964C98047';
+		if (erc.address.toLowerCase() === LENDS.toLowerCase()) {
+			const priceUsd = await this.fetchPriceFromTheGraph(LENDS);
+			if (priceUsd === null) return null;
+			return { usd: priceUsd };
 		}
 
 		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
@@ -232,6 +280,7 @@ export class PricesService {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
 					pricesQuery[addr] = {
+						...erc,
 						...oldEntry,
 						timestamp: Date.now(),
 						price: { ...oldEntry.price, ...price },
