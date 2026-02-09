@@ -1,4 +1,5 @@
 import { Address } from 'viem';
+import { ChainId } from '@frankencoin/zchf';
 
 // --------------------------------------------------------------------------------
 // Service
@@ -7,6 +8,7 @@ export type ERC20InfoObjectArray = {
 };
 
 export type ERC20Info = {
+	chainId: ChainId;
 	address: Address;
 	name: string;
 	symbol: string;

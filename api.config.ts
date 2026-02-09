@@ -9,6 +9,7 @@ dotenv.config();
 // Verify environment
 if (process.env.ALCHEMY_RPC_KEY === undefined) throw new Error('ALCHEMY_RPC_KEY not available');
 if (process.env.COINGECKO_API_KEY === undefined) throw new Error('COINGECKO_API_KEY not available');
+if (process.env.THE_GRAPH_KEY === undefined) throw new Error('THE_GRAPH_KEY not available');
 
 // Config type
 export type ConfigType = {
@@ -16,6 +17,7 @@ export type ConfigType = {
 	indexer: string;
 	coingeckoApiKey: string;
 	alchemyRpcKey: string;
+	theGraphKey: string;
 	supportedChainIds: ChainId[];
 };
 
@@ -25,6 +27,7 @@ export const CONFIG: ConfigType = {
 	indexer: process.env.CONFIG_INDEXER_URL || 'https://ponder.frankencoin.com',
 	coingeckoApiKey: process.env.COINGECKO_API_KEY,
 	alchemyRpcKey: process.env.ALCHEMY_RPC_KEY,
+	theGraphKey: process.env.THE_GRAPH_KEY,
 	supportedChainIds: SupportedChainIds,
 };
 
