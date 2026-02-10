@@ -16,13 +16,14 @@ import { PositionsService } from 'positions/positions.service';
 import { COINGECKO_CLIENT, CONFIG } from 'api.config';
 import { Address, parseUnits } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
-import { ADDRESS, ChainMain } from '@frankencoin/zchf';
+import { ADDRESS, ChainMain, SupportedChain } from '@frankencoin/zchf';
 import { Storj } from 'storj/storj.s3.service';
 import { PriceQueryObjectDTO } from './dtos/price.query.dto';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ContractBlacklist, ContractWhitelist } from './prices.mgm';
+import { getChain } from 'utils/func-helper';
 
 @Injectable()
 export class PricesService {
@@ -129,12 +130,12 @@ export class PricesService {
 		return data;
 	}
 
-	async fetchPriceFromTheGraph(tokenAddress: string): Promise<number | null> {
+	async fetchPriceTheGraph(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const url = 'https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR';
 		const query = `{
 			trades(
 				first: 1
-				where: {token: "${tokenAddress.toLowerCase()}"}
+				where: {token: "${erc.address.toLowerCase()}"}
 				orderBy: timestamp
 				orderDirection: desc
 			) {
@@ -158,15 +159,43 @@ export class PricesService {
 			if (!trade?.pricePerToken) return null;
 
 			// pricePerToken is in wei (18 decimals)
-			const priceUsd = parseFloat(trade.pricePerToken) / 1e18;
-			return priceUsd;
+			const usd = parseFloat(trade.pricePerToken) / 1e18;
+			return { usd };
 		} catch (error) {
 			this.logger.error(`Error fetching price from The Graph: ${error}`);
 			return null;
 		}
 	}
 
-	async fetchSourcesCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
+	async fetchPriceDefillama(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
+		const chain = getChain(erc.chainId) as SupportedChain;
+		const chainName = chain.id === mainnet.id ? 'ethereum' : chain.name;
+		const url = `https://coins.llama.fi/prices/current/${chainName}:${erc.address.toLowerCase()}`;
+
+		try {
+			const response = await fetch(url);
+			const data = await response.json();
+			const coin = data?.coins?.[`${chainName}:${erc.address.toLowerCase()}`];
+			if (!coin?.price) return null;
+
+			return { usd: Number(coin.price) };
+		} catch (error) {
+			this.logger.error(`Error fetching price from DefiLlama: ${error}`);
+			return null;
+		}
+	}
+
+	async fetchPriceCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
+		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
+		const data = await (await COINGECKO_CLIENT(url)).json();
+		if (data.status) {
+			this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
+			return null;
+		}
+		return Object.values(data)[0] || ({ usd: 0 } as { usd: number });
+	}
+
+	async fetchPriceSources(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		// override for Frankencoin Pool Share
 		if (erc.address.toLowerCase() === ADDRESS[mainnet.id].equity.toLowerCase()) {
 			const priceInChf = this.fps.getEcosystemFpsInfo()?.token?.price;
@@ -176,21 +205,12 @@ export class PricesService {
 			return { usd: priceInChf * zchfPrice };
 		}
 
-		// override for custom token from The Graph
-		const LENDS = '0x343324F53CBEEE3Ee6d171f2a20F005964C98047';
-		if (erc.address.toLowerCase() === LENDS.toLowerCase()) {
-			const priceUsd = await this.fetchPriceFromTheGraph(LENDS);
-			if (priceUsd === null) return null;
-			return { usd: priceUsd };
-		}
+		// try DefiLlama first
+		const defillamaPrice = await this.fetchPriceDefillama(erc);
+		if (defillamaPrice) return defillamaPrice;
 
-		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
-		const data = await (await COINGECKO_CLIENT(url)).json();
-		if (data.status) {
-			this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
-			return null;
-		}
-		return Object.values(data)[0] || ({ usd: 0 } as { usd: number });
+		// fallback to CoinGecko
+		return await this.fetchPriceCoingecko(erc);
 	}
 
 	async getOwnerValueLocked(owner: Address): Promise<ApiOwnerValueLocked> {
@@ -261,8 +281,8 @@ export class PricesService {
 
 			if (!oldEntry) {
 				pricesQueryNewCount += 1;
-				this.logger.debug(`Price for ${erc.name} not available, trying to fetch from coingecko`);
-				const price = await this.fetchSourcesCoingecko(erc);
+				this.logger.debug(`Price for ${erc.name} not available, trying to fetch`);
+				const price = await this.fetchPriceSources(erc);
 				if (price == null) pricesQueryNewCountFailed += 1;
 
 				pricesQuery[addr] = {
@@ -273,8 +293,8 @@ export class PricesService {
 			} else if (oldEntry.timestamp + 300_000 < Date.now()) {
 				// needs to update => try to fetch
 				pricesQueryUpdateCount += 1;
-				this.logger.debug(`Price for ${erc.name} out of date, trying to fetch from coingecko`);
-				const price = await this.fetchSourcesCoingecko(erc);
+				this.logger.debug(`Price for ${erc.name} out of date, trying to fetch`);
+				const price = await this.fetchPriceSources(erc);
 
 				if (price == null) {
 					pricesQueryUpdateCountFailed += 1;
