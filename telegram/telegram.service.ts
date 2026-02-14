@@ -273,6 +273,7 @@ export class TelegramService {
 
 		// Position Price Warning
 		Object.values(this.position.getPositionsOpen().map).forEach((p) => {
+			if (p.collateralSymbol == "GEM") return;
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%
