@@ -31,6 +31,7 @@ import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.ser
 import { formatFloat } from 'utils/format';
 import { EquityInvestedMessage } from './messages/EquityInvested.message';
 import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
+import { PositionDeniedMessage } from './messages/PositionDenied.message';
 
 @Injectable()
 export class TelegramService {
@@ -57,6 +58,7 @@ export class TelegramService {
 			leadrateProposal: this.startUpTime,
 			leadrateChanged: this.startUpTime,
 			positions: this.startUpTime,
+			positionsDenied: this.startUpTime,
 			positionsExpiringSoon7: this.startUpTime,
 			positionsExpiringSoon3: this.startUpTime,
 			positionsExpired: this.startUpTime,
@@ -254,6 +256,17 @@ export class TelegramService {
 			}
 		}
 
+		// Positions denied
+		const deniedPosition = Object.values(this.position.getPositionsDenied().map).filter(
+			(p) => p.denyDate > 0 && p.denyDate * 1000 > this.telegramState.positionsDenied
+		);
+		if (deniedPosition.length > 0) {
+			this.telegramState.positionsDenied = Date.now();
+			for (const p of deniedPosition) {
+				this.sendMessageAll(PositionDeniedMessage(p));
+			}
+		}
+
 		// Positions expiring soon (7 days)
 		const expiringSoonPosition7 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
 			const stateDate = new Date(this.telegramState.positionsExpiringSoon7).getTime();
@@ -308,7 +321,7 @@ export class TelegramService {
 
 		// Position Price Warning
 		Object.values(this.position.getPositionsOpen().map).forEach((p) => {
-			if (p.collateralSymbol == "GEM") return;
+			if (p.collateralSymbol == 'GEM') return;
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%

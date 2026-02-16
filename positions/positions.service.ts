@@ -74,6 +74,17 @@ export class PositionsService {
 		return { num: Object.keys(mapped).length, addresses: Object.keys(mapped) as Address[], map: mapped };
 	}
 
+	getPositionsDenied(): ApiPositionsMapping {
+		const pos = this.getPositionsList().list;
+		// @dev: includes positions denied within the last 5 days
+		const denied = pos.filter((p) => p.denyDate > 0 && p.denyDate * 1000 + FIVEDAYS_MS > Date.now());
+		const mapped: PositionsQueryObjectArray = {};
+		for (const p of denied) {
+			mapped[p.position] = p;
+		}
+		return { num: Object.keys(mapped).length, addresses: Object.keys(mapped) as Address[], map: mapped };
+	}
+
 	getPositionsOwners(): ApiPositionsOwners {
 		const ow: OwnersPositionsObjectArray = {};
 		for (const p of Object.values(this.fetchedPositions)) {
@@ -116,6 +127,7 @@ export class PositionsService {
 							isOriginal
 							isClone
 							denied
+							denyDate
 							closed
 							original
 
@@ -214,6 +226,7 @@ export class PositionsService {
 				isOriginal: p.isOriginal,
 				isClone: p.isClone,
 				denied: p.denied,
+				denyDate: parseInt(p.denyDate as any),
 				closed: p.closed,
 				original: getAddress(p.original),
 
@@ -287,6 +300,7 @@ export class PositionsService {
 							isOriginal
 							isClone
 							denied
+							denyDate
 							closed
 							original
 							parent
@@ -406,6 +420,7 @@ export class PositionsService {
 				isOriginal: p.isOriginal,
 				isClone: p.isClone,
 				denied: p.denied,
+				denyDate: parseInt(p.denyDate as any),
 				closed: p.closed,
 				original: getAddress(p.original),
 				parent: getAddress(p.parent),

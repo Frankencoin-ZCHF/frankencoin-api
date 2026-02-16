@@ -14,6 +14,7 @@ export type PositionQueryV1 = {
 	isOriginal: boolean;
 	isClone: boolean;
 	denied: boolean;
+	denyDate: number;
 	closed: boolean;
 	original: Address;
 
@@ -54,6 +55,7 @@ export type PositionQueryV2 = {
 	isOriginal: boolean;
 	isClone: boolean;
 	denied: boolean;
+	denyDate: number;
 	closed: boolean;
 	original: Address;
 	parent: Address;
