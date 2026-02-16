@@ -51,6 +51,7 @@ export class ApiService {
 		private readonly savings: SavingsCoreService,
 		private readonly transferRef: TransferReferenceService
 	) {
+		this.logger.log(`🚀 API is running on: http://localhost:${process.env.PORT || 3000}`);
 		setTimeout(() => this.updateBlockheight(), 100);
 	}
 

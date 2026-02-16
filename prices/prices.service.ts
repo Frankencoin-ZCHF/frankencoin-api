@@ -11,6 +11,7 @@ import {
 	PriceMarketChartObject,
 	PriceQueryCurrencies,
 	PriceQueryObjectArray,
+	PriceSource,
 } from './prices.types';
 import { PositionsService } from 'positions/positions.service';
 import { COINGECKO_CLIENT, CONFIG } from 'api.config';
@@ -131,7 +132,7 @@ export class PricesService {
 	}
 
 	async fetchPriceTheGraph(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
-		const url = 'https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR';
+		const url = `https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR`;
 		const query = `{
 			trades(
 				first: 1
@@ -155,6 +156,8 @@ export class PricesService {
 			});
 
 			const data = await response.json();
+			// FIXME: remove
+			console.log(data);
 			const trade = data?.data?.trades?.[0];
 			if (!trade?.pricePerToken) return null;
 
@@ -187,30 +190,50 @@ export class PricesService {
 
 	async fetchPriceCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
-		const data = await (await COINGECKO_CLIENT(url)).json();
-		if (data.status) {
-			this.logger.debug(data.status?.error_message || 'Error fetching price from coingecko');
+
+		try {
+			const data = await (await COINGECKO_CLIENT(url)).json();
+			if (data.status) {
+				this.logger.debug(data.status?.error_message || 'Error fetching price from CoinGecko');
+				return null;
+			}
+
+			const priceData = Object.values(data)[0] as { usd?: number } | undefined;
+			if (!priceData?.usd || priceData.usd === 0) return null;
+
+			return { usd: priceData.usd };
+		} catch (error) {
+			this.logger.error(`Error fetching price from CoinGecko: ${error}`);
 			return null;
 		}
-		return Object.values(data)[0] || ({ usd: 0 } as { usd: number });
 	}
 
-	async fetchPriceSources(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
-		// override for Frankencoin Pool Share
+	async fetchPriceSources(erc: ERC20Info): Promise<{ price: PriceQueryCurrencies; source: PriceSource } | null> {
+		// Priority 1: Custom overwrite (e.g., Frankencoin Pool Share)
 		if (erc.address.toLowerCase() === ADDRESS[mainnet.id].equity.toLowerCase()) {
 			const priceInChf = this.fps.getEcosystemFpsInfo()?.token?.price;
 			const zchfAddress = ADDRESS[mainnet.id].frankencoin.toLowerCase();
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
-			if (!zchfPrice) return null;
-			return { usd: priceInChf * zchfPrice };
+			if (!zchfPrice || !priceInChf) return null;
+			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
 		}
 
-		// try DefiLlama first
+		// Priority 2: DeFiLlama
 		const defillamaPrice = await this.fetchPriceDefillama(erc);
-		if (defillamaPrice) return defillamaPrice;
+		if (defillamaPrice) return { price: defillamaPrice, source: 'defillama' };
 
-		// fallback to CoinGecko
-		return await this.fetchPriceCoingecko(erc);
+		// Priority 3: CoinGecko
+		const coingeckoPrice = await this.fetchPriceCoingecko(erc);
+		if (coingeckoPrice) return { price: coingeckoPrice, source: 'coingecko' };
+
+		// Priority 4: The Graph
+		const thegraphPrice = await this.fetchPriceTheGraph(erc);
+		// FIXME: remove
+		console.log('thegraph', thegraphPrice);
+		if (thegraphPrice) return { price: thegraphPrice, source: 'thegraph' };
+
+		// No price found from any source
+		return null;
 	}
 
 	async getOwnerValueLocked(owner: Address): Promise<ApiOwnerValueLocked> {
@@ -276,34 +299,35 @@ export class PricesService {
 
 		for (const erc of a) {
 			const addr = erc.address.toLowerCase() as Address;
-			const zchfPrice: number = this.fetchedPrices[ADDRESS[mainnet.id].frankencoin.toLowerCase()]?.price?.usd || 1;
 			const oldEntry = this.fetchedPrices[addr];
 
 			if (!oldEntry) {
 				pricesQueryNewCount += 1;
 				this.logger.debug(`Price for ${erc.name} not available, trying to fetch`);
-				const price = await this.fetchPriceSources(erc);
-				if (price == null) pricesQueryNewCountFailed += 1;
+				const result = await this.fetchPriceSources(erc);
+				if (result == null) pricesQueryNewCountFailed += 1;
 
 				pricesQuery[addr] = {
 					...erc,
-					timestamp: price === null ? 0 : Date.now(),
-					price: price === null ? { usd: zchfPrice, chf: 1 } : price,
+					source: result?.source || null,
+					timestamp: result === null ? 0 : Date.now(),
+					price: result === null ? { usd: 0, chf: 0 } : result.price,
 				};
-			} else if (oldEntry.timestamp + 300_000 < Date.now()) {
+			} else if (oldEntry.timestamp + 30_000 < Date.now()) {
 				// needs to update => try to fetch
 				pricesQueryUpdateCount += 1;
 				this.logger.debug(`Price for ${erc.name} out of date, trying to fetch`);
-				const price = await this.fetchPriceSources(erc);
+				const result = await this.fetchPriceSources(erc);
 
-				if (price == null) {
+				if (result == null) {
 					pricesQueryUpdateCountFailed += 1;
 				} else {
 					pricesQuery[addr] = {
 						...erc,
 						...oldEntry,
+						source: result.source,
 						timestamp: Date.now(),
-						price: { ...oldEntry.price, ...price },
+						price: { ...oldEntry.price, ...result.price },
 					};
 				}
 			}
@@ -324,16 +348,15 @@ export class PricesService {
 		const frankencoin = ADDRESS[mainnet.id].frankencoin.toLowerCase();
 		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
 		for (const addr of Object.keys(this.fetchedPrices)) {
+			// break out if zchf price is not available
+			if (zchfPrice == undefined) break;
+
 			// calculate chf value for erc token
 			if (this.fetchedPrices[addr]?.timestamp > 0) {
 				const priceUsd = this.fetchedPrices[addr].price.usd;
-				if (priceUsd == undefined || zchfPrice == undefined) continue;
+				if (priceUsd == undefined) continue;
 				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
-				if (addr === frankencoin) {
-					this.fetchedPrices[addr].price.chf = 1;
-				} else {
-					this.fetchedPrices[addr].price.chf = priceChf;
-				}
+				this.fetchedPrices[addr].price.chf = addr === frankencoin ? 1 : priceChf;
 			}
 		}
 	}
