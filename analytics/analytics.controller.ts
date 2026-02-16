@@ -132,7 +132,8 @@ export class AnalyticsController {
 							fpsPrice: { type: 'string', description: 'FPS token price (in wei)' },
 							totalMintedV1: { type: 'string', description: 'Total minted from V1 positions (in wei)' },
 							totalMintedV2: { type: 'string', description: 'Total minted from V2 positions (in wei)' },
-							currentLeadRate: { type: 'string', description: 'Current lead interest rate (in wei)' },
+							currentMintLeadRate: { type: 'string', description: 'Current mint lead interest rate for V2 positions (in wei)' },
+							currentSaveLeadRate: { type: 'string', description: 'Current save lead interest rate for savings (in wei)' },
 							projectedInterests: { type: 'string', description: 'Projected interest payments (in wei)' },
 							annualV1Interests: { type: 'string', description: 'Annual V1 interest payments (in wei)' },
 							annualV2Interests: { type: 'string', description: 'Annual V2 interest payments (in wei)' },
@@ -174,7 +175,8 @@ export class AnalyticsController {
 						fpsPrice: '1221677853231491140185',
 						totalMintedV1: '4709999999899999999999999',
 						totalMintedV2: '17020047769588271729033232',
-						currentLeadRate: '40000000000000000',
+						currentMintLeadRate: '40000000000000000',
+						currentSaveLeadRate: '40000000000000000',
 						projectedInterests: '323327197787917101808826',
 						annualV1Interests: '94199999997999999999999',
 						annualV2Interests: '721303294900477701534774',
@@ -238,7 +240,7 @@ export class AnalyticsController {
 		schema: {
 			type: 'string',
 			example:
-				'timestamp, kind, amount, totalInflow, totalOutflow, totalTradeFee, totalSupply, totalEquity, totalSavings, fpsTotalSupply, fpsPrice, totalMintedV1, totalMintedV2, currentLeadRate, projectedInterests, annualV1Interests, annualV2Interests, annualV1BorrowRate, annualV2BorrowRate, annualNetEarnings, realizedNetEarnings, earningsPerFPS \n' +
+				'timestamp, kind, amount, totalInflow, totalOutflow, totalTradeFee, totalSupply, totalEquity, totalSavings, fpsTotalSupply, fpsPrice, totalMintedV1, totalMintedV2, currentMintLeadRate, currentSaveLeadRate, projectedInterests, annualV1Interests, annualV2Interests, annualV1BorrowRate, annualV2BorrowRate, annualNetEarnings, realizedNetEarnings, earningsPerFPS \n' +
 				'1769349443, Savings:Withdrawn, 11114.190782590627133232, 1136590.707253052819761165, 44481.533249377602588670, 59734.354529232473307738, 20516447.970535677996752270, 3568161.467526286248560062, 8083179.944697927545220667, 8762.117095160688215312, 1221.677853231491140185, 4709999.999899999999999999, 17020047.769588271729033232, 0.040000000000000000, 323327.197787917101808826, 94199.999997999999999999, 721303.294900477701534774, 0.019999999999999999, 0.042379628110639938, 492176.097110560599725947, 490706.084649344763179171, 125.651799497032985606',
 		},
 	})
@@ -273,7 +275,8 @@ export class AnalyticsController {
 				formatUnits(e.totalMintedV1, 18),
 				formatUnits(e.totalMintedV2, 18),
 
-				formatUnits(e.currentLeadRate, 18),
+				formatUnits(e.currentMintLeadRate, 18),
+			formatUnits(e.currentSaveLeadRate, 18),
 				formatUnits(e.projectedInterests, 18),
 
 				formatUnits(e.annualV1Interests, 18),
@@ -329,7 +332,8 @@ export class AnalyticsController {
 							fpsPrice: { type: 'string', description: 'FPS token price (in wei)' },
 							totalMintedV1: { type: 'string', description: 'Total minted from V1 positions (in wei)' },
 							totalMintedV2: { type: 'string', description: 'Total minted from V2 positions (in wei)' },
-							currentLeadRate: { type: 'string', description: 'Current lead interest rate (in wei)' },
+							currentMintLeadRate: { type: 'string', description: 'Current mint lead interest rate for V2 positions (in wei)' },
+							currentSaveLeadRate: { type: 'string', description: 'Current save lead interest rate for savings (in wei)' },
 							projectedInterests: { type: 'string', description: 'Projected interest payments (in wei)' },
 							annualV1Interests: { type: 'string', description: 'Annual V1 interest payments (in wei)' },
 							annualV2Interests: { type: 'string', description: 'Annual V2 interest payments (in wei)' },
@@ -359,7 +363,8 @@ export class AnalyticsController {
 						fpsPrice: '1221677853231491140185',
 						totalMintedV1: '4709999999899999999999999',
 						totalMintedV2: '17020047769588271729033232',
-						currentLeadRate: '40000000000000000',
+						currentMintLeadRate: '40000000000000000',
+						currentSaveLeadRate: '40000000000000000',
 						projectedInterests: '323327197787917101808826',
 						annualV1Interests: '94199999997999999999999',
 						annualV2Interests: '721303294900477701534774',
@@ -391,7 +396,7 @@ export class AnalyticsController {
 		schema: {
 			type: 'string',
 			example:
-				'date, timestamp, totalInflow, totalOutflow, totalTradeFee, totalSupply, totalEquity, totalSavings, fpsTotalSupply, fpsPrice, totalMintedV1, totalMintedV2, currentLeadRate, projectedInterests, annualV1Interests, annualV2Interests, annualV1BorrowRate, annualV2BorrowRate, annualNetEarnings, realizedNetEarnings, earningsPerFPS \n' +
+				'date, timestamp, totalInflow, totalOutflow, totalTradeFee, totalSupply, totalEquity, totalSavings, fpsTotalSupply, fpsPrice, totalMintedV1, totalMintedV2, currentMintLeadRate, currentSaveLeadRate, projectedInterests, annualV1Interests, annualV2Interests, annualV1BorrowRate, annualV2BorrowRate, annualNetEarnings, realizedNetEarnings, earningsPerFPS \n' +
 				'2026-01-25, 1769299200000, 1136590.707253052819761165, 44481.533249377602588670, 59734.354529232473307738, 20516447.970535677996752270, 3568161.467526286248560062, 8083179.944697927545220667, 8762.117095160688215312, 1221.677853231491140185, 4709999.999899999999999999, 17020047.769588271729033232, 0.040000000000000000, 323327.197787917101808826, 94199.999997999999999999, 721303.294900477701534774, 0.019999999999999999, 0.042379628110639938, 492176.097110560599725947, 490706.084649344763179171, 125.651799497032985606',
 		},
 	})
@@ -420,7 +425,8 @@ export class AnalyticsController {
 				formatUnits(e.totalMintedV1, 18),
 				formatUnits(e.totalMintedV2, 18),
 
-				formatUnits(e.currentLeadRate, 18),
+				formatUnits(e.currentMintLeadRate, 18),
+			formatUnits(e.currentSaveLeadRate, 18),
 				formatUnits(e.projectedInterests, 18),
 
 				formatUnits(e.annualV1Interests, 18),

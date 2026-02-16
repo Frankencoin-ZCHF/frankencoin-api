@@ -5,8 +5,8 @@ import { TelegramGroupState, TelegramState } from './telegram.types';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { MinterProposalMessage } from './messages/MinterProposal.message';
 import { PositionProposalMessage } from './messages/PositionProposal.message';
-import { Storj } from 'storj/storj.s3.service';
-import { Groups, SubscriptionGroups } from './dtos/groups.dto';
+import { PrismaService } from 'database/prisma.service';
+import { SubscriptionGroups } from './dtos/groups.dto';
 import { WelcomeGroupMessage } from './messages/WelcomeGroup.message';
 import { ChallengesService } from 'challenges/challenges.service';
 import { ChallengeStartedMessage } from './messages/ChallengeStarted.message';
@@ -37,13 +37,12 @@ export class TelegramService {
 	private readonly startUpTime = Date.now();
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-	private readonly storjPath: string = '/telegram.groups.json';
 	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/DailyInfos', '/help'];
 	private telegramState: TelegramState;
 	private telegramGroupState: TelegramGroupState;
 
 	constructor(
-		private readonly storj: Storj,
+		private readonly prisma: PrismaService,
 		private readonly frankencoin: EcosystemFrankencoinService,
 		private readonly minter: EcosystemMinterService,
 		private readonly leadrate: SavingsLeadrateService,
@@ -82,15 +81,29 @@ export class TelegramService {
 	}
 
 	async readBackupGroups() {
-		this.logger.log(`Reading backup groups from storj`);
-		const response = await this.storj.read(this.storjPath, Groups);
+		this.logger.log('Reading backup groups from database');
 
-		if (response.messageError || response.validationError.length > 0) {
-			this.logger.error(response.messageError);
-			this.logger.log(`Telegram group state created...`);
+		const groups = (await this.prisma.safeExecute(() => this.prisma.telegramGroup.findMany())) as any;
+		const ignoreList = (await this.prisma.safeExecute(() => this.prisma.telegramIgnore.findMany())) as any;
+
+		if (groups && groups.length > 0) {
+			// Convert database format to in-memory format
+			this.telegramGroupState.groups = groups.map((g) => g.chatId);
+			this.telegramGroupState.subscription = groups.reduce(
+				(acc, g) => {
+					acc[g.chatId] = g.subscriptions as any;
+					return acc;
+				},
+				{} as Record<string, SubscriptionGroups>
+			);
+			this.logger.log(`Telegram group state restored (${groups.length} groups)`);
 		} else {
-			this.telegramGroupState = { ...this.telegramGroupState, ...response.data };
-			this.logger.log(`Telegram group state restored...`);
+			this.logger.log('No telegram groups found, starting fresh');
+		}
+
+		if (ignoreList && ignoreList.length > 0) {
+			this.telegramGroupState.ignore = ignoreList.map((i) => i.chatId);
+			this.logger.log(`Loaded ${ignoreList.length} ignored chats`);
 		}
 
 		await this.applyListener();
@@ -99,13 +112,35 @@ export class TelegramService {
 	async writeBackupGroups() {
 		this.telegramGroupState.apiVersion = process.env.npm_package_version;
 		this.telegramGroupState.updatedAt = Date.now();
-		const response = await this.storj.write(this.storjPath, this.telegramGroupState);
-		const httpStatusCode = response['$metadata'].httpStatusCode;
-		if (httpStatusCode == 200) {
-			this.logger.log(`Telegram group backup stored`);
-		} else {
-			this.logger.error(`Telegram group backup failed. httpStatusCode: ${httpStatusCode}`);
-		}
+
+		await this.prisma.safeExecute(async () => {
+			// Update or create groups
+			for (const chatId of this.telegramGroupState.groups) {
+				const subscriptions = this.telegramGroupState.subscription[chatId] || {};
+				await this.prisma.telegramGroup.upsert({
+					where: { chatId },
+					create: {
+						chatId,
+						subscriptions,
+					},
+					update: {
+						subscriptions,
+						updatedAt: new Date(),
+					},
+				});
+			}
+
+			// Update ignore list
+			for (const chatId of this.telegramGroupState.ignore) {
+				await this.prisma.telegramIgnore.upsert({
+					where: { chatId },
+					create: { chatId },
+					update: {},
+				});
+			}
+
+			this.logger.log('Telegram group backup stored in database');
+		});
 	}
 
 	async sendMessageAll(message: string) {

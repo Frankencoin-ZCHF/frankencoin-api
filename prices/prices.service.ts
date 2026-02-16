@@ -18,8 +18,7 @@ import { COINGECKO_CLIENT, CONFIG } from 'api.config';
 import { Address, parseUnits } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { ADDRESS, ChainMain, SupportedChain } from '@frankencoin/zchf';
-import { Storj } from 'storj/storj.s3.service';
-import { PriceQueryObjectDTO } from './dtos/price.query.dto';
+import { PrismaService } from 'database/prisma.service';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -29,12 +28,11 @@ import { getChain } from 'utils/func-helper';
 @Injectable()
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
-	private readonly storjPath: string = '/prices.query.json';
 	private fetchedPrices: PriceQueryObjectArray = {};
 	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
 
 	constructor(
-		private readonly storj: Storj,
+		private readonly prisma: PrismaService,
 		private readonly positionsService: PositionsService,
 		private readonly fps: EcosystemFpsService
 	) {
@@ -43,26 +41,32 @@ export class PricesService {
 	}
 
 	async readBackupPriceQuery() {
-		this.logger.log(`Reading backup PriceQueryObject from storj`);
-		const response = await this.storj.read(this.storjPath, PriceQueryObjectDTO);
+		this.logger.log('Reading backup PriceQueryObject from database');
 
-		if (response.messageError || response.validationError.length > 0) {
-			this.logger.error(response.messageError);
+		const cached = (await this.prisma.safeExecute(() =>
+			this.prisma.priceCache.findFirst({
+				orderBy: { cachedAt: 'desc' },
+			})
+		)) as any;
+
+		if (cached) {
+			this.fetchedPrices = { ...this.fetchedPrices, ...(cached.data as PriceQueryObjectArray) };
+			this.logger.log('PriceQueryObject state restored from database');
 		} else {
-			this.fetchedPrices = { ...this.fetchedPrices, ...response.data };
-			this.logger.log(`PriceQueryObject state restored...`);
+			this.logger.warn('No cached price data found in database');
 		}
 	}
 
 	async writeBackupPriceQuery() {
-		const response = await this.storj.write(this.storjPath, this.fetchedPrices);
-		const httpStatusCode = response['$metadata'].httpStatusCode;
-
-		if (httpStatusCode == 200) {
-			this.logger.log(`PriceQueryObject backup stored`);
-		} else {
-			this.logger.error(`PriceQueryObject backup failed. httpStatusCode: ${httpStatusCode}`);
-		}
+		await this.prisma.safeExecute(async () => {
+			await this.prisma.priceCache.create({
+				data: {
+					data: this.fetchedPrices,
+					cachedAt: new Date(),
+				},
+			});
+			this.logger.log('PriceQueryObject backup stored in database');
+		});
 	}
 
 	getPrices(): ApiPriceListing {
