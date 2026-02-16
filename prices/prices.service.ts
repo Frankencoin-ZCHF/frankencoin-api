@@ -134,14 +134,9 @@ export class PricesService {
 	async fetchPriceTheGraph(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const url = `https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR`;
 		const query = `{
-			trades(
-				first: 1
-				where: {token: "${erc.address.toLowerCase()}"}
-				orderBy: timestamp
-				orderDirection: desc
-			) {
-				pricePerToken
-				timestamp
+			token(id: "${erc.address.toLowerCase()}") {
+				priceUSD
+				priceCHF
 			}
 		}`;
 
@@ -156,14 +151,24 @@ export class PricesService {
 			});
 
 			const data = await response.json();
-			// FIXME: remove
-			console.log(data);
-			const trade = data?.data?.trades?.[0];
-			if (!trade?.pricePerToken) return null;
 
-			// pricePerToken is in wei (18 decimals)
-			const usd = parseFloat(trade.pricePerToken) / 1e18;
-			return { usd };
+			// Handle indexer errors gracefully
+			if (data?.errors) {
+				const errorMsg = data.errors[0]?.message || 'Unknown error';
+				if (errorMsg.includes('bad indexers') || errorMsg.includes('Unavailable')) {
+					this.logger.warn(`The Graph indexer unavailable for ${erc.symbol}, skipping...`);
+				} else {
+					this.logger.debug(`The Graph error for ${erc.symbol}: ${errorMsg}`);
+				}
+				return null;
+			}
+
+			const token = data?.data?.token;
+			if (!token?.priceUSD) return null;
+
+			const usd = parseFloat(token.priceUSD);
+			const chf = parseFloat(token.priceCHF);
+			return chf > 0 ? { usd, chf } : { usd };
 		} catch (error) {
 			this.logger.error(`Error fetching price from The Graph: ${error}`);
 			return null;
@@ -228,8 +233,6 @@ export class PricesService {
 
 		// Priority 4: The Graph
 		const thegraphPrice = await this.fetchPriceTheGraph(erc);
-		// FIXME: remove
-		console.log('thegraph', thegraphPrice);
 		if (thegraphPrice) return { price: thegraphPrice, source: 'thegraph' };
 
 		// No price found from any source
@@ -313,7 +316,7 @@ export class PricesService {
 					timestamp: result === null ? 0 : Date.now(),
 					price: result === null ? { usd: 0, chf: 0 } : result.price,
 				};
-			} else if (oldEntry.timestamp + 30_000 < Date.now()) {
+			} else if (oldEntry.timestamp + 300_000 < Date.now()) {
 				// needs to update => try to fetch
 				pricesQueryUpdateCount += 1;
 				this.logger.debug(`Price for ${erc.name} out of date, trying to fetch`);
