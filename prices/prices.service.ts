@@ -223,17 +223,17 @@ export class PricesService {
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
 		}
 
-		// Priority 2: DeFiLlama
+		// Priority: The Graph
+		const thegraphPrice = await this.fetchPriceTheGraph(erc);
+		if (thegraphPrice) return { price: thegraphPrice, source: 'thegraph' };
+
+		// Priority: DeFiLlama
 		const defillamaPrice = await this.fetchPriceDefillama(erc);
 		if (defillamaPrice) return { price: defillamaPrice, source: 'defillama' };
 
-		// Priority 3: CoinGecko
+		// Priority: CoinGecko
 		const coingeckoPrice = await this.fetchPriceCoingecko(erc);
 		if (coingeckoPrice) return { price: coingeckoPrice, source: 'coingecko' };
-
-		// Priority 4: The Graph
-		const thegraphPrice = await this.fetchPriceTheGraph(erc);
-		if (thegraphPrice) return { price: thegraphPrice, source: 'thegraph' };
 
 		// No price found from any source
 		return null;
