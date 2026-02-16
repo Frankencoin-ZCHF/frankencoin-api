@@ -132,7 +132,10 @@ export class AnalyticsController {
 							fpsPrice: { type: 'string', description: 'FPS token price (in wei)' },
 							totalMintedV1: { type: 'string', description: 'Total minted from V1 positions (in wei)' },
 							totalMintedV2: { type: 'string', description: 'Total minted from V2 positions (in wei)' },
-							currentMintLeadRate: { type: 'string', description: 'Current mint lead interest rate for V2 positions (in wei)' },
+							currentMintLeadRate: {
+								type: 'string',
+								description: 'Current mint lead interest rate for V2 positions (in wei)',
+							},
 							currentSaveLeadRate: { type: 'string', description: 'Current save lead interest rate for savings (in wei)' },
 							projectedInterests: { type: 'string', description: 'Projected interest payments (in wei)' },
 							annualV1Interests: { type: 'string', description: 'Annual V1 interest payments (in wei)' },
@@ -276,7 +279,7 @@ export class AnalyticsController {
 				formatUnits(e.totalMintedV2, 18),
 
 				formatUnits(e.currentMintLeadRate, 18),
-			formatUnits(e.currentSaveLeadRate, 18),
+				formatUnits(e.currentSaveLeadRate, 18),
 				formatUnits(e.projectedInterests, 18),
 
 				formatUnits(e.annualV1Interests, 18),
@@ -332,7 +335,10 @@ export class AnalyticsController {
 							fpsPrice: { type: 'string', description: 'FPS token price (in wei)' },
 							totalMintedV1: { type: 'string', description: 'Total minted from V1 positions (in wei)' },
 							totalMintedV2: { type: 'string', description: 'Total minted from V2 positions (in wei)' },
-							currentMintLeadRate: { type: 'string', description: 'Current mint lead interest rate for V2 positions (in wei)' },
+							currentMintLeadRate: {
+								type: 'string',
+								description: 'Current mint lead interest rate for V2 positions (in wei)',
+							},
 							currentSaveLeadRate: { type: 'string', description: 'Current save lead interest rate for savings (in wei)' },
 							projectedInterests: { type: 'string', description: 'Projected interest payments (in wei)' },
 							annualV1Interests: { type: 'string', description: 'Annual V1 interest payments (in wei)' },
@@ -426,7 +432,7 @@ export class AnalyticsController {
 				formatUnits(e.totalMintedV2, 18),
 
 				formatUnits(e.currentMintLeadRate, 18),
-			formatUnits(e.currentSaveLeadRate, 18),
+				formatUnits(e.currentSaveLeadRate, 18),
 				formatUnits(e.projectedInterests, 18),
 
 				formatUnits(e.annualV1Interests, 18),
