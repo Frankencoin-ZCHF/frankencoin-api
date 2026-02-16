@@ -15,6 +15,9 @@ export type ERC20Info = {
 	decimals: number;
 };
 
+// Price source tracking
+export type PriceSource = 'custom' | 'defillama' | 'coingecko' | 'thegraph' | null;
+
 // TODO: Implement other currencies
 export type PriceQueryCurrencies = {
 	usd?: number;
@@ -23,6 +26,7 @@ export type PriceQueryCurrencies = {
 };
 
 export type PriceQuery = ERC20Info & {
+	source?: PriceSource;
 	timestamp: number;
 	price: PriceQueryCurrencies;
 };
