@@ -15,31 +15,43 @@ if (process.env.THE_GRAPH_KEY === undefined) throw new Error('THE_GRAPH_KEY not 
 export type ConfigType = {
 	app: string;
 	indexer: string;
+	backupIndexer: string | null;
 	coingeckoApiKey: string;
 	alchemyRpcKey: string;
 	theGraphKey: string;
 	supportedChainIds: ChainId[];
+	databaseEnabled: boolean;
 };
 
 // Create config
 export const CONFIG: ConfigType = {
 	app: process.env.CONFIG_APP_URL || 'https://app.frankencoin.com',
 	indexer: process.env.CONFIG_INDEXER_URL || 'https://ponder.frankencoin.com',
+	backupIndexer: process.env.CONFIG_BACKUP_INDEXER_URL || null,
 	coingeckoApiKey: process.env.COINGECKO_API_KEY,
 	alchemyRpcKey: process.env.ALCHEMY_RPC_KEY,
 	theGraphKey: process.env.THE_GRAPH_KEY,
 	supportedChainIds: SupportedChainIds,
+	databaseEnabled: process.env.DISABLE_DATABASE !== 'true',
 };
 
 // Start up message
 console.log(`Starting API with this config:`);
 console.log(CONFIG);
 
-// PONDER CLIENT REQUEST
+// PONDER CLIENT REQUEST (Primary Indexer)
 export const PONDER_CLIENT = new ApolloClient({
 	uri: CONFIG.indexer,
 	cache: new InMemoryCache(),
 });
+
+// PONDER CLIENT BACKUP (Backup Indexer)
+export const PONDER_CLIENT_BACKUP = CONFIG.backupIndexer
+	? new ApolloClient({
+			uri: CONFIG.backupIndexer,
+			cache: new InMemoryCache(),
+		})
+	: null;
 
 // VIEM CONFIG BY CHAINS
 export const ViemConfigMainnet = createPublicClient({

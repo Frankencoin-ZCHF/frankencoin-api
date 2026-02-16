@@ -1,24 +1,23 @@
 import { ChainId } from '@frankencoin/zchf';
-import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
-import { CONFIG, VIEM_CONFIG } from 'api.config';
-import { AxiosError } from 'axios';
+import { VIEM_CONFIG } from 'api.config';
 import { ChallengesService } from 'challenges/challenges.service';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
 import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { PositionsService } from 'positions/positions.service';
 import { PricesService } from 'prices/prices.service';
-import { catchError, firstValueFrom } from 'rxjs';
 import { SavingsCoreService } from 'savings/savings.core.service';
 import { SavingsLeadrateService } from 'savings/savings.leadrate.service';
 import { TelegramService } from 'telegram/telegram.service';
 import { TransferReferenceService } from 'transfer/transfer.reference.service';
+import { IndexerHealthService } from 'data-source/indexer-health.service';
 import { mainnet } from 'viem/chains';
 
 export const INDEXING_TIMEOUT_COUNT: number = 3;
 export const POLLING_DELAY: number = 3_000; // 3000ms (= 3sec)
+export const BLOCK_HEIGHT_TOLERANCE: number = 2; // Allow indexer to be up to 2 blocks behind
 
 export type IndexerStatus = {
 	id: ChainId;
@@ -39,7 +38,6 @@ export class ApiService {
 	private fetchedBlockheight: number = 0;
 
 	constructor(
-		private readonly httpService: HttpService,
 		private readonly minter: EcosystemMinterService,
 		private readonly positions: PositionsService,
 		private readonly prices: PricesService,
@@ -49,13 +47,14 @@ export class ApiService {
 		private readonly telegram: TelegramService,
 		private readonly leadrate: SavingsLeadrateService,
 		private readonly savings: SavingsCoreService,
-		private readonly transferRef: TransferReferenceService
+		private readonly transferRef: TransferReferenceService,
+		private readonly indexerHealth: IndexerHealthService
 	) {
 		setTimeout(() => this.updateBlockheight(), 100);
 	}
 
 	async updateWorkflow() {
-		this.logger.log(`Fetched blockheight: ${this.fetchedBlockheight}`);
+		this.logger.log(`Fetching blockheight: ${this.fetchedBlockheight}`);
 		const promises = [
 			this.minter.updateMinters(),
 			this.positions.updatePositonV1s(),
@@ -84,33 +83,34 @@ export class ApiService {
 
 	@Interval(POLLING_DELAY)
 	async updateBlockheight() {
-		// block height
+		// Get blockchain block height
 		const blockHeight: number = parseInt((await VIEM_CONFIG[mainnet.id].getBlockNumber()).toString());
 
-		// get status of indexer
-		let statusError = false;
-		const statusIndexer = (
-			await firstValueFrom(
-				this.httpService.get<IndexerStatus>(`${CONFIG.indexer}/status`).pipe(
-					catchError((error: AxiosError) => {
-						statusError = true;
-						this.logger.error(error.response?.data || error.message);
-						throw new Error('Could not reach indexer status');
-					})
-				)
-			)
-		).data;
+		// Check health of both indexers
+		const { primary, backup } = await this.indexerHealth.checkBothIndexers();
 
-		// break if indexer is not available
-		if (statusError) return;
-		else if (statusIndexer[mainnet.name] == undefined) {
-			this.logger.warn(`Could not fetch indexer status`);
-			return;
-		} else if (blockHeight > (statusIndexer[mainnet.name] as IndexerStatus).block.number) {
-			this.logger.warn(`Indexer is not ready...`);
+		// Determine which indexer to use
+		const currentSource = this.indexerHealth.determineDataSource();
+
+		// Get the active indexer status
+		const activeIndexer = currentSource === 'primary' ? primary : backup;
+
+		if (!activeIndexer || !activeIndexer.isHealthy) {
+			this.logger.warn('No healthy indexer available');
 			return;
 		}
 
+		// Check if indexer is caught up with blockchain (with tolerance)
+		const indexerBlockNumber = Number(activeIndexer.blockNumber);
+		const blockDifference = blockHeight - indexerBlockNumber;
+		if (blockDifference > BLOCK_HEIGHT_TOLERANCE) {
+			this.logger.warn(
+				`Indexer is not ready (blockchain: ${blockHeight}, indexer: ${indexerBlockNumber}, lag: ${blockDifference} blocks)`
+			);
+			return;
+		}
+
+		// Run update workflow
 		this.indexingTimeoutCount += 1;
 		if (blockHeight > this.fetchedBlockheight && !this.indexing) {
 			this.indexing = true;
