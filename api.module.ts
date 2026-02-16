@@ -26,7 +26,6 @@ import { TransferReferenceService } from 'transfer/transfer.reference.service';
 import { TelegramService } from 'telegram/telegram.service';
 
 // CONTROLLER IMPORTS
-import { Storj } from 'storj/storj.s3.service';
 import { EcosystemMinterController } from 'ecosystem/ecosystem.minter.controller';
 import { EcosystemCollateralController } from 'ecosystem/ecosystem.collateral.controller';
 import { EcosystemFpsController } from 'ecosystem/ecosystem.fps.controller';
@@ -64,7 +63,6 @@ import { PricesHistoryController } from 'prices/prices.history.controller';
 		AnalyticsController,
 	],
 	providers: [
-		Storj,
 		PositionsService,
 		EcosystemMinterService,
 		EcosystemCollateralService,
