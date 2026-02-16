@@ -186,24 +186,6 @@ async function checkDatabase(): Promise<VerificationResult> {
 		result.ecosystemSupply = ecosystemTimestampCount;
 		const totalEcosystemRows = await prisma.ecosystemSupply.count();
 		console.log(`   🌐 ecosystem_supply: ${totalEcosystemRows} cache snapshots, latest has ${ecosystemTimestampCount} timestamps`);
-
-		// Check cache entries (blockchain data)
-		const cacheEntries = await prisma.cacheEntry.count();
-		console.log(`   💾 cache_entries: ${cacheEntries} blockchain cache entries`);
-
-		// Show some cache entry details if they exist
-		if (cacheEntries > 0) {
-			const entries = await prisma.cacheEntry.findMany({
-				select: { key: true, cachedAt: true },
-				orderBy: { cachedAt: 'desc' },
-				take: 5,
-			});
-			console.log(`\n   Recent cache entries:`);
-			entries.forEach((e) => {
-				const age = Math.round((Date.now() - e.cachedAt.getTime()) / 1000);
-				console.log(`      - ${e.key} (${age}s ago)`);
-			});
-		}
 	} catch (error) {
 		console.error(`   ❌ Database query error:`, error.message);
 	}
