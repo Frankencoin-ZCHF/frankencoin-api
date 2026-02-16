@@ -31,6 +31,7 @@ import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.ser
 import { formatFloat } from 'utils/format';
 import { EquityInvestedMessage } from './messages/EquityInvested.message';
 import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
+import { PositionDeniedMessage } from './messages/PositionDenied.message';
 
 @Injectable()
 export class TelegramService {
@@ -57,6 +58,7 @@ export class TelegramService {
 			leadrateProposal: this.startUpTime,
 			leadrateChanged: this.startUpTime,
 			positions: this.startUpTime,
+			positionsDenied: this.startUpTime,
 			positionsExpiringSoon1: this.startUpTime,
 			positionsExpired: this.startUpTime,
 			positionsPriceAlert: new Map(),
@@ -250,6 +252,17 @@ export class TelegramService {
 			this.telegramState.positions = Date.now();
 			for (const p of requestedPosition) {
 				this.sendMessageAll(PositionProposalMessage(p));
+			}
+		}
+
+		// Positions denied
+		const deniedPosition = Object.values(this.position.getPositionsDenied().map).filter(
+			(p) => p.denyDate > 0 && p.denyDate * 1000 > this.telegramState.positionsDenied
+		);
+		if (deniedPosition.length > 0) {
+			this.telegramState.positionsDenied = Date.now();
+			for (const p of deniedPosition) {
+				this.sendMessageAll(PositionDeniedMessage(p));
 			}
 		}
 

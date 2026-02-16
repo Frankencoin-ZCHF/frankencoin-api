@@ -8,6 +8,7 @@ export type TelegramState = {
 	leadrateProposal: number;
 	leadrateChanged: number;
 	positions: number;
+	positionsDenied: number;
 	positionsExpiringSoon1: number;
 	positionsExpired: number;
 	positionsPriceAlert: Map<Address, PositionPriceAlertState>;
