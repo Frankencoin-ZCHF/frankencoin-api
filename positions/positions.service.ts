@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PONDER_CLIENT, VIEM_CONFIG } from '../api.config';
+import { PONDER_CLIENT, PONDER_CLIENT_BACKUP, VIEM_CONFIG } from '../api.config';
 import { gql } from '@apollo/client/core';
+import { DataSourceManagerService } from 'data-source/data-source.manager.service';
 import {
 	ApiMintingUpdateListing,
 	ApiMintingUpdateMapping,
@@ -37,7 +38,7 @@ export class PositionsService {
 	private fetchedPositions: PositionsQueryObjectArray = {};
 	private fetchedMintingUpdates: MintingUpdateQueryObjectArray = {};
 
-	constructor() {}
+	constructor(private readonly dataSource: DataSourceManagerService) {}
 
 	getPositionsList(): ApiPositionsListing {
 		const pos = Object.values(this.fetchedPositions) as PositionQuery[];
@@ -89,13 +90,19 @@ export class PositionsService {
 
 	async updatePositonV1s() {
 		this.logger.debug('Updating Positions V1');
-		const { data } = await PONDER_CLIENT.query<{
-			mintingHubV1PositionV1s: {
-				items: PositionQueryV1[];
-			};
-		}>({
-			fetchPolicy: 'no-cache',
-			query: gql`
+		const currentSource = this.dataSource.getCurrentSource();
+
+		// Determine which client to use
+		const client = currentSource === 'primary' ? PONDER_CLIENT : PONDER_CLIENT_BACKUP;
+
+		try {
+			const { data } = await client!.query<{
+				mintingHubV1PositionV1s: {
+					items: PositionQueryV1[];
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query: gql`
 				query {
 					mintingHubV1PositionV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
@@ -237,26 +244,36 @@ export class PositionsService {
 			list[p.position.toLowerCase() as Address] = entry;
 		}
 
-		const a = Object.keys(list).length;
-		const b = this.fetchedPositionV1s.length;
-		const isDiff = a > b;
+			const a = Object.keys(list).length;
+			const b = this.fetchedPositionV1s.length;
+			const isDiff = a > b;
 
-		if (isDiff) this.logger.log(`Positions V1 merging, from ${b} to ${a} positions`);
-		this.fetchedPositionV1s = Object.values(list) as PositionQueryV1[];
-		this.fetchedPositions = { ...this.fetchedPositions, ...list };
+			if (isDiff) this.logger.log(`Positions V1 merging, from ${b} to ${a} positions`);
+			this.fetchedPositionV1s = Object.values(list) as PositionQueryV1[];
+			this.fetchedPositions = { ...this.fetchedPositions, ...list };
 
-		return list;
+			return list;
+		} catch (error) {
+			this.logger.error('Failed to update Positions V1 from indexer', error);
+			// Data remains in memory from previous successful fetch
+		}
 	}
 
 	async updatePositonV2s() {
 		this.logger.debug('Updating Positions V2');
-		const { data } = await PONDER_CLIENT.query<{
-			mintingHubV2PositionV2s: {
-				items: PositionQueryV2[];
-			};
-		}>({
-			fetchPolicy: 'no-cache',
-			query: gql`
+		const currentSource = this.dataSource.getCurrentSource();
+
+		// Determine which client to use
+		const client = currentSource === 'primary' ? PONDER_CLIENT : PONDER_CLIENT_BACKUP;
+
+		try {
+			const { data } = await client!.query<{
+				mintingHubV2PositionV2s: {
+					items: PositionQueryV2[];
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query: gql`
 				query {
 					mintingHubV2PositionV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
@@ -422,15 +439,19 @@ export class PositionsService {
 			list[p.position.toLowerCase() as Address] = entry;
 		}
 
-		const a = Object.keys(list).length;
-		const b = this.fetchedPositionV2s.length;
-		const isDiff = a > b;
+			const a = Object.keys(list).length;
+			const b = this.fetchedPositionV2s.length;
+			const isDiff = a > b;
 
-		if (isDiff) this.logger.log(`Positions V2 merging, from ${b} to ${a} positions`);
-		this.fetchedPositionV2s = Object.values(list) as PositionQueryV2[];
-		this.fetchedPositions = { ...this.fetchedPositions, ...list };
+			if (isDiff) this.logger.log(`Positions V2 merging, from ${b} to ${a} positions`);
+			this.fetchedPositionV2s = Object.values(list) as PositionQueryV2[];
+			this.fetchedPositions = { ...this.fetchedPositions, ...list };
 
-		return list;
+			return list;
+		} catch (error) {
+			this.logger.error('Failed to update Positions V2 from indexer', error);
+			// Data remains in memory from previous successful fetch
+		}
 	}
 
 	getMintingUpdatesList(): ApiMintingUpdateListing {
@@ -650,13 +671,19 @@ export class PositionsService {
 
 	async updateMintingUpdateV1s() {
 		this.logger.debug('Updating Positions MintingUpdates V1');
-		const { data } = await PONDER_CLIENT.query<{
-			mintingHubV1MintingUpdateV1s: {
-				items: MintingUpdateQueryV1[];
-			};
-		}>({
-			fetchPolicy: 'no-cache',
-			query: gql`
+		const currentSource = this.dataSource.getCurrentSource();
+
+		// Determine which client to use
+		const client = currentSource === 'primary' ? PONDER_CLIENT : PONDER_CLIENT_BACKUP;
+
+		try {
+			const { data } = await client!.query<{
+				mintingHubV1MintingUpdateV1s: {
+					items: MintingUpdateQueryV1[];
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query: gql`
 				query {
 					mintingHubV1MintingUpdateV1s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
@@ -731,25 +758,35 @@ export class PositionsService {
 			list[k].push(entry);
 		}
 
-		const a = Object.values(list).flat(1).length;
-		const b = Object.values(this.fetchedMintingUpdates).flat(1).length;
-		const isDiff = a > b;
+			const a = Object.values(list).flat(1).length;
+			const b = Object.values(this.fetchedMintingUpdates).flat(1).length;
+			const isDiff = a > b;
 
-		if (isDiff) this.logger.log(`MintingUpdates V1 merging, from ${b} to ${a} entries`);
-		this.fetchedMintingUpdates = { ...this.fetchedMintingUpdates, ...list };
+			if (isDiff) this.logger.log(`MintingUpdates V1 merging, from ${b} to ${a} entries`);
+			this.fetchedMintingUpdates = { ...this.fetchedMintingUpdates, ...list };
 
-		return list;
+			return list;
+		} catch (error) {
+			this.logger.error('Failed to update MintingUpdates V1 from indexer', error);
+			// Data remains in memory from previous successful fetch
+		}
 	}
 
 	async updateMintingUpdateV2s() {
 		this.logger.debug('Updating Positions MintingUpdates V2');
-		const { data } = await PONDER_CLIENT.query<{
-			mintingHubV2MintingUpdateV2s: {
-				items: MintingUpdateQueryV2[];
-			};
-		}>({
-			fetchPolicy: 'no-cache',
-			query: gql`
+		const currentSource = this.dataSource.getCurrentSource();
+
+		// Determine which client to use
+		const client = currentSource === 'primary' ? PONDER_CLIENT : PONDER_CLIENT_BACKUP;
+
+		try {
+			const { data } = await client!.query<{
+				mintingHubV2MintingUpdateV2s: {
+					items: MintingUpdateQueryV2[];
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query: gql`
 				query {
 					mintingHubV2MintingUpdateV2s(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
@@ -828,14 +865,18 @@ export class PositionsService {
 			list[k].push(entry);
 		}
 
-		const a = Object.values(list).flat(1).length;
-		const b = Object.values(this.fetchedMintingUpdates).flat(1).length;
-		const isDiff = a > b;
+			const a = Object.values(list).flat(1).length;
+			const b = Object.values(this.fetchedMintingUpdates).flat(1).length;
+			const isDiff = a > b;
 
-		if (isDiff) this.logger.log(`MintingUpdates V2 merging, from ${b} to ${a} entries`);
-		this.fetchedMintingUpdates = { ...this.fetchedMintingUpdates, ...list };
+			if (isDiff) this.logger.log(`MintingUpdates V2 merging, from ${b} to ${a} entries`);
+			this.fetchedMintingUpdates = { ...this.fetchedMintingUpdates, ...list };
 
-		return list;
+			return list;
+		} catch (error) {
+			this.logger.error('Failed to update MintingUpdates V2 from indexer', error);
+			// Data remains in memory from previous successful fetch
+		}
 	}
 
 	async getOwnerFees(owner: Address): Promise<ApiMintingUpdateListing> {
