@@ -24,17 +24,6 @@ dotenv.config();
 const prisma = new PrismaClient();
 const storj = new Storj();
 
-interface TelegramGroupData {
-	chatId: string;
-	title?: string;
-	subscriptions?: Record<string, boolean>;
-}
-
-interface TelegramData {
-	groups: TelegramGroupData[];
-	ignore: string[];
-}
-
 async function migrate() {
 	console.log('🚀 Starting Storj → Database migration...\n');
 

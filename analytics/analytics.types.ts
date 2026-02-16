@@ -66,7 +66,8 @@ export type AnalyticsTransactionLog = {
 	totalMintedV1: bigint;
 	totalMintedV2: bigint;
 
-	currentLeadRate: bigint;
+	currentMintLeadRate: bigint;
+	currentSaveLeadRate: bigint;
 	projectedInterests: bigint;
 
 	annualV1Interests: bigint;
@@ -98,7 +99,8 @@ export type AnalyticsDailyLog = {
 	totalMintedV1: bigint;
 	totalMintedV2: bigint;
 
-	currentLeadRate: bigint;
+	currentMintLeadRate: bigint;
+	currentSaveLeadRate: bigint;
 	projectedInterests: bigint;
 
 	annualV1Interests: bigint;
