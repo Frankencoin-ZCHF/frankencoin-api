@@ -1,5 +1,4 @@
 import { Address } from 'viem';
-import { SubscriptionGroups } from './dtos/groups.dto';
 
 // @dev: timestamps of last trigger emits
 export type TelegramState = {
@@ -33,8 +32,7 @@ export type TelegramGroupState = {
 	createdAt: number;
 	updatedAt: number;
 	groups: string[];
-	ignore: string[];
 	subscription: {
-		[key: string]: SubscriptionGroups;
+		[chatId: string]: { [handle: string]: boolean };
 	};
 };

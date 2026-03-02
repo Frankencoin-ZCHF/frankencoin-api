@@ -47,13 +47,15 @@ export class EcosystemFrankencoinService {
 		this.logger.log(`Reading backup supply query from database`);
 
 		try {
-			const record = await this.prisma.ecosystemSupply.findFirst({
+			const records = await this.prisma.ecosystemSupply.findMany({
 				orderBy: { updatedAt: 'desc' },
 			});
 
-			if (record) {
-				this.ecosystemTotalSupply = record.data as FrankencoinSupplyQueryObject;
-				this.logger.log(`Supply query state restored from database`);
+			if (records) {
+				for (const i of records) {
+					this.ecosystemTotalSupply[String(i.timestamp)] = i.data;
+				}
+				this.logger.log(`Supply query state restored from database (${records.length} entries)`);
 			} else {
 				this.logger.warn('No supply data found in database, fetching fresh data');
 				this.updateTotalSupply();
@@ -70,15 +72,17 @@ export class EcosystemFrankencoinService {
 		}
 
 		try {
-			// Delete old records and insert new one (keep only latest)
-			await this.prisma.ecosystemSupply.deleteMany({});
-			await this.prisma.ecosystemSupply.create({
-				data: {
-					data: this.ecosystemTotalSupply as any,
-				},
-			});
+			const latestTimestamps = Object.keys(this.ecosystemTotalSupply).slice(-3);
 
-			this.logger.log(`Supply query backup stored to database`);
+			for (const timestamp of latestTimestamps) {
+				await this.prisma.ecosystemSupply.upsert({
+					where: { timestamp: BigInt(timestamp) },
+					create: { timestamp: BigInt(timestamp), data: this.ecosystemTotalSupply[timestamp] as any },
+					update: { data: this.ecosystemTotalSupply[timestamp] as any },
+				});
+			}
+
+			this.logger.log(`Supply query backup stored to database (${latestTimestamps.length} entries)`);
 		} catch (error) {
 			this.logger.error('Failed to write supply data to database', error);
 		}

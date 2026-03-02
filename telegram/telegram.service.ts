@@ -6,7 +6,6 @@ import { EcosystemMinterService } from 'ecosystem/ecosystem.minter.service';
 import { MinterProposalMessage } from './messages/MinterProposal.message';
 import { PositionProposalMessage } from './messages/PositionProposal.message';
 import { PrismaService } from 'database/prisma.service';
-import { SubscriptionGroups } from './dtos/groups.dto';
 import { WelcomeGroupMessage } from './messages/WelcomeGroup.message';
 import { ChallengesService } from 'challenges/challenges.service';
 import { ChallengeStartedMessage } from './messages/ChallengeStarted.message';
@@ -74,7 +73,6 @@ export class TelegramService {
 			createdAt: this.startUpTime,
 			updatedAt: this.startUpTime,
 			groups: [],
-			ignore: [],
 			subscription: {},
 		};
 
@@ -84,39 +82,26 @@ export class TelegramService {
 	async readBackupGroups() {
 		this.logger.log('Reading backup groups from database');
 
-		const groups = (await this.prisma.safeExecute(() => this.prisma.telegramGroup.findMany())) as any;
-		const ignoreList = (await this.prisma.safeExecute(() => this.prisma.telegramIgnore.findMany())) as any;
+		const groups = await this.prisma.safeExecute(() => this.prisma.telegramGroup.findMany());
 
 		if (groups && groups.length > 0) {
-			// Convert database format to in-memory format
 			this.telegramGroupState.groups = groups.map((g) => g.chatId);
-			this.telegramGroupState.subscription = groups.reduce(
-				(acc, g) => {
-					acc[g.chatId] = g.subscriptions as any;
-					return acc;
-				},
-				{} as Record<string, SubscriptionGroups>
-			);
+			this.telegramGroupState.subscription = Object.fromEntries(groups.map((g) => [g.chatId, g.subscriptions as any]));
 			this.logger.log(`Telegram group state restored (${groups.length} groups)`);
 		} else {
 			this.logger.log('No telegram groups found, starting fresh');
 		}
 
-		if (ignoreList && ignoreList.length > 0) {
-			this.telegramGroupState.ignore = ignoreList.map((i) => i.chatId);
-			this.logger.log(`Loaded ${ignoreList.length} ignored chats`);
-		}
-
 		await this.applyListener();
 	}
 
-	async writeBackupGroups() {
+	async writeBackupGroups(groups: string[] = this.telegramGroupState.groups) {
 		this.telegramGroupState.apiVersion = process.env.npm_package_version;
 		this.telegramGroupState.updatedAt = Date.now();
 
 		await this.prisma.safeExecute(async () => {
 			// Update or create groups
-			for (const chatId of this.telegramGroupState.groups) {
+			for (const chatId of groups) {
 				const subscriptions = this.telegramGroupState.subscription[chatId] || {};
 				await this.prisma.telegramGroup.upsert({
 					where: { chatId },
@@ -126,17 +111,22 @@ export class TelegramService {
 					},
 					update: {
 						subscriptions,
-						updatedAt: new Date(),
 					},
 				});
 			}
 
-			// Update ignore list
-			for (const chatId of this.telegramGroupState.ignore) {
-				await this.prisma.telegramIgnore.upsert({
-					where: { chatId },
-					create: { chatId },
-					update: {},
+			this.logger.log('Telegram group backup stored in database');
+		});
+	}
+
+	async removeBackupGroups(groups: string[]) {
+		await this.prisma.safeExecute(async () => {
+			// Update or create groups
+			for (const chatId of groups) {
+				await this.prisma.telegramGroup.delete({
+					where: {
+						chatId,
+					},
 				});
 			}
 
@@ -334,7 +324,7 @@ export class TelegramService {
 				};
 			}
 
-			const groups = this.telegramGroupState.subscription['/PriceAlerts']?.groups || [];
+			const groups = this.getSubscribedGroups('/PriceAlerts');
 
 			if (price < posPrice * THRES_LOWEST) {
 				// below 100%
@@ -414,7 +404,7 @@ export class TelegramService {
 			this.telegramState.mintingUpdates = Date.now();
 			const prices = this.prices.getPricesMapping();
 			for (const m of requestedMintingUpdates) {
-				const groups = this.telegramGroupState.subscription['/MintingUpdates']?.groups || [];
+				const groups = this.getSubscribedGroups('/MintingUpdates');
 				this.sendMessageGroup(groups, MintingUpdateMessage(m, prices));
 			}
 		}
@@ -446,7 +436,6 @@ export class TelegramService {
 
 	upsertTelegramGroup(id: number | string): boolean {
 		if (!id) return;
-		if (this.telegramGroupState.ignore.includes(id.toString())) return false;
 		if (this.telegramGroupState.groups.includes(id.toString())) return false;
 		this.telegramGroupState.groups.push(id.toString());
 		this.logger.log(`Upserted Telegram Group: ${id}`);
@@ -457,71 +446,65 @@ export class TelegramService {
 	async removeTelegramGroup(id: number | string): Promise<boolean> {
 		if (!id) return;
 		const inGroup: boolean = this.telegramGroupState.groups.includes(id.toString());
-		const inSubscription = Object.values(this.telegramGroupState.subscription)
-			.map((s) => s.groups)
-			.flat(1)
-			.includes(id.toString());
+		const inSubscription = !!this.telegramGroupState.subscription[id.toString()];
 		const update: boolean = inGroup || inSubscription;
 
 		if (inGroup) {
-			const newGroup: string[] = this.telegramGroupState.groups.filter((g) => g !== id.toString());
-			this.telegramGroupState.groups = newGroup;
+			this.telegramGroupState.groups = this.telegramGroupState.groups.filter((g) => g !== id.toString());
 		}
 
 		if (inSubscription) {
-			const subs = this.telegramGroupState.subscription;
-			for (const h of Object.keys(subs)) {
-				subs[h].groups = subs[h].groups.filter((g) => g != id.toString());
-			}
-			this.telegramGroupState.subscription = subs;
+			delete this.telegramGroupState.subscription[id.toString()];
 		}
 
 		if (update) {
 			this.logger.log(`Removed Telegram Group: ${id}`);
-			await this.writeBackupGroups();
+			await this.removeBackupGroups([String(id)]);
 		}
 
 		return update;
+	}
+
+	getSubscribedGroups(handle: string): string[] {
+		const key = handle.replace('/', '');
+		return Object.entries(this.telegramGroupState.subscription)
+			.filter(([_, subs]) => subs[key])
+			.map(([chatId]) => chatId);
 	}
 
 	async applyListener() {
 		const toggle = (handle: string, msg: TelegramBot.Message) => {
 			if (handle !== msg.text) return;
 			const group = msg.chat.id.toString();
-			const subs = this.telegramGroupState.subscription[handle];
-			if (subs == undefined) this.telegramGroupState.subscription[handle] = new SubscriptionGroups();
-			if (this.telegramGroupState.subscription[handle].groups.includes(group)) {
-				const newSubs = this.telegramGroupState.subscription[handle].groups.filter((g) => g != group);
-				this.telegramGroupState.subscription[handle].groups = newSubs;
+			const key = handle.replace('/', '');
+			const chatSubs = this.telegramGroupState.subscription[group] || {};
+			if (chatSubs[key]) {
+				delete chatSubs[key];
 				this.sendMessage(group, `Removed from subscription: \n${handle}`);
 			} else {
-				this.telegramGroupState.subscription[handle].groups.push(group);
+				chatSubs[key] = true;
 				this.sendMessage(group, `Added to subscription: \n${handle}`);
 			}
-			this.writeBackupGroups();
+			this.telegramGroupState.subscription[group] = chatSubs;
+			this.writeBackupGroups([group]);
 		};
 
 		this.bot.on('message', async (m) => {
-			if (this.upsertTelegramGroup(m.chat.id) == true) await this.writeBackupGroups();
+			if (this.upsertTelegramGroup(m.chat.id) == true) await this.writeBackupGroups([String(m.chat.id)]);
 			if (m.text === '/help')
-				this.sendMessage(m.chat.id, HelpMessage(m.chat.id.toString(), this.telegramHandles, this.telegramGroupState.subscription));
+				this.sendMessage(
+					m.chat.id,
+					HelpMessage(this.telegramHandles, this.telegramGroupState.subscription[m.chat.id.toString()] || {})
+				);
 			else this.telegramHandles.forEach((h) => toggle(h, m));
 		});
-	}
-
-	@Cron(CronExpression.EVERY_WEEK)
-	async clearIgnoreTelegramGroup(): Promise<boolean> {
-		this.telegramGroupState.ignore = [];
-		await this.writeBackupGroups();
-		this.logger.warn('Weekly job done, cleared ignore telegram group array');
-		return true;
 	}
 
 	@Cron(CronExpression.EVERY_WEEK)
 	scheduleDailyInfos() {
 		const days = 1000 * 3600 * 24 * 30;
 		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() - days);
-		const groups = this.telegramGroupState.subscription['/DailyInfos']?.groups || [];
+		const groups = this.getSubscribedGroups('/DailyInfos');
 
 		const before = infos.at(0);
 		const now = infos.at(-1);

@@ -173,8 +173,6 @@ async function migrate() {
 					}
 				}
 
-				console.log(`   📊 Found ${Object.keys(groupMap).length} groups to migrate`);
-
 				let migratedCount = 0;
 				for (const [chatId, subscriptions] of Object.entries(groupMap)) {
 					try {
