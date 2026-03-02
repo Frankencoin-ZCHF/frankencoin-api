@@ -65,27 +65,3 @@ model EcosystemSupply {
 
   @@map("ecosystem_supply")
 }
-
-// ============================================================================
-// INDEXER HEALTH TRACKING
-// Monitors primary and backup indexer status
-// ============================================================================
-
-model IndexerHealth {
-  id                  String    @id @default(uuid())
-  indexerUrl          String    @unique
-  indexerType         String    // "primary" or "backup"
-  chainId             Int       @default(1)
-  blockNumber         BigInt
-  blockTimestamp      Int
-  isHealthy           Boolean
-  lastCheckedAt       DateTime  @default(now())
-  lastSuccessAt       DateTime?
-  lastFailureAt       DateTime?
-  consecutiveFailures Int       @default(0)
-
-  @@index([indexerUrl])
-  @@index([isHealthy])
-  @@index([lastCheckedAt])
-  @@map("indexer_health")
-}
