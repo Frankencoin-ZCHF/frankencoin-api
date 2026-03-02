@@ -27,7 +27,6 @@ interface VerificationResult {
 	priceHistory: number;
 	priceRatio: number;
 	telegramGroups: number;
-	telegramIgnore: number;
 	ecosystemSupply: number;
 }
 
@@ -40,7 +39,6 @@ async function checkStorj(): Promise<VerificationResult> {
 		priceHistory: 0,
 		priceRatio: 0,
 		telegramGroups: 0,
-		telegramIgnore: 0,
 		ecosystemSupply: 0,
 	};
 
@@ -103,10 +101,8 @@ async function checkStorj(): Promise<VerificationResult> {
 		if (!telegram.messageError && telegram.data) {
 			const data = telegram.data as any;
 			const groupCount = data.groups ? data.groups.length : 0;
-			const ignoreCount = data.ignore ? data.ignore.length : 0;
 			result.telegramGroups = groupCount;
-			result.telegramIgnore = ignoreCount;
-			console.log(`   💬 telegram.groups.json: ${groupCount} groups, ${ignoreCount} ignored`);
+			console.log(`   💬 telegram.groups.json: ${groupCount} groups`);
 		} else {
 			console.log(`   ⚠️  telegram.groups.json: Not found or error`);
 		}
@@ -141,19 +137,14 @@ async function checkDatabase(): Promise<VerificationResult> {
 		priceHistory: 0,
 		priceRatio: 0,
 		telegramGroups: 0,
-		telegramIgnore: 0,
 		ecosystemSupply: 0,
 	};
 
 	try {
-		// Check price cache - get the latest entry and count tokens in it
-		const latestPriceCache = await prisma.priceCache.findFirst({
-			orderBy: { cachedAt: 'desc' },
-		});
-		const cacheTokenCount = latestPriceCache ? Object.keys(latestPriceCache.data).length : 0;
-		result.prices = cacheTokenCount;
-		const totalPriceCacheRows = await prisma.priceCache.count();
-		console.log(`   📊 price_cache: ${totalPriceCacheRows} cache snapshots, latest has ${cacheTokenCount} tokens`);
+		// Check price cache - one row per token address
+		const priceCacheCount = await prisma.priceCache.count();
+		result.prices = priceCacheCount;
+		console.log(`   📊 price_cache: ${priceCacheCount} token entries`);
 
 		// Check price history - count timestamp rows
 		const priceHistoryCount = await prisma.priceHistory.count();
@@ -173,10 +164,8 @@ async function checkDatabase(): Promise<VerificationResult> {
 
 		// Check telegram
 		const telegramGroups = await prisma.telegramGroup.count();
-		const telegramIgnore = await prisma.telegramIgnore.count();
 		result.telegramGroups = telegramGroups;
-		result.telegramIgnore = telegramIgnore;
-		console.log(`   💬 telegram_groups: ${telegramGroups} groups, telegram_ignore: ${telegramIgnore} ignored`);
+		console.log(`   💬 telegram_groups: ${telegramGroups} groups`);
 
 		// Check ecosystem supply - get latest entry and count timestamps in it
 		const latestEcosystem = await prisma.ecosystemSupply.findFirst({
@@ -214,7 +203,6 @@ function printComparison(storj: VerificationResult, db: VerificationResult) {
 		},
 		{ label: 'Price Ratio', storj: storj.priceRatio, db: db.priceRatio, note: '' },
 		{ label: 'Telegram Groups', storj: storj.telegramGroups, db: db.telegramGroups, note: '' },
-		{ label: 'Telegram Ignore', storj: storj.telegramIgnore, db: db.telegramIgnore, note: '' },
 		{ label: 'Ecosystem Supply (chains)', storj: storj.ecosystemSupply, db: db.ecosystemSupply, note: '' },
 	];
 
@@ -245,8 +233,8 @@ function printComparison(storj: VerificationResult, db: VerificationResult) {
 	}
 
 	console.log('\n💡 Storage Format:');
-	console.log('   - Prices: Entire object cached as JSON {<address>: {price data}}');
-	console.log('   - History: Entire object cached as JSON {<timestamp>: {data}}');
+	console.log('   - Prices: One row per token address {address, data}');
+	console.log('   - History: One row per timestamp {timestamp, prices: {<address>: price_chf}}');
 	console.log('   - Telegram/Ecosystem: Individual rows per item');
 	console.log('   - Blockchain cache: Populates when API starts querying indexers');
 }

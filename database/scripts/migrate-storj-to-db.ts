@@ -17,6 +17,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Storj } from '../../storj/storj.s3.service';
 import * as dotenv from 'dotenv';
+import { timestampStartOfDay } from '../../utils/format';
 
 // Load environment variables
 dotenv.config();
@@ -44,7 +45,6 @@ async function migrate() {
 						update: { data },
 					});
 					migratedCount++;
-					console.log(`   Migrated: ${address}`);
 				}
 				console.log(`   ✅ Migrated current prices (${migratedCount} entries)`);
 			} else {
@@ -53,8 +53,6 @@ async function migrate() {
 		} catch (error) {
 			console.log(`   ❌ Failed to migrate prices: ${error.message}`);
 		}
-
-		return;
 
 		// ========================================
 		// 2. Migrate Price History
@@ -76,10 +74,11 @@ async function migrate() {
 
 					// For each timestamp in this token's history
 					for (const [timestamp, price] of Object.entries(history)) {
-						if (!timestampPrices[timestamp]) {
-							timestampPrices[timestamp] = {};
+						const timestampDay = timestampStartOfDay(timestamp);
+						if (!timestampPrices[timestampDay]) {
+							timestampPrices[timestampDay] = {};
 						}
-						timestampPrices[timestamp][address.toLowerCase()] = price as number;
+						timestampPrices[timestampDay][address.toLowerCase()] = price as number;
 					}
 				}
 
@@ -89,15 +88,8 @@ async function migrate() {
 					try {
 						await prisma.priceHistory.upsert({
 							where: { timestamp: BigInt(timestamp) },
-							create: {
-								timestamp: BigInt(timestamp),
-								prices: prices,
-								cachedAt: new Date(),
-							},
-							update: {
-								prices: prices,
-								updatedAt: new Date(),
-							},
+							create: { timestamp: BigInt(timestamp), prices: prices },
+							update: { prices: prices },
 						});
 						migratedCount++;
 					} catch (err) {
@@ -105,7 +97,7 @@ async function migrate() {
 					}
 				}
 
-				console.log(`   ✅ Migrated price history (${migratedCount} timestamp entries)`);
+				console.log(`   ✅ Migrated price history (${migratedCount} daily entries)`);
 			} else {
 				console.log(`   ⚠️  No price history found or error: ${priceHistory.messageError}`);
 			}
@@ -122,33 +114,27 @@ async function migrate() {
 			if (!priceRatio.messageError && priceRatio.data) {
 				const data = priceRatio.data as any;
 
-				// Data structure: { timestamp, collateralRatioByFreeFloat: {<ts>: ratio}, collateralRatioBySupply: {<ts>: ratio} }
+				// Data structure: { collateralRatioByFreeFloat: {<ts>: ratio}, collateralRatioBySupply: {<ts>: ratio} }
 				const freeFloatRatios = data.collateralRatioByFreeFloat || {};
 				const supplyRatios = data.collateralRatioBySupply || {};
 
-				// Get all unique timestamps from both objects
-				const timestamps = new Set([...Object.keys(freeFloatRatios), ...Object.keys(supplyRatios)]);
+				// Deduplicate to daily timestamps — last write per day wins
+				const byDay: Record<string, { freeFloat: number; supply: number }> = {};
+				for (const ts of new Set([...Object.keys(freeFloatRatios), ...Object.keys(supplyRatios)])) {
+					const day = timestampStartOfDay(ts);
+					byDay[day] = {
+						freeFloat: freeFloatRatios[ts] ?? byDay[day]?.freeFloat ?? 0,
+						supply: supplyRatios[ts] ?? byDay[day]?.supply ?? 0,
+					};
+				}
 
 				let migratedCount = 0;
-				for (const timestamp of timestamps) {
-					const ts = BigInt(timestamp);
-					const freeFloat = freeFloatRatios[timestamp] || 0;
-					const supply = supplyRatios[timestamp] || 0;
-
+				for (const [day, { freeFloat, supply }] of Object.entries(byDay)) {
 					try {
 						await prisma.priceHistoryRatio.upsert({
-							where: { timestamp: ts },
-							create: {
-								timestamp: ts,
-								collateralRatioByFreeFloat: freeFloat,
-								collateralRatioBySupply: supply,
-								cachedAt: new Date(),
-							},
-							update: {
-								collateralRatioByFreeFloat: freeFloat,
-								collateralRatioBySupply: supply,
-								updatedAt: new Date(),
-							},
+							where: { timestamp: BigInt(day) },
+							create: { timestamp: BigInt(day), collateralRatioByFreeFloat: freeFloat, collateralRatioBySupply: supply },
+							update: { collateralRatioByFreeFloat: freeFloat, collateralRatioBySupply: supply },
 						});
 						migratedCount++;
 					} catch (err) {
@@ -156,14 +142,14 @@ async function migrate() {
 					}
 				}
 
-				console.log(`   ✅ Migrated price history ratio (${migratedCount} timestamp entries)`);
+				console.log(`   ✅ Migrated price history ratio (${migratedCount} daily entries)`);
 			} else {
 				console.log(`   ⚠️  No price ratio found or error: ${priceRatio.messageError}`);
 			}
 		} catch (error) {
 			console.log(`   ❌ Failed to migrate price ratio: ${error.message}`);
 		}
-
+		/*
 		// ========================================
 		// 4. Migrate Telegram Groups
 		// ========================================
@@ -223,36 +209,14 @@ async function migrate() {
 					}
 				}
 				console.log(`   ✅ Migrated ${migratedCount} telegram groups`);
-
-				// Migrate ignore list
-				let ignore = [];
-				if (data.ignore && Array.isArray(data.ignore)) {
-					ignore = data.ignore;
-				}
-
-				let ignoredCount = 0;
-				for (const item of ignore) {
-					try {
-						const chatId = typeof item === 'string' ? item : item.chatId || item.id;
-						if (!chatId) continue;
-
-						await prisma.telegramIgnore.upsert({
-							where: { chatId: String(chatId) },
-							create: { chatId: String(chatId) },
-							update: {},
-						});
-						ignoredCount++;
-					} catch (err) {
-						// Skip errors
-					}
-				}
-				console.log(`   ✅ Migrated ${ignoredCount} ignored chats`);
 			} else {
 				console.log(`   ⚠️  No telegram data found or error: ${telegramData.messageError}`);
 			}
 		} catch (error) {
 			console.log(`   ❌ Failed to migrate telegram data: ${error.message}`);
 		}
+
+		*/
 
 		// ========================================
 		// 5. Migrate Ecosystem Supply
@@ -264,17 +228,21 @@ async function migrate() {
 				const data = ecosystemSupply.data as Record<string, any>;
 
 				// Data is organized by timestamp: {<timestamp>: {created, supply, allocation}}
-				const timestampCount = Object.keys(data).length;
+				let migratedCount = 0;
+				for (const [timestamp, entry] of Object.entries(data)) {
+					try {
+						await prisma.ecosystemSupply.upsert({
+							where: { timestamp: BigInt(timestamp) },
+							create: { timestamp: BigInt(timestamp), data: entry },
+							update: { data: entry },
+						});
+						migratedCount++;
+					} catch (err) {
+						// Skip errors
+					}
+				}
 
-				// Store entire object as single JSON entry
-				await prisma.ecosystemSupply.create({
-					data: {
-						data: data,
-						cachedAt: new Date(),
-					},
-				});
-
-				console.log(`   ✅ Migrated ecosystem supply (${timestampCount} timestamp entries)`);
+				console.log(`   ✅ Migrated ecosystem supply (${migratedCount} timestamp entries)`);
 			} else {
 				console.log(`   ⚠️  No ecosystem supply found or error: ${ecosystemSupply.messageError}`);
 			}

@@ -7,7 +7,7 @@ import { Address } from 'viem';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PositionsService } from 'positions/positions.service';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
-import { formatFloat } from 'utils/format';
+import { formatFloat, timestampStartOfDay } from 'utils/format';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { VIEM_CONFIG } from 'api.config';
 import { mainnet } from 'viem/chains';
@@ -126,81 +126,51 @@ export class PricesHistoryService {
 		}
 	}
 
-	async writeBackupHistoryQuery() {
+	async writeBackupHistoryQuery({ timestamp, mapping }: { timestamp: string; mapping: PriceHistoryQueryObjectArray }) {
 		if (!this.prisma.isEnabled()) {
 			return;
 		}
 
 		try {
-			// Get all unique timestamps across all addresses
-			const timestamps = new Set<number>();
-			for (const entry of Object.values(this.fetchedHistory)) {
-				for (const ts of Object.keys(entry.history)) {
-					timestamps.add(Number(ts));
-				}
+			const prices: { [address: string]: number } = {};
+			for (const [address, entry] of Object.entries(mapping)) {
+				const price = entry.history[timestamp];
+				if (price !== undefined) prices[address] = price;
 			}
 
-			// Write each timestamp as a separate row
-			for (const timestamp of timestamps) {
-				const prices: { [address: string]: number } = {};
+			await this.prisma.priceHistory.upsert({
+				where: { timestamp: BigInt(timestamp) },
+				create: { timestamp: BigInt(timestamp), prices },
+				update: { prices },
+			});
 
-				// Collect all prices for this timestamp
-				for (const [address, entry] of Object.entries(this.fetchedHistory)) {
-					if (entry.history[timestamp] !== undefined) {
-						prices[address] = entry.history[timestamp];
-					}
-				}
-
-				// Upsert the record
-				await this.prisma.priceHistory.upsert({
-					where: { timestamp: BigInt(timestamp) },
-					create: {
-						timestamp: BigInt(timestamp),
-						prices: prices,
-					},
-					update: {
-						prices: prices,
-					},
-				});
-			}
-
-			this.logger.log(`Price history backup stored to database (${timestamps.size} timestamps)`);
+			this.logger.log(`Price history backup stored to database (timestamp: ${timestamp}, ${Object.keys(prices).length} entries)`);
 		} catch (error) {
 			this.logger.error('Failed to write price history to database', error);
 		}
 	}
 
-	async writeBackupHistoryRatio() {
+	async writeBackupHistoryRatio({
+		timestamp,
+		collateralRatioByFreeFloat,
+		collateralRatioBySupply,
+	}: {
+		timestamp: string;
+		collateralRatioByFreeFloat: number;
+		collateralRatioBySupply: number;
+	}) {
 		if (!this.prisma.isEnabled()) {
 			return;
 		}
 
 		try {
-			// Write all ratio entries
-			const timestamps = Object.keys(this.fetchedHistoryRatio.collateralRatioByFreeFloat);
+			await this.prisma.priceHistoryRatio.upsert({
+				where: { timestamp: BigInt(timestamp) },
+				create: { timestamp: BigInt(timestamp), collateralRatioByFreeFloat, collateralRatioBySupply },
+				update: { collateralRatioByFreeFloat, collateralRatioBySupply },
+			});
 
-			for (const ts of timestamps) {
-				const timestamp = Number(ts);
-				const freeFloat = this.fetchedHistoryRatio.collateralRatioByFreeFloat[timestamp];
-				const supply = this.fetchedHistoryRatio.collateralRatioBySupply[timestamp];
-
-				if (freeFloat === undefined || supply === undefined) continue;
-
-				await this.prisma.priceHistoryRatio.upsert({
-					where: { timestamp: BigInt(timestamp) },
-					create: {
-						timestamp: BigInt(timestamp),
-						collateralRatioByFreeFloat: freeFloat,
-						collateralRatioBySupply: supply,
-					},
-					update: {
-						collateralRatioByFreeFloat: freeFloat,
-						collateralRatioBySupply: supply,
-					},
-				});
-			}
-
-			this.logger.log(`Ratio history backup stored to database (${timestamps.length} timestamps)`);
+			this.logger.log(`Ratio history backup stored to database (timestamp: ${timestamp})`);
 		} catch (error) {
 			this.logger.error('Failed to write ratio history to database', error);
 		}
@@ -231,7 +201,7 @@ export class PricesHistoryService {
 
 	@Cron(CronExpression.EVERY_HOUR)
 	async updateHistory() {
-		const timestamp = Date.now();
+		const timestamp = Number(timestampStartOfDay(Date.now()));
 		await this.updateHistoryPrices({ timestamp });
 		await this.updateHistoryRatio({ timestamp });
 	}
@@ -239,8 +209,8 @@ export class PricesHistoryService {
 	async updateHistoryPrices({ timestamp }: { timestamp: number }) {
 		this.logger.debug('Updating History Prices');
 
-		const prices = this.prices.getPricesMapping();
-		const coll = Object.values(prices);
+		const pricesMapping = this.prices.getPricesMapping();
+		const coll = Object.values(pricesMapping);
 
 		if (!coll || coll.length == 0) return;
 
@@ -253,35 +223,35 @@ export class PricesHistoryService {
 
 			if (!oldEntry) {
 				this.logger.debug(`History for ${erc.name} not available, trying to fetch`);
-				const data = await this.fetchSources(prices, erc);
+				const price = await this.fetchSources(pricesMapping, erc);
 
-				if (data != null) {
+				if (price != null) {
 					updatesCnt += 1;
 					pricesQuery[addr] = {
 						...erc,
 						timestamp,
 						price: {
-							chf: data,
+							chf: price,
 						},
 						history: {
-							[timestamp]: data,
+							[timestamp]: price,
 						},
 					};
 				}
 			} else {
 				// needs to update => try to fetch
 				this.logger.debug(`History for ${erc.name} out of date, trying to fetch`);
-				const data = await this.fetchSources(prices, erc);
+				const price = await this.fetchSources(pricesMapping, erc);
 
-				if (data != null) {
+				if (price != null) {
 					updatesCnt += 1;
 					pricesQuery[addr] = {
 						...oldEntry,
 						timestamp,
 						price: {
-							chf: data,
+							chf: price,
 						},
-						history: { ...oldEntry.history, [timestamp]: data },
+						history: { ...oldEntry.history, [timestamp]: price },
 					};
 				}
 			}
@@ -291,7 +261,7 @@ export class PricesHistoryService {
 		this.fetchedHistory = { ...this.fetchedHistory, ...pricesQuery };
 
 		if (updatesCnt > 0) {
-			await this.writeBackupHistoryQuery();
+			await this.writeBackupHistoryQuery({ timestamp: String(timestamp), mapping: pricesQuery });
 		}
 	}
 
@@ -334,16 +304,23 @@ export class PricesHistoryService {
 			return a + (b.minted * b.marketPrice) / b.liqPrice;
 		}, 0);
 
+		const ratioBySupply = collMul / supply;
+		const ratioByFreeFloat = collMul / (supply - reserve);
+
 		this.fetchedHistoryRatio.timestamp = timestamp;
 		this.fetchedHistoryRatio.collateralRatioBySupply = {
 			...this.fetchedHistoryRatio.collateralRatioBySupply,
-			[timestamp]: collMul / supply,
+			[timestamp]: ratioBySupply,
 		};
 		this.fetchedHistoryRatio.collateralRatioByFreeFloat = {
 			...this.fetchedHistoryRatio.collateralRatioByFreeFloat,
-			[timestamp]: collMul / (supply - reserve),
+			[timestamp]: ratioByFreeFloat,
 		};
 
-		this.writeBackupHistoryRatio();
+		this.writeBackupHistoryRatio({
+			timestamp: String(timestamp),
+			collateralRatioByFreeFloat: ratioByFreeFloat,
+			collateralRatioBySupply: ratioBySupply,
+		});
 	}
 }

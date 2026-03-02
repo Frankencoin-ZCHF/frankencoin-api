@@ -24,3 +24,11 @@ export function formatFloat(value: bigint, digits: number = 18) {
 export function normalizeAddress(addr: string): Address {
 	return addr.toLowerCase() as Address;
 }
+
+export function timestampToSeconds(ms: number | string) {
+	return String(Math.floor(Number(ms) / 1000));
+}
+
+export function timestampStartOfDay(ms: number | string) {
+	return String(Number(ms) - (Number(ms) % 86_400_000));
+}
