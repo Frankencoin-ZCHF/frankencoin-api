@@ -149,7 +149,6 @@ async function migrate() {
 		} catch (error) {
 			console.log(`   ❌ Failed to migrate price ratio: ${error.message}`);
 		}
-		/*
 		// ========================================
 		// 4. Migrate Telegram Groups
 		// ========================================
@@ -159,64 +158,44 @@ async function migrate() {
 			if (!telegramData.messageError && telegramData.data) {
 				const data = telegramData.data as any;
 
-				console.log(`   📋 Telegram data structure: ${JSON.stringify(Object.keys(data)).substring(0, 100)}`);
+				// Build chatId -> subscriptions map
+				// groups[] contains all chatIds; subscription["/Topic"].groups[] contains subscribed chatIds
+				const groupMap: Record<string, Record<string, boolean>> = {};
 
-				// Migrate groups - handle both old and new format
-				let groups = [];
-				if (data.groups && Array.isArray(data.groups)) {
-					groups = data.groups;
-				} else if (Array.isArray(data)) {
-					// Data might be directly an array
-					groups = data;
-				} else if (data.subscription && typeof data.subscription === 'object') {
-					// Old format: subscription object with chatIds as keys
-					groups = Object.entries(data.subscription).map(([chatId, subscriptions]) => ({
-						chatId,
-						subscriptions,
-					}));
+				for (const chatId of data.groups as string[]) {
+					groupMap[chatId] = {};
 				}
 
-				console.log(`   📊 Found ${groups.length} groups to migrate`);
+				for (const [topic, value] of Object.entries(data.subscription as Record<string, { groups: string[] }>)) {
+					const key = topic.replace('/', ''); // "/MintingUpdates" -> "MintingUpdates"
+					for (const chatId of value.groups) {
+						if (groupMap[chatId]) groupMap[chatId][key] = true;
+					}
+				}
+
+				console.log(`   📊 Found ${Object.keys(groupMap).length} groups to migrate`);
 
 				let migratedCount = 0;
-				for (const group of groups) {
+				for (const [chatId, subscriptions] of Object.entries(groupMap)) {
 					try {
-						// Handle different property names
-						const chatId = group.chatId || group.id || group.chat_id || String(group);
-
-						if (!chatId) {
-							console.log(`   ⚠️  Skipping group with no chatId: ${JSON.stringify(group).substring(0, 50)}`);
-							continue;
-						}
-
 						await prisma.telegramGroup.upsert({
-							where: { chatId: String(chatId) },
-							create: {
-								chatId: String(chatId),
-								title: group.title || group.name || null,
-								subscriptions: group.subscriptions || {},
-								createdAt: new Date(),
-							},
-							update: {
-								title: group.title || group.name || null,
-								subscriptions: group.subscriptions || {},
-								updatedAt: new Date(),
-							},
+							where: { chatId },
+							create: { chatId, subscriptions },
+							update: { subscriptions },
 						});
 						migratedCount++;
 					} catch (err) {
-						console.log(`   ⚠️  Failed to migrate group: ${err.message.substring(0, 100)}`);
+						console.log(`   ⚠️  Failed to migrate group ${chatId}: ${err.message.substring(0, 100)}`);
 					}
 				}
-				console.log(`   ✅ Migrated ${migratedCount} telegram groups`);
+
+				console.log(`   ✅ Migrated telegram groups (${migratedCount} entries)`);
 			} else {
 				console.log(`   ⚠️  No telegram data found or error: ${telegramData.messageError}`);
 			}
 		} catch (error) {
 			console.log(`   ❌ Failed to migrate telegram data: ${error.message}`);
 		}
-
-		*/
 
 		// ========================================
 		// 5. Migrate Ecosystem Supply
