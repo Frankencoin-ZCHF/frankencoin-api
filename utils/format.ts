@@ -1,3 +1,5 @@
+import { Address } from 'viem';
+
 export const formatCurrency = (value: string | number, minimumFractionDigits = 0, maximumFractionDigits = 2) => {
 	const amount = typeof value === 'string' ? parseFloat(value) : value;
 
@@ -17,4 +19,8 @@ export const formatCurrency = (value: string | number, minimumFractionDigits = 0
 
 export function formatFloat(value: bigint, digits: number = 18) {
 	return parseInt(value.toString()) / 10 ** digits;
+}
+
+export function normalizeAddress(addr: string): Address {
+	return addr.toLowerCase() as Address;
 }

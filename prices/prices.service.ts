@@ -25,6 +25,7 @@ import { getEndOfYearPrice } from './yearly.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ContractBlacklist, ContractWhitelist } from './prices.mgm';
 import { getChain } from 'utils/func-helper';
+import { normalizeAddress } from 'utils/format';
 
 @Injectable()
 export class PricesService {
@@ -215,12 +216,14 @@ export class PricesService {
 
 	async fetchPriceSources(erc: ERC20Info): Promise<{ price: PriceQueryCurrencies; source: PriceSource } | null> {
 		// Priority 1: Custom overwrite (e.g., Frankencoin Pool Share)
-		if (erc.address.toLowerCase() === ADDRESS[mainnet.id].equity.toLowerCase()) {
+		if (normalizeAddress(erc.address) === normalizeAddress(ADDRESS[mainnet.id].equity)) {
 			const priceInChf = this.fps.getEcosystemFpsInfo()?.token?.price;
 			const zchfAddress = ADDRESS[mainnet.id].frankencoin.toLowerCase();
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice || !priceInChf) return null;
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
+		} else if (normalizeAddress(erc.address) === normalizeAddress('0x553C7f9C780316FC1D34b8e14ac2465Ab22a090B')) {
+			return { price: { usd: 1.97 }, source: 'custom' };
 		}
 
 		// Priority: The Graph
