@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from 'database/prisma.service';
 import { CONFIG } from 'api.config';
 
 export interface IndexerStatus {
@@ -20,7 +19,6 @@ export interface IndexerStatus {
  * - Checks indexer status endpoints
  * - Detects when indexer is reindexing (block height decreasing)
  * - Tracks consecutive failures and recovery
- * - Persists health status to database (if enabled)
  * - Provides health determination for failover logic
  */
 @Injectable()
@@ -29,7 +27,7 @@ export class IndexerHealthService {
 	private primaryHealth: IndexerStatus | null = null;
 	private backupHealth: IndexerStatus | null = null;
 
-	constructor(private readonly prisma: PrismaService) {}
+	constructor() {}
 
 	/**
 	 * Check health of an indexer
@@ -92,9 +90,6 @@ export class IndexerHealthService {
 			this.backupHealth = status;
 		}
 
-		// Persist to database (if enabled)
-		await this.persistHealthStatus(status, indexerType);
-
 		return status;
 	}
 
@@ -148,43 +143,5 @@ export class IndexerHealthService {
 			backup: this.backupHealth,
 			currentSource: this.determineDataSource(),
 		};
-	}
-
-	/**
-	 * Persist health status to database
-	 */
-	private async persistHealthStatus(status: IndexerStatus, indexerType: 'primary' | 'backup'): Promise<void> {
-		if (!this.prisma.isEnabled()) {
-			return;
-		}
-
-		try {
-			await this.prisma.indexerHealth.upsert({
-				where: { indexerUrl: status.url },
-				create: {
-					indexerUrl: status.url,
-					indexerType,
-					chainId: 1, // mainnet
-					blockNumber: status.blockNumber,
-					blockTimestamp: status.blockTimestamp,
-					isHealthy: status.isHealthy,
-					lastCheckedAt: status.lastCheckedAt,
-					lastSuccessAt: status.isHealthy ? status.lastCheckedAt : null,
-					lastFailureAt: !status.isHealthy ? status.lastCheckedAt : null,
-					consecutiveFailures: status.consecutiveFailures,
-				},
-				update: {
-					blockNumber: status.blockNumber,
-					blockTimestamp: status.blockTimestamp,
-					isHealthy: status.isHealthy,
-					lastCheckedAt: status.lastCheckedAt,
-					lastSuccessAt: status.isHealthy ? status.lastCheckedAt : undefined,
-					lastFailureAt: !status.isHealthy ? status.lastCheckedAt : undefined,
-					consecutiveFailures: status.consecutiveFailures,
-				},
-			});
-		} catch (error) {
-			this.logger.error('Failed to persist indexer health status', error);
-		}
 	}
 }
