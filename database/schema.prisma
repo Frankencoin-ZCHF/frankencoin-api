@@ -19,23 +19,12 @@ datasource db {
 
 // Telegram group subscriptions and state
 model TelegramGroup {
-  id            String   @id @default(uuid())
-  chatId        String   @unique
-  title         String?
+  chatId        String   @id
   subscriptions Json     // { MintingUpdates: true, PriceAlerts: true, ... }
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([chatId])
   @@map("telegram_groups")
-}
-
-model TelegramIgnore {
-  id        String   @id @default(uuid())
-  chatId    String   @unique
-  createdAt DateTime @default(now())
-
-  @@map("telegram_ignore")
 }
 
 // Price query cache (current prices) - one row per token address
@@ -50,35 +39,28 @@ model PriceCache {
 // Price history - one row per timestamp
 // Data structure: {<address>: price_chf, <address>: price_chf, ...}
 model PriceHistory {
-  id        String   @id @default(uuid())
-  timestamp BigInt   @unique
+  timestamp BigInt   @id
   prices    Json     // Simple mapping: {[address]: price_chf}
-  cachedAt  DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([timestamp])
   @@map("price_history")
 }
 
 // Price history ratio - one row per timestamp
 model PriceHistoryRatio {
-  id                          String   @id @default(uuid())
-  timestamp                   BigInt   @unique
+  timestamp                   BigInt   @id
   collateralRatioByFreeFloat  Float
   collateralRatioBySupply     Float
-  cachedAt                    DateTime @default(now())
   updatedAt                   DateTime @updatedAt
 
-  @@index([timestamp])
   @@map("price_history_ratio")
 }
 
 // Ecosystem total supply history
 // Data structure: {<timestamp>: {created, supply, allocation: {<chainId>: amount}}}
 model EcosystemSupply {
-  id        String   @id @default(uuid())
+  timestamp BigInt   @id
   data      Json     // Complete supply history object keyed by timestamp
-  cachedAt  DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("ecosystem_supply")

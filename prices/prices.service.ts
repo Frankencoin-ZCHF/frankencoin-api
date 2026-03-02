@@ -46,12 +46,15 @@ export class PricesService {
 	async readBackupPriceQuery() {
 		this.logger.log('Reading backup PriceQueryObject from database');
 
-		const cached = (await this.prisma.safeExecute(() => this.prisma.priceCache.findMany())) as any[];
+		const data = (await this.prisma.safeExecute(() => this.prisma.priceCache.findMany())) as any[];
 
-		if (cached?.length > 0) {
+		if (data?.length > 0) {
 			const prices: PriceQueryObjectArray = {};
-			for (const entry of cached) {
-				if (ContractBlacklist.includes(entry.address)) continue;
+			for (const entry of data) {
+				if (ContractBlacklist.includes(entry.address)) {
+					await this.prisma.priceCache.delete({ where: { address: entry.address } });
+					continue;
+				}
 				prices[entry.address] = entry.data as any;
 			}
 			this.fetchedPrices = { ...prices };
@@ -63,13 +66,12 @@ export class PricesService {
 
 	async writeBackupPriceQuery() {
 		await this.prisma.safeExecute(async () => {
-			const updatedAt = new Date();
 			const allEntries = Object.entries(this.fetchedPrices);
 			for (const [address, data] of allEntries) {
 				await this.prisma.priceCache.upsert({
 					where: { address },
-					create: { address, data, updatedAt },
-					update: { data, updatedAt },
+					create: { address, data },
+					update: { data },
 				});
 			}
 			this.logger.log(`PriceQueryObject backup stored in database (${allEntries.length} entries)`);
