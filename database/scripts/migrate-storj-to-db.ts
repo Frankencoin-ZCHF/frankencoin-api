@@ -230,10 +230,6 @@ async function migrate() {
 		}
 
 		console.log('\n✨ Migration completed successfully!');
-		console.log('\n📝 Summary:');
-		console.log('   - Price data migrated to price_cache, price_history, price_history_ratio tables');
-		console.log('   - Telegram data migrated to telegram_groups, telegram_ignore tables');
-		console.log('   - Ecosystem supply migrated to ecosystem_supply table');
 		console.log('\n💡 Note: Original Storj data is preserved. You can remove STORJ_* env vars after verification.');
 	} catch (error) {
 		console.error('\n❌ Migration failed:', error);
