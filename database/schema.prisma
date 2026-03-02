@@ -38,11 +38,10 @@ model TelegramIgnore {
   @@map("telegram_ignore")
 }
 
-// Price query cache (current prices)
+// Price query cache (current prices) - one row per token address
 model PriceCache {
-  id        String   @id @default(uuid())
-  data      Json     // PriceQueryObjectArray
-  cachedAt  DateTime @default(now())
+  address   String   @id  // token address (lowercase)
+  data      Json     // PriceQueryObject entry for this address
   updatedAt DateTime @updatedAt
 
   @@map("price_cache")

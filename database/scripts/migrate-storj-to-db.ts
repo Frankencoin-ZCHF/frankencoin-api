@@ -35,19 +35,26 @@ async function migrate() {
 		try {
 			const prices = await storj.read('/prices.query.json');
 			if (!prices.messageError && prices.data) {
-				await prisma.priceCache.create({
-					data: {
-						data: prices.data,
-						cachedAt: new Date(),
-					},
-				});
-				console.log('   ✅ Migrated current prices');
+				const entries = Object.entries(prices.data as Record<string, any>);
+				let migratedCount = 0;
+				for (const [address, data] of entries) {
+					await prisma.priceCache.upsert({
+						where: { address },
+						create: { address, data },
+						update: { data },
+					});
+					migratedCount++;
+					console.log(`   Migrated: ${address}`);
+				}
+				console.log(`   ✅ Migrated current prices (${migratedCount} entries)`);
 			} else {
 				console.log(`   ⚠️  No price data found or error: ${prices.messageError}`);
 			}
 		} catch (error) {
 			console.log(`   ❌ Failed to migrate prices: ${error.message}`);
 		}
+
+		return;
 
 		// ========================================
 		// 2. Migrate Price History
