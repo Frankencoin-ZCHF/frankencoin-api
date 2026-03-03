@@ -222,17 +222,18 @@ export class PricesService {
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice || !priceInChf) return null;
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
-		} else if (normalizeAddress(erc.address) === normalizeAddress('0x553C7f9C780316FC1D34b8e14ac2465Ab22a090B')) {
-			return { price: { usd: 1.97 }, source: 'custom' };
 		}
-
-		// Priority: The Graph
-		const thegraphPrice = await this.fetchPriceTheGraph(erc);
-		if (thegraphPrice) return { price: thegraphPrice, source: 'thegraph' };
+		// else if (normalizeAddress(erc.address) === normalizeAddress('0x553C7f9C780316FC1D34b8e14ac2465Ab22a090B')) {
+		// 	return { price: { usd: 1.97 }, source: 'custom' };
+		// }
 
 		// Priority: DeFiLlama
 		const defillamaPrice = await this.fetchPriceDefillama(erc);
 		if (defillamaPrice) return { price: defillamaPrice, source: 'defillama' };
+
+		// Priority: The Graph
+		const thegraphPrice = await this.fetchPriceTheGraph(erc);
+		if (thegraphPrice) return { price: thegraphPrice, source: 'thegraph' };
 
 		// Priority: CoinGecko
 		const coingeckoPrice = await this.fetchPriceCoingecko(erc);
@@ -345,6 +346,12 @@ export class PricesService {
 
 		if (updatesCnt > 0) this.logger.log(`Prices merging, ${fromNewStr}, ${fromUpdateStr}`);
 		this.fetchedPrices = { ...this.fetchedPrices, ...pricesQuery };
+
+		Object.values(this.fetchedPrices).forEach((i) => {
+			if (ContractBlacklist.includes(normalizeAddress(i.address))) {
+				delete this.fetchedPrices[normalizeAddress(i.address)];
+			}
+		});
 
 		if (pricesQueryUpdateCount > pricesQueryUpdateCountFailed || pricesQueryNewCount > pricesQueryNewCountFailed) {
 			this.writeBackupPriceQuery();
