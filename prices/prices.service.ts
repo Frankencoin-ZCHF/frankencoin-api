@@ -223,9 +223,6 @@ export class PricesService {
 			if (!zchfPrice || !priceInChf) return null;
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
 		}
-		// else if (normalizeAddress(erc.address) === normalizeAddress('0x553C7f9C780316FC1D34b8e14ac2465Ab22a090B')) {
-		// 	return { price: { usd: 1.97 }, source: 'custom' };
-		// }
 
 		// Priority: DeFiLlama
 		const defillamaPrice = await this.fetchPriceDefillama(erc);

@@ -58,8 +58,7 @@ export class TelegramService {
 			leadrateProposal: this.startUpTime,
 			leadrateChanged: this.startUpTime,
 			positions: this.startUpTime,
-			positionsExpiringSoon7: this.startUpTime,
-			positionsExpiringSoon3: this.startUpTime,
+			positionsExpiringSoon1: this.startUpTime,
 			positionsExpired: this.startUpTime,
 			positionsPriceAlert: new Map(),
 			mintingUpdates: this.startUpTime,
@@ -219,32 +218,17 @@ export class TelegramService {
 			}
 		}
 
-		// Positions expiring soon (7 days)
-		const expiringSoonPosition7 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
-			const stateDate = new Date(this.telegramState.positionsExpiringSoon7).getTime();
-			const warningDays = 7 * 24 * 60 * 60 * 1000;
+		// Positions expiring soon (24 hours)
+		const expiringSoonPosition1 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
+			const stateDate = new Date(this.telegramState.positionsExpiringSoon1).getTime();
+			const warningDays = 1 * 24 * 60 * 60 * 1000;
 			const isSoon = p.expiration * 1000 < Date.now() + warningDays;
 			const isNew = isSoon && stateDate + warningDays < p.expiration * 1000;
 			return isSoon && isNew;
 		});
-		if (expiringSoonPosition7.length > 0) {
-			this.telegramState.positionsExpiringSoon7 = Date.now();
-			for (const p of expiringSoonPosition7) {
-				this.sendMessageAll(PositionExpiringSoonMessage(p));
-			}
-		}
-
-		// Positions expiring soon (3 days)
-		const expiringSoonPosition3 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
-			const stateDate = new Date(this.telegramState.positionsExpiringSoon3).getTime();
-			const warningDays = 3 * 24 * 60 * 60 * 1000;
-			const isSoon = p.expiration * 1000 < Date.now() + warningDays;
-			const isNew = isSoon && stateDate + warningDays < p.expiration * 1000;
-			return isSoon && isNew;
-		});
-		if (expiringSoonPosition3.length > 0) {
-			this.telegramState.positionsExpiringSoon3 = Date.now();
-			for (const p of expiringSoonPosition3) {
+		if (expiringSoonPosition1.length > 0) {
+			this.telegramState.positionsExpiringSoon1 = Date.now();
+			for (const p of expiringSoonPosition1) {
 				this.sendMessageAll(PositionExpiringSoonMessage(p));
 			}
 		}
@@ -273,7 +257,6 @@ export class TelegramService {
 
 		// Position Price Warning
 		Object.values(this.position.getPositionsOpen().map).forEach((p) => {
-			if (p.collateralSymbol == "GEM") return;
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%
