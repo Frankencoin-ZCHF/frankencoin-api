@@ -31,6 +31,7 @@ import { normalizeAddress } from 'utils/format';
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly storjPath: string = '/prices.query.json';
+	private fetchedAt: number = 0;
 	private fetchedPrices: PriceQueryObjectArray = {};
 	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
 
@@ -202,6 +203,7 @@ export class PricesService {
 			case normalizeAddress('0x553C7f9C780316FC1D34b8e14ac2465Ab22a090B'): // REALU
 			case normalizeAddress('0x2E880962A9609aA3eab4DEF919FE9E917E99073B'): // BOSS
 			case normalizeAddress('0x8747a3114Ef7f0eEBd3eB337F745E31dBF81a952'): // DQTS
+			case normalizeAddress('0x343324F53CBEEE3Ee6d171f2a20F005964C98047'): // LENDS
 				return null;
 		}
 
@@ -294,6 +296,11 @@ export class PricesService {
 	}
 
 	async updatePrices() {
+		const now = Date.now();
+
+		if (this.fetchedAt + 60000 > now) return;
+		this.fetchedAt = now;
+
 		this.logger.debug('Updating Prices');
 
 		const fps = this.getFps();
