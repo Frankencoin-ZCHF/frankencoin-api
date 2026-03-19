@@ -197,6 +197,14 @@ export class PricesService {
 	async fetchPriceCoingecko(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const url = `/api/v3/simple/token_price/ethereum?contract_addresses=${erc.address}&vs_currencies=usd`;
 
+		// ignore tokens
+		switch (normalizeAddress(erc.address)) {
+			case normalizeAddress('0x553C7f9C780316FC1D34b8e14ac2465Ab22a090B'): // REALU
+			case normalizeAddress('0x2E880962A9609aA3eab4DEF919FE9E917E99073B'): // BOSS
+			case normalizeAddress('0x8747a3114Ef7f0eEBd3eB337F745E31dBF81a952'): // DQTS
+				return null;
+		}
+
 		try {
 			const data = await (await COINGECKO_CLIENT(url)).json();
 			if (data.status) {
