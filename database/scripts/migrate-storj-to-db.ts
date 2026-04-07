@@ -17,7 +17,7 @@
 import { PrismaClient } from '@prisma/client';
 import { Storj } from '../../storj/storj.s3.service';
 import * as dotenv from 'dotenv';
-import { timestampStartOfDay } from '../../utils/format';
+import { normalizeAddress, timestampStartOfDay } from '../../utils/format';
 
 // Load environment variables
 dotenv.config();
@@ -78,7 +78,7 @@ async function migrate() {
 						if (!timestampPrices[timestampDay]) {
 							timestampPrices[timestampDay] = {};
 						}
-						timestampPrices[timestampDay][address.toLowerCase()] = price as number;
+						timestampPrices[timestampDay][normalizeAddress(address)] = price as number;
 					}
 				}
 

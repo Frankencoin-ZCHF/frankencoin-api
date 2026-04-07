@@ -2,7 +2,8 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SavingsCoreService } from './savings.core.service';
 import { ApiSavingsActivity, ApiSavingsBalance, ApiSavingsInfo, ApiSavingsRanked } from './savings.core.types';
-import { Address, isAddress, zeroAddress } from 'viem';
+import { isAddress, zeroAddress } from 'viem';
+import { normalizeAddress } from 'utils/format';
 
 @ApiTags('Savings Controller')
 @Controller('savings/core')
@@ -229,7 +230,7 @@ export class SavingsCoreController {
 	})
 	async getBalanceAccount(@Param('account') account: string): Promise<ApiSavingsBalance> {
 		if (!isAddress(account)) account = zeroAddress;
-		return await this.savings.getBalance(account.toLowerCase() as Address);
+		return await this.savings.getBalance(normalizeAddress(account));
 	}
 
 	@Get('activity/:account')
@@ -310,6 +311,6 @@ export class SavingsCoreController {
 	})
 	async getActivityAccount(@Param('account') account: string): Promise<ApiSavingsActivity> {
 		if (!isAddress(account)) account = zeroAddress;
-		return await this.savings.getActivity(account.toLowerCase() as Address);
+		return await this.savings.getActivity(normalizeAddress(account));
 	}
 }

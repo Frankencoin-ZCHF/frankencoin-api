@@ -10,7 +10,7 @@ import {
 	SavingsReferrerMapping,
 	SavingsReferrerMappingQuery,
 } from './savings.referrer.types';
-import { formatFloat } from 'utils/format';
+import { formatFloat, normalizeAddress } from 'utils/format';
 
 @Injectable()
 export class SavingsReferrerService {
@@ -26,7 +26,7 @@ export class SavingsReferrerService {
 
 	async fetchReferrerMapping(referrer: Address): Promise<ApiSavingsReferrerMapping> {
 		this.logger.debug('Fetching savings referrer mapping');
-		referrer = referrer.toLowerCase() as Address;
+		referrer = normalizeAddress(referrer);
 
 		const response = await PONDER_CLIENT.query<{
 			savingsReferrerMappings: {
@@ -94,7 +94,7 @@ export class SavingsReferrerService {
 
 	async fetchReferrerEarnings(referrer: Address): Promise<ApiSavingsReferrerEarnings> {
 		this.logger.debug('Fetching savings referrer earnings');
-		referrer = referrer.toLowerCase() as Address;
+		referrer = normalizeAddress(referrer);
 
 		const response = await PONDER_CLIENT.query<{
 			savingsReferrerEarningss: {

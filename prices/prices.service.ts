@@ -113,8 +113,8 @@ export class PricesService {
 		const c: ERC20InfoObjectArray = {};
 
 		for (const p of pos) {
-			if (ContractBlacklist.includes(p.collateral.toLowerCase() as Address)) continue;
-			c[p.collateral.toLowerCase()] = {
+			if (ContractBlacklist.includes(normalizeAddress(p.collateral))) continue;
+			c[normalizeAddress(p.collateral)] = {
 				chainId: ChainMain.mainnet.id,
 				address: p.collateral,
 				name: p.collateralName,
@@ -124,7 +124,7 @@ export class PricesService {
 		}
 
 		for (const i of ContractWhitelist) {
-			c[i.address.toLowerCase()] = i;
+			c[normalizeAddress(i.address)] = i;
 		}
 
 		return c;
@@ -147,7 +147,7 @@ export class PricesService {
 	async fetchPriceTheGraph(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const url = `https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR`;
 		const query = `{
-			token(id: "${erc.address.toLowerCase()}") {
+			token(id: "${normalizeAddress(erc.address)}") {
 				priceUSD
 				priceCHF
 			}
@@ -191,12 +191,12 @@ export class PricesService {
 	async fetchPriceDefillama(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const chain = getChain(erc.chainId) as SupportedChain;
 		const chainName = chain.id === mainnet.id ? 'ethereum' : chain.name;
-		const url = `https://coins.llama.fi/prices/current/${chainName}:${erc.address.toLowerCase()}`;
+		const url = `https://coins.llama.fi/prices/current/${chainName}:${normalizeAddress(erc.address)}`;
 
 		try {
 			const response = await fetch(url);
 			const data = await response.json();
-			const coin = data?.coins?.[`${chainName}:${erc.address.toLowerCase()}`];
+			const coin = data?.coins?.[`${chainName}:${normalizeAddress(erc.address)}`];
 			if (!coin?.price) return null;
 
 			return { usd: Number(coin.price) };
@@ -239,7 +239,7 @@ export class PricesService {
 		// Priority 1: Custom overwrite (e.g., Frankencoin Pool Share)
 		if (normalizeAddress(erc.address) === normalizeAddress(ADDRESS[mainnet.id].equity)) {
 			const priceInChf = this.fps.getEcosystemFpsInfo()?.token?.price;
-			const zchfAddress = ADDRESS[mainnet.id].frankencoin.toLowerCase();
+			const zchfAddress = normalizeAddress(ADDRESS[mainnet.id].frankencoin);
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice || !priceInChf) return null;
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
@@ -262,7 +262,7 @@ export class PricesService {
 	}
 
 	async getOwnerValueLocked(owner: Address): Promise<ApiOwnerValueLocked> {
-		owner = owner.toLowerCase() as Address;
+		owner = normalizeAddress(owner);
 		const history = await this.positionsService.getOwnerHistory(owner);
 
 		const years = Object.keys(history).map((i) => Number(i));
@@ -276,12 +276,12 @@ export class PricesService {
 
 			let value = 0n;
 			for (const pos of positions) {
-				const updates = this.positionsService.getMintingUpdatesMapping().map[pos.toLowerCase() as Address] || [];
+				const updates = this.positionsService.getMintingUpdatesMapping().map[normalizeAddress(pos)] || [];
 				const itemsUntil = updates.filter((i) => i.created * 1000 < new Date(String(y + 1)).getTime());
 				const selected = itemsUntil.at(0);
 				if (selected != undefined) {
 					const isCurrentYear = new Date().getFullYear() == y;
-					const c = selected.collateral.toLowerCase() as Address;
+					const c = normalizeAddress(selected.collateral);
 					const d = selected.collateralDecimals;
 					const s = BigInt(selected.size);
 
@@ -328,7 +328,7 @@ export class PricesService {
 		let pricesQueryUpdateCountFailed: number = 0;
 
 		for (const erc of a) {
-			const addr = erc.address.toLowerCase() as Address;
+			const addr = normalizeAddress(erc.address);
 			const oldEntry = this.fetchedPrices[addr];
 
 			if (!oldEntry) {
@@ -381,7 +381,7 @@ export class PricesService {
 		}
 
 		// make chf conversion available
-		const frankencoin = ADDRESS[mainnet.id].frankencoin.toLowerCase();
+		const frankencoin = normalizeAddress(ADDRESS[mainnet.id].frankencoin);
 		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
 		for (const addr of Object.keys(this.fetchedPrices)) {
 			// break out if zchf price is not available

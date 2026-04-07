@@ -33,7 +33,9 @@
 		"prisma:push": "npx prisma db push --schema=./database/schema.prisma",
 		"prisma:reset": "npx prisma migrate reset --schema=./database/schema.prisma",
 		"migrate:storj": "ts-node database/scripts/migrate-storj-to-db.ts",
-		"verify:migration": "ts-node database/scripts/verify-migration.ts"
+		"verify:migration": "ts-node database/scripts/verify-migration.ts",
+		"infra:up": "docker stack deploy -c stack.testing.yml frankencoin-api",
+		"infra:down": "docker stack remove frankencoin-api"
 	},
 	"dependencies": {
 		"@apollo/client": "^3.10.5",

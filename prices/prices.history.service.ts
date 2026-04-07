@@ -7,7 +7,7 @@ import { Address } from 'viem';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PositionsService } from 'positions/positions.service';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
-import { formatFloat, timestampStartOfDay } from 'utils/format';
+import { formatFloat, normalizeAddress, timestampStartOfDay } from 'utils/format';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { VIEM_CONFIG } from 'api.config';
 import { mainnet } from 'viem/chains';
@@ -63,7 +63,7 @@ export class PricesHistoryService {
 				const prices = record.prices as { [address: string]: number };
 
 				for (const [address, price] of Object.entries(prices)) {
-					const addr = address.toLowerCase() as Address;
+					const addr = normalizeAddress(address);
 					if (!history[addr]) {
 						history[addr] = {
 							address: addr,
@@ -181,7 +181,7 @@ export class PricesHistoryService {
 	}
 
 	getHistoryByContract(contract: Address) {
-		return this.fetchedHistory[contract.toLowerCase()];
+		return this.fetchedHistory[normalizeAddress(contract)];
 	}
 
 	getRatio() {
@@ -189,7 +189,7 @@ export class PricesHistoryService {
 	}
 
 	async fetchSources(prices: PriceQueryObjectArray, erc: ERC20Info): Promise<number | null> {
-		const contract = erc.address.toLowerCase() as Address;
+		const contract = normalizeAddress(erc.address);
 
 		const data = prices[contract];
 		if (data == undefined || data.timestamp == 0) {
@@ -218,7 +218,7 @@ export class PricesHistoryService {
 		let updatesCnt: number = 0;
 
 		for (const erc of coll) {
-			const addr = erc.address.toLowerCase() as Address;
+			const addr = normalizeAddress(erc.address);
 			const oldEntry = this.fetchedHistory[addr];
 
 			if (!oldEntry) {
@@ -273,7 +273,7 @@ export class PricesHistoryService {
 		const positions = Object.values(this.positions.getPositionsOpen().map);
 
 		const positionData = positions.map((p) => {
-			const key = p.collateral.toLowerCase() as Address;
+			const key = normalizeAddress(p.collateral);
 			return {
 				minted: formatFloat(BigInt(p.minted), 18),
 				marketPrice: this.fetchedHistory[key].price?.chf || 0,
@@ -281,7 +281,7 @@ export class PricesHistoryService {
 			};
 		});
 
-		const stablecoinBridgeVCHF = ADDRESS[mainnet.id].stablecoinBridgeVCHF.toLowerCase() as Address;
+		const stablecoinBridgeVCHF = normalizeAddress(ADDRESS[mainnet.id].stablecoinBridgeVCHF);
 		const stablecoinBridges = [
 			{
 				minted: formatFloat(

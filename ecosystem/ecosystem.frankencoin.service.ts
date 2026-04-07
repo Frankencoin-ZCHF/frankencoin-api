@@ -16,7 +16,7 @@ import { PricesService } from 'prices/prices.service';
 import { EcosystemFpsService } from './ecosystem.fps.service';
 import { EcosystemCollateralService } from './ecosystem.collateral.service';
 import { ADDRESS, ChainId, SupportedChainIds, SupportedChains } from '@frankencoin/zchf';
-import { formatFloat } from 'utils/format';
+import { formatFloat, normalizeAddress } from 'utils/format';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Address, formatUnits } from 'viem';
 import { PrismaService } from 'database/prisma.service';
@@ -194,10 +194,10 @@ export class EcosystemFrankencoinService {
 		for (const i of d) {
 			// verify chainId with token address
 			if (i.chainId == 1) {
-				const a = ADDRESS[i.chainId].frankencoin.toLowerCase();
+				const a = normalizeAddress(ADDRESS[i.chainId].frankencoin);
 				if (a != i.token) continue;
 			} else {
-				const a = ADDRESS[i.chainId].ccipBridgedFrankencoin.toLowerCase();
+				const a = normalizeAddress(ADDRESS[i.chainId].ccipBridgedFrankencoin);
 				if (a != i.token) continue;
 			}
 

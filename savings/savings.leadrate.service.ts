@@ -12,6 +12,7 @@ import {
 } from './savings.leadrate.types';
 import { ADDRESS, ChainId } from '@frankencoin/zchf';
 import { Address } from 'viem';
+import { normalizeAddress } from 'utils/format';
 import { base, mainnet } from 'viem/chains';
 
 @Injectable()
@@ -79,10 +80,10 @@ export class SavingsLeadrateService {
 				const latestProposed = proposed[chain][module];
 				const isProposal = currentRate.approvedRate != latestProposed.nextRate;
 				const isPending = latestProposed.nextChange * 1000 >= Date.now();
-				const savingsReferral = ADDRESS[mainnet.id].savingsReferral.toLowerCase() as Address;
-				const bridgedSavingsBase = ADDRESS[base.id].ccipBridgedSavings.toLowerCase() as Address;
+				const savingsReferral = normalizeAddress(ADDRESS[mainnet.id].savingsReferral);
+				const bridgedSavingsBase = normalizeAddress(ADDRESS[base.id].ccipBridgedSavings);
 				const sideChainRate = rate[base.id][bridgedSavingsBase];
-				const isSynced = savingsReferral != module.toLowerCase() || currentRate.approvedRate == sideChainRate.approvedRate;
+				const isSynced = savingsReferral != normalizeAddress(module) || currentRate.approvedRate == sideChainRate.approvedRate;
 
 				// validate that it is an unsettled proposal
 				if (!isProposal && !isPending && isSynced) continue;

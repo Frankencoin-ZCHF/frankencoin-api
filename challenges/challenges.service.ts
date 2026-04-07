@@ -27,6 +27,7 @@ import {
 	ChallengesQueryStatus,
 } from './challenges.types';
 import { Address } from 'viem';
+import { normalizeAddress } from 'utils/format';
 import { ADDRESS, MintingHubV1ABI, MintingHubV2ABI } from '@frankencoin/zchf';
 import { mainnet } from 'viem/chains';
 
@@ -58,10 +59,10 @@ export class ChallengesService {
 	getChallengersMapping(): ApiChallengesChallengers {
 		const challengersMapping: ChallengesChallengersMapping = {};
 		for (const challenge of Object.values(this.fetchedChallengesMapping)) {
-			if (!challengersMapping[challenge.challenger.toLowerCase()]) {
-				challengersMapping[challenge.challenger.toLowerCase()] = [];
+			if (!challengersMapping[normalizeAddress(challenge.challenger)]) {
+				challengersMapping[normalizeAddress(challenge.challenger)] = [];
 			}
-			challengersMapping[challenge.challenger.toLowerCase()].push(challenge);
+			challengersMapping[normalizeAddress(challenge.challenger)].push(challenge);
 		}
 
 		return {
@@ -74,10 +75,10 @@ export class ChallengesService {
 	getChallengesPositions(): ApiChallengesPositions {
 		const positionsMapping: ChallengesPositionsMapping = {};
 		for (const challenge of Object.values(this.fetchedChallengesMapping)) {
-			if (!positionsMapping[challenge.position.toLowerCase()]) {
-				positionsMapping[challenge.position.toLowerCase()] = [];
+			if (!positionsMapping[normalizeAddress(challenge.position)]) {
+				positionsMapping[normalizeAddress(challenge.position)] = [];
 			}
-			positionsMapping[challenge.position.toLowerCase()].push(challenge);
+			positionsMapping[normalizeAddress(challenge.position)].push(challenge);
 		}
 
 		return {
@@ -120,10 +121,10 @@ export class ChallengesService {
 	getBidsBiddersMapping(): ApiBidsBidders {
 		const biddersMapping: BidsBidderMapping = {};
 		for (const bid of Object.values(this.fetchedBidsMapping)) {
-			if (!biddersMapping[bid.bidder.toLowerCase()]) {
-				biddersMapping[bid.bidder.toLowerCase()] = [];
+			if (!biddersMapping[normalizeAddress(bid.bidder)]) {
+				biddersMapping[normalizeAddress(bid.bidder)] = [];
 			}
-			biddersMapping[bid.bidder.toLowerCase()].push(bid);
+			biddersMapping[normalizeAddress(bid.bidder)].push(bid);
 		}
 
 		return {
@@ -137,7 +138,7 @@ export class ChallengesService {
 	getBidsChallengesMapping(): ApiBidsChallenges {
 		const bidChallengesMapping: BidsChallengesMapping = {};
 		for (const bid of Object.values(this.fetchedBidsMapping)) {
-			const challengeId = `${bid.position.toLowerCase()}-challenge-${bid.number}`;
+			const challengeId = `${normalizeAddress(bid.position)}-challenge-${bid.number}`;
 			if (!bidChallengesMapping[challengeId]) {
 				bidChallengesMapping[challengeId] = [];
 			}
@@ -155,7 +156,7 @@ export class ChallengesService {
 	getBidsPositionsMapping(): ApiBidsPositions {
 		const bidPositionsMapping: BidsPositionsMapping = {};
 		for (const bid of Object.values(this.fetchedBidsMapping)) {
-			const key = bid.position.toLowerCase();
+			const key = normalizeAddress(bid.position);
 			if (!bidPositionsMapping[key]) {
 				bidPositionsMapping[key] = [];
 			}
@@ -236,7 +237,7 @@ export class ChallengesService {
 
 		const mapped: ChallengesQueryItemMapping = {};
 		for (const i of list) {
-			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			const key = `${normalizeAddress(i.position)}-challenge-${i.number}`;
 			mapped[key] = i;
 			mapped[key].version = 1;
 			mapped[key].id = key;
@@ -286,7 +287,7 @@ export class ChallengesService {
 		const list = bids.data.mintingHubV1ChallengeBidV1s.items as BidsQueryItem[];
 		const mapped: BidsQueryItemMapping = {};
 		for (const i of list) {
-			const key = `${i.position.toLowerCase()}-challenge-${i.number}-bid-${i.numberBid}`;
+			const key = `${normalizeAddress(i.position)}-challenge-${i.number}-bid-${i.numberBid}`;
 			mapped[key] = i;
 			mapped[key].version = 1;
 			mapped[key].id = key;
@@ -337,7 +338,7 @@ export class ChallengesService {
 		const list = challenges.data.mintingHubV2ChallengeV2s.items as ChallengesQueryItem[];
 		const mapped: ChallengesQueryItemMapping = {};
 		for (const i of list) {
-			const key = `${i.position.toLowerCase()}-challenge-${i.number}`;
+			const key = `${normalizeAddress(i.position)}-challenge-${i.number}`;
 			mapped[key] = i;
 			mapped[key].version = 2;
 			mapped[key].id = key;
@@ -387,7 +388,7 @@ export class ChallengesService {
 		const list = bids.data.mintingHubV2ChallengeBidV2s.items as BidsQueryItem[];
 		const mapped: BidsQueryItemMapping = {};
 		for (const i of list) {
-			const key = `${i.position.toLowerCase()}-challenge-${i.number}-bid-${i.numberBid}`;
+			const key = `${normalizeAddress(i.position)}-challenge-${i.number}-bid-${i.numberBid}`;
 			mapped[key] = i;
 			mapped[key].version = 2;
 			mapped[key].id = key;

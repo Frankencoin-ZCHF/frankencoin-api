@@ -20,14 +20,14 @@ import { LeadrateChangedMessage } from './messages/LeadrateChanged.message';
 import { BidTakenMessage } from './messages/BidTaken.message';
 import { PositionExpiringSoonMessage } from './messages/PositionExpiringSoon.message';
 import { PositionExpiredMessage } from './messages/PositionExpired.message';
-import { Address, formatUnits } from 'viem';
+import { formatUnits } from 'viem';
 import { PriceQuery } from 'prices/prices.types';
 import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from './messages/PositionPrice.message';
 import { AnalyticsService } from 'analytics/analytics.service';
 import { DailyInfosMessage } from './messages/DailyInfos.message';
 import { mainnet } from 'viem/chains';
 import { EcosystemFrankencoinService } from 'ecosystem/ecosystem.frankencoin.service';
-import { formatFloat } from 'utils/format';
+import { formatFloat, normalizeAddress } from 'utils/format';
 import { EquityInvestedMessage } from './messages/EquityInvested.message';
 import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
 import { PositionDeniedMessage } from './messages/PositionDenied.message';
@@ -304,7 +304,7 @@ export class TelegramService {
 			const DELAY_WARNING = 24 * 60 * 60 * 1000; // 24h guard
 
 			// price query
-			const priceQuery: PriceQuery | undefined = this.prices.getPricesMapping()[p.collateral.toLowerCase()];
+			const priceQuery: PriceQuery | undefined = this.prices.getPricesMapping()[normalizeAddress(p.collateral)];
 			if (priceQuery == undefined || priceQuery?.timestamp == 0) return false; // not found or still searching
 
 			// price check
@@ -312,7 +312,7 @@ export class TelegramService {
 			if (posPrice * THRES_WARN < price) return false; // below threshold
 
 			// get latest or make available
-			let last = this.telegramState.positionsPriceAlert.get(p.position.toLowerCase() as Address);
+			let last = this.telegramState.positionsPriceAlert.get(normalizeAddress(p.position));
 			if (last == undefined) {
 				last = {
 					warningPrice: 0,
@@ -363,7 +363,7 @@ export class TelegramService {
 			}
 
 			// update state
-			this.telegramState.positionsPriceAlert.set(p.position.toLowerCase() as Address, last);
+			this.telegramState.positionsPriceAlert.set(normalizeAddress(p.position), last);
 		});
 
 		// Challenges started
@@ -373,7 +373,7 @@ export class TelegramService {
 		if (challengesStarted.length > 0) {
 			this.telegramState.challenges = Date.now();
 			for (const c of challengesStarted) {
-				const pos = this.position.getPositionsList().list.find((p) => p.position.toLowerCase() == c.position.toLowerCase());
+				const pos = this.position.getPositionsList().list.find((p) => normalizeAddress(p.position) == normalizeAddress(c.position));
 				if (pos == undefined) return;
 				this.sendMessageAll(ChallengeStartedMessage(pos, c));
 			}
@@ -386,10 +386,12 @@ export class TelegramService {
 		if (bidsTaken.length > 0) {
 			this.telegramState.bids = Date.now();
 			for (const b of bidsTaken) {
-				const position = this.position.getPositionsList().list.find((p) => p.position.toLowerCase() == b.position.toLowerCase());
+				const position = this.position
+					.getPositionsList()
+					.list.find((p) => normalizeAddress(p.position) == normalizeAddress(b.position));
 				const challenge = this.challenge
 					.getChallenges()
-					.list.find((c) => c.position.toLowerCase() == b.position.toLowerCase() && c.number == b.number);
+					.list.find((c) => normalizeAddress(c.position) == normalizeAddress(b.position) && c.number == b.number);
 				if (position == undefined || challenge == undefined) return;
 				this.sendMessageAll(BidTakenMessage(position, challenge, b));
 			}
