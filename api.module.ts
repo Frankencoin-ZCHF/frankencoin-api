@@ -3,6 +3,12 @@ import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
 
+// DATABASE
+import { DatabaseModule } from 'database/database.module';
+
+// DATA SOURCE
+import { DataSourceModule } from 'data-source/data-source.module';
+
 // SERVICE IMPORTS
 import { ApiService } from 'api.service';
 import { EcosystemCollateralService } from 'ecosystem/ecosystem.collateral.service';
@@ -20,7 +26,6 @@ import { TransferReferenceService } from 'transfer/transfer.reference.service';
 import { TelegramService } from 'telegram/telegram.service';
 
 // CONTROLLER IMPORTS
-import { Storj } from 'storj/storj.s3.service';
 import { EcosystemMinterController } from 'ecosystem/ecosystem.minter.controller';
 import { EcosystemCollateralController } from 'ecosystem/ecosystem.collateral.controller';
 import { EcosystemFpsController } from 'ecosystem/ecosystem.fps.controller';
@@ -40,7 +45,7 @@ import { PricesHistoryController } from 'prices/prices.history.controller';
 
 // APP MODULE
 @Module({
-	imports: [ConfigModule.forRoot(), ScheduleModule.forRoot(), HttpModule],
+	imports: [ConfigModule.forRoot(), ScheduleModule.forRoot(), HttpModule, DatabaseModule, DataSourceModule],
 	controllers: [
 		PositionsController,
 		EcosystemMinterController,
@@ -58,7 +63,6 @@ import { PricesHistoryController } from 'prices/prices.history.controller';
 		AnalyticsController,
 	],
 	providers: [
-		Storj,
 		PositionsService,
 		EcosystemMinterService,
 		EcosystemCollateralService,

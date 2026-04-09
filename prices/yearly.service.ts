@@ -1,4 +1,5 @@
 import { Address, parseUnits } from 'viem';
+import { normalizeAddress } from 'utils/format';
 
 interface Props {
 	year: string | number;
@@ -65,7 +66,7 @@ export function getEndOfYearPrice({ year, contract }: Props) {
 		},
 	};
 
-	const entry = data[contract.toLowerCase() as Address];
+	const entry = data[normalizeAddress(contract)];
 
 	if (entry) {
 		const price = entry[String(year)];

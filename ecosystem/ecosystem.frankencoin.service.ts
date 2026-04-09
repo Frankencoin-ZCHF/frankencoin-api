@@ -16,22 +16,20 @@ import { PricesService } from 'prices/prices.service';
 import { EcosystemFpsService } from './ecosystem.fps.service';
 import { EcosystemCollateralService } from './ecosystem.collateral.service';
 import { ADDRESS, ChainId, SupportedChainIds, SupportedChains } from '@frankencoin/zchf';
-import { formatFloat } from 'utils/format';
+import { formatFloat, normalizeAddress } from 'utils/format';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Address, formatUnits } from 'viem';
-import { Storj } from 'storj/storj.s3.service';
-import { SupplyQueryObjectDTO } from './dtos/supply.query.dto';
+import { PrismaService } from 'database/prisma.service';
 
 @Injectable()
 export class EcosystemFrankencoinService {
 	private readonly logger = new Logger(this.constructor.name);
-	private readonly storjPath: string = '/ecosystem.totalSupply.json';
 	private ecosystemFrankencoinKeyValues: EcosystemFrankencoinKeyValues;
 	private ecosystemFrankencoin: EcosystemFrankencoinMapping = {} as EcosystemFrankencoinMapping;
 	private ecosystemTotalSupply: FrankencoinSupplyQueryObject = {} as FrankencoinSupplyQueryObject;
 
 	constructor(
-		private readonly storj: Storj,
+		private readonly prisma: PrismaService,
 		private readonly fpsService: EcosystemFpsService,
 		private readonly collService: EcosystemCollateralService,
 		private readonly pricesService: PricesService
@@ -40,28 +38,53 @@ export class EcosystemFrankencoinService {
 	}
 
 	async readBackupSupplyQuery() {
-		this.logger.log(`Reading backup readBackupSupplyQuery from storj`);
-		const response = await this.storj.read(this.storjPath, SupplyQueryObjectDTO);
-
-		if (response.messageError || response.validationError.length > 0) {
-			this.logger.error(response.messageError);
-		} else {
-			this.ecosystemTotalSupply = { ...this.ecosystemTotalSupply, ...response.data };
-			this.logger.log(`readBackupSupplyQuery state restored...`);
+		if (!this.prisma.isEnabled()) {
+			this.logger.warn('Database disabled, skipping supply query restoration');
+			this.updateTotalSupply();
+			return;
 		}
 
-		if (Object.keys(this.ecosystemTotalSupply).length == 0) {
+		this.logger.log(`Reading backup supply query from database`);
+
+		try {
+			const records = await this.prisma.ecosystemSupply.findMany({
+				orderBy: { updatedAt: 'desc' },
+			});
+
+			if (records) {
+				for (const i of records) {
+					this.ecosystemTotalSupply[String(i.timestamp)] = i.data;
+				}
+				this.logger.log(`Supply query state restored from database (${records.length} entries)`);
+			} else {
+				this.logger.warn('No supply data found in database, fetching fresh data');
+				this.updateTotalSupply();
+			}
+		} catch (error) {
+			this.logger.error('Failed to read supply data from database', error);
 			this.updateTotalSupply();
 		}
 	}
-	async writeBackupSupplyQuery() {
-		const response = await this.storj.write(this.storjPath, this.ecosystemTotalSupply);
-		const httpStatusCode = response['$metadata'].httpStatusCode;
 
-		if (httpStatusCode == 200) {
-			this.logger.log(`writeBackupSupplyQuery backup stored`);
-		} else {
-			this.logger.error(`writeBackupSupplyQuery backup failed. httpStatusCode: ${httpStatusCode}`);
+	async writeBackupSupplyQuery() {
+		if (!this.prisma.isEnabled()) {
+			return;
+		}
+
+		try {
+			const latestTimestamps = Object.keys(this.ecosystemTotalSupply).slice(-3);
+
+			for (const timestamp of latestTimestamps) {
+				await this.prisma.ecosystemSupply.upsert({
+					where: { timestamp: BigInt(timestamp) },
+					create: { timestamp: BigInt(timestamp), data: this.ecosystemTotalSupply[timestamp] as any },
+					update: { data: this.ecosystemTotalSupply[timestamp] as any },
+				});
+			}
+
+			this.logger.log(`Supply query backup stored to database (${latestTimestamps.length} entries)`);
+		} catch (error) {
+			this.logger.error('Failed to write supply data to database', error);
 		}
 	}
 
@@ -171,10 +194,10 @@ export class EcosystemFrankencoinService {
 		for (const i of d) {
 			// verify chainId with token address
 			if (i.chainId == 1) {
-				const a = ADDRESS[i.chainId].frankencoin.toLowerCase();
+				const a = normalizeAddress(ADDRESS[i.chainId].frankencoin);
 				if (a != i.token) continue;
 			} else {
-				const a = ADDRESS[i.chainId].ccipBridgedFrankencoin.toLowerCase();
+				const a = normalizeAddress(ADDRESS[i.chainId].ccipBridgedFrankencoin);
 				if (a != i.token) continue;
 			}
 

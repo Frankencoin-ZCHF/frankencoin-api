@@ -3,6 +3,7 @@ import { PONDER_CLIENT } from '../api.config';
 import { gql } from '@apollo/client/core';
 import { TransferReferenceObjectArray, TransferReferenceQuery } from './transfer.reference.types';
 import { Address } from 'viem';
+import { normalizeAddress } from 'utils/format';
 
 @Injectable()
 export class TransferReferenceService {
@@ -71,8 +72,8 @@ export class TransferReferenceService {
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
-			let filtered = Object.values(this.fetchedReferences).filter((i) => i.from.toLowerCase() == from.toLowerCase());
-			if (to != undefined) filtered = filtered.filter((i) => i.to.toLowerCase() == to.toLowerCase());
+			let filtered = Object.values(this.fetchedReferences).filter((i) => normalizeAddress(i.from) == normalizeAddress(from));
+			if (to != undefined) filtered = filtered.filter((i) => normalizeAddress(i.to) == normalizeAddress(to));
 			if (reference != undefined) filtered = filtered.filter((i) => i.reference == reference);
 
 			return filtered.filter((i) => i.created >= Math.round(startTimestamp) && i.created < Math.round(endTimestamp));
@@ -94,8 +95,8 @@ export class TransferReferenceService {
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
-			let filtered = Object.values(this.fetchedReferences).filter((i) => i.to.toLowerCase() == to.toLowerCase());
-			if (from != undefined) filtered = filtered.filter((i) => i.from.toLowerCase() == from.toLowerCase());
+			let filtered = Object.values(this.fetchedReferences).filter((i) => normalizeAddress(i.to) == normalizeAddress(to));
+			if (from != undefined) filtered = filtered.filter((i) => normalizeAddress(i.from) == normalizeAddress(from));
 			if (reference != undefined) filtered = filtered.filter((i) => i.reference == reference);
 
 			return filtered.filter((i) => i.created >= Math.round(startTimestamp) && i.created < Math.round(endTimestamp));
@@ -126,8 +127,8 @@ export class TransferReferenceService {
 				query {
 					transferReferences(
 						where: {
-							from: "${from.toLowerCase()}",
-							${to != undefined ? `to: "${to.toLowerCase()}",` : ''}
+							from: "${normalizeAddress(from)}",
+							${to != undefined ? `to: "${normalizeAddress(to)}",` : ''}
 							${reference != undefined ? `reference: "${reference}",` : ''}
 							created_gte: "${Math.round(startTimestamp)}",
 							created_lt: "${Math.round(endTimestamp)}",
@@ -177,8 +178,8 @@ export class TransferReferenceService {
 				query {
 					transferReferences(
 						where: {
-							to: "${to.toLowerCase()}",
-							${from != undefined ? `from: "${from.toLowerCase()}",` : ''}
+							to: "${normalizeAddress(to)}",
+							${from != undefined ? `from: "${normalizeAddress(from)}",` : ''}
 							${reference != undefined ? `reference: "${reference}",` : ''}
 							created_gte: "${Math.round(startTimestamp)}",
 							created_lt: "${Math.round(endTimestamp)}",

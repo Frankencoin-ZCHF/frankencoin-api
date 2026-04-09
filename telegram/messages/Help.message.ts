@@ -1,13 +1,8 @@
-import { Subscription } from 'telegram/dtos/groups.dto';
 import { AppUrl } from 'utils/func-helper';
 import { mainnet } from 'viem/chains';
 
-export function HelpMessage(group: string, handles: string[], subs: Subscription): string {
-	const subTo: string[] = [];
-
-	for (const h of Object.keys(subs)) {
-		if (subs[h].groups.includes(group)) subTo.push(h);
-	}
+export function HelpMessage(handles: string[], chatSubs: { [handle: string]: boolean }): string {
+	const subTo = handles.filter((h) => chatSubs[h.replace('/', '')]);
 
 	return `
 *Hello again, from the Frankencoin API Bot!*

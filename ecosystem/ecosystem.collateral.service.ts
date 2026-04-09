@@ -11,6 +11,7 @@ import {
 } from './ecosystem.collateral.types';
 import { PositionQuery } from 'positions/positions.types';
 import { Address, formatUnits } from 'viem';
+import { normalizeAddress } from 'utils/format';
 import { FIVEDAYS_MS } from 'utils/const-helper';
 import { ERC20Info, PriceQueryCurrencies } from 'prices/prices.types';
 
@@ -47,9 +48,8 @@ export class EcosystemCollateralService {
 
 		for (const c of Object.values(collaterals)) {
 			const matchedPositions = positions.filter((p: PositionQuery) => p.collateral === c.address);
-			if (!collateralPositions[c.address.toLowerCase()]) collateralPositions[c.address.toLowerCase()] = [];
 			const addresses: Address[] = matchedPositions.map((p: PositionQuery) => p.position);
-			collateralPositions[c.address.toLowerCase()] = {
+			collateralPositions[normalizeAddress(c.address)] = {
 				...c,
 				num: addresses.length,
 				addresses: addresses,
@@ -66,9 +66,8 @@ export class EcosystemCollateralService {
 
 		for (const c of Object.values(collaterals)) {
 			const matchedPositions = positions.filter((p: PositionQuery) => p.collateral === c.address);
-			if (!collateralPositions[c.address.toLowerCase()]) collateralPositions[c.address.toLowerCase()] = [];
 			const addresses: Address[] = matchedPositions.map((p: PositionQuery) => p.position);
-			collateralPositions[c.address.toLowerCase()] = {
+			collateralPositions[normalizeAddress(c.address)] = {
 				...c,
 				num: addresses.length,
 				addresses: addresses,
@@ -85,14 +84,14 @@ export class EcosystemCollateralService {
 
 		const zchfAddress = this.pricesService.getMint()?.address;
 		if (!zchfAddress) return null;
-		const zchfPrice = prices[zchfAddress.toLowerCase() as Address]?.price?.usd as number;
+		const zchfPrice = prices[normalizeAddress(zchfAddress)]?.price?.usd as number;
 		if (!zchfPrice) return null;
 
 		const ecosystemTotalValueLocked: PriceQueryCurrencies = {};
 		const map: { [key: Address]: ApiEcosystemCollateralStatsItem } = {};
 
 		for (const c of Object.values(collateralPositionsDetails)) {
-			const price = prices[c.address.toLowerCase() as Address]?.price?.usd as number;
+			const price = prices[normalizeAddress(c.address)]?.price?.usd as number;
 			if (!price) continue;
 
 			const total = c.positions.length;
@@ -109,7 +108,7 @@ export class EcosystemCollateralService {
 				.getPositionsList()
 				.list.filter(
 					(p: PositionQuery) =>
-						p.collateral.toLowerCase() === c.address.toLowerCase() && p.isOriginal && p.expiration > Date.now() / 1000
+						normalizeAddress(p.collateral) === normalizeAddress(c.address) && p.isOriginal && p.expiration > Date.now() / 1000
 				)
 				.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.limitForClones), 0n);
 			const totalBalance = c.positions.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.collateralBalance), 0n);
@@ -134,7 +133,7 @@ export class EcosystemCollateralService {
 			}
 
 			// upsert map
-			map[c.address.toLowerCase() as Address] = {
+			map[normalizeAddress(c.address)] = {
 				chainId: c.chainId,
 				address: c.address,
 				name: c.name,

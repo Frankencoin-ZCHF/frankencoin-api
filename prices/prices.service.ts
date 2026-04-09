@@ -18,8 +18,7 @@ import { COINGECKO_CLIENT, CONFIG } from 'api.config';
 import { Address, parseUnits } from 'viem';
 import { EcosystemFpsService } from 'ecosystem/ecosystem.fps.service';
 import { ADDRESS, ChainMain, SupportedChain } from '@frankencoin/zchf';
-import { Storj } from 'storj/storj.s3.service';
-import { PriceQueryObjectDTO } from './dtos/price.query.dto';
+import { PrismaService } from 'database/prisma.service';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -30,13 +29,13 @@ import { normalizeAddress } from 'utils/format';
 @Injectable()
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
-	private readonly storjPath: string = '/prices.query.json';
+
 	private fetchedAt: number = 0;
 	private fetchedPrices: PriceQueryObjectArray = {};
 	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
 
 	constructor(
-		private readonly storj: Storj,
+		private readonly prisma: PrismaService,
 		private readonly positionsService: PositionsService,
 		private readonly fps: EcosystemFpsService
 	) {
@@ -45,26 +44,38 @@ export class PricesService {
 	}
 
 	async readBackupPriceQuery() {
-		this.logger.log(`Reading backup PriceQueryObject from storj`);
-		const response = await this.storj.read(this.storjPath, PriceQueryObjectDTO);
+		this.logger.log('Reading backup PriceQueryObject from database');
 
-		if (response.messageError || response.validationError.length > 0) {
-			this.logger.error(response.messageError);
+		const data = (await this.prisma.safeExecute(() => this.prisma.priceCache.findMany())) as any[];
+
+		if (data?.length > 0) {
+			const prices: PriceQueryObjectArray = {};
+			for (const entry of data) {
+				if (ContractBlacklist.includes(entry.address)) {
+					await this.prisma.priceCache.delete({ where: { address: entry.address } });
+					continue;
+				}
+				prices[entry.address] = entry.data as any;
+			}
+			this.fetchedPrices = { ...prices };
+			this.logger.log(`PriceQueryObject state restored from database (${Object.keys(prices).length} entries)`);
 		} else {
-			this.fetchedPrices = { ...this.fetchedPrices, ...response.data };
-			this.logger.log(`PriceQueryObject state restored...`);
+			this.logger.warn('No cached price data found in database');
 		}
 	}
 
 	async writeBackupPriceQuery() {
-		const response = await this.storj.write(this.storjPath, this.fetchedPrices);
-		const httpStatusCode = response['$metadata'].httpStatusCode;
-
-		if (httpStatusCode == 200) {
-			this.logger.log(`PriceQueryObject backup stored`);
-		} else {
-			this.logger.error(`PriceQueryObject backup failed. httpStatusCode: ${httpStatusCode}`);
-		}
+		await this.prisma.safeExecute(async () => {
+			const allEntries = Object.entries(this.fetchedPrices);
+			for (const [address, data] of allEntries) {
+				await this.prisma.priceCache.upsert({
+					where: { address },
+					create: { address, data },
+					update: { data },
+				});
+			}
+			this.logger.log(`PriceQueryObject backup stored in database (${allEntries.length} entries)`);
+		});
 	}
 
 	getPrices(): ApiPriceListing {
@@ -102,8 +113,8 @@ export class PricesService {
 		const c: ERC20InfoObjectArray = {};
 
 		for (const p of pos) {
-			if (ContractBlacklist.includes(p.collateral.toLowerCase() as Address)) continue;
-			c[p.collateral.toLowerCase()] = {
+			if (ContractBlacklist.includes(normalizeAddress(p.collateral))) continue;
+			c[normalizeAddress(p.collateral)] = {
 				chainId: ChainMain.mainnet.id,
 				address: p.collateral,
 				name: p.collateralName,
@@ -113,7 +124,7 @@ export class PricesService {
 		}
 
 		for (const i of ContractWhitelist) {
-			c[i.address.toLowerCase()] = i;
+			c[normalizeAddress(i.address)] = i;
 		}
 
 		return c;
@@ -136,7 +147,7 @@ export class PricesService {
 	async fetchPriceTheGraph(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const url = `https://gateway.thegraph.com/api/subgraphs/id/6PRcMNb9RCczH7aAnWvbw7pHgPWmziVsYjwgUFBeE3mR`;
 		const query = `{
-			token(id: "${erc.address.toLowerCase()}") {
+			token(id: "${normalizeAddress(erc.address)}") {
 				priceUSD
 				priceCHF
 			}
@@ -180,12 +191,12 @@ export class PricesService {
 	async fetchPriceDefillama(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
 		const chain = getChain(erc.chainId) as SupportedChain;
 		const chainName = chain.id === mainnet.id ? 'ethereum' : chain.name;
-		const url = `https://coins.llama.fi/prices/current/${chainName}:${erc.address.toLowerCase()}`;
+		const url = `https://coins.llama.fi/prices/current/${chainName}:${normalizeAddress(erc.address)}`;
 
 		try {
 			const response = await fetch(url);
 			const data = await response.json();
-			const coin = data?.coins?.[`${chainName}:${erc.address.toLowerCase()}`];
+			const coin = data?.coins?.[`${chainName}:${normalizeAddress(erc.address)}`];
 			if (!coin?.price) return null;
 
 			return { usd: Number(coin.price) };
@@ -228,7 +239,7 @@ export class PricesService {
 		// Priority 1: Custom overwrite (e.g., Frankencoin Pool Share)
 		if (normalizeAddress(erc.address) === normalizeAddress(ADDRESS[mainnet.id].equity)) {
 			const priceInChf = this.fps.getEcosystemFpsInfo()?.token?.price;
-			const zchfAddress = ADDRESS[mainnet.id].frankencoin.toLowerCase();
+			const zchfAddress = normalizeAddress(ADDRESS[mainnet.id].frankencoin);
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice || !priceInChf) return null;
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
@@ -251,7 +262,7 @@ export class PricesService {
 	}
 
 	async getOwnerValueLocked(owner: Address): Promise<ApiOwnerValueLocked> {
-		owner = owner.toLowerCase() as Address;
+		owner = normalizeAddress(owner);
 		const history = await this.positionsService.getOwnerHistory(owner);
 
 		const years = Object.keys(history).map((i) => Number(i));
@@ -265,12 +276,12 @@ export class PricesService {
 
 			let value = 0n;
 			for (const pos of positions) {
-				const updates = this.positionsService.getMintingUpdatesMapping().map[pos.toLowerCase() as Address] || [];
+				const updates = this.positionsService.getMintingUpdatesMapping().map[normalizeAddress(pos)] || [];
 				const itemsUntil = updates.filter((i) => i.created * 1000 < new Date(String(y + 1)).getTime());
 				const selected = itemsUntil.at(0);
 				if (selected != undefined) {
 					const isCurrentYear = new Date().getFullYear() == y;
-					const c = selected.collateral.toLowerCase() as Address;
+					const c = normalizeAddress(selected.collateral);
 					const d = selected.collateralDecimals;
 					const s = BigInt(selected.size);
 
@@ -317,7 +328,7 @@ export class PricesService {
 		let pricesQueryUpdateCountFailed: number = 0;
 
 		for (const erc of a) {
-			const addr = erc.address.toLowerCase() as Address;
+			const addr = normalizeAddress(erc.address);
 			const oldEntry = this.fetchedPrices[addr];
 
 			if (!oldEntry) {
@@ -370,7 +381,7 @@ export class PricesService {
 		}
 
 		// make chf conversion available
-		const frankencoin = ADDRESS[mainnet.id].frankencoin.toLowerCase();
+		const frankencoin = normalizeAddress(ADDRESS[mainnet.id].frankencoin);
 		const zchfPrice = this.fetchedPrices[frankencoin].price.usd;
 		for (const addr of Object.keys(this.fetchedPrices)) {
 			// break out if zchf price is not available
