@@ -1,12 +1,28 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './api.module';
-// import * as dotenv from 'dotenv';
-// dotenv.config();
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-	const api = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error' /*, 'debug' */], cors: true });
+	const api = await NestFactory.create(AppModule, {
+		logger: ['log', 'warn', 'error'],
+		cors: true,
+	});
 
+	// Global exception filter — standardised JSON error shape
+	api.useGlobalFilters(new AllExceptionsFilter());
+
+	// Global validation pipe — strips unknown fields, auto-transforms primitives
+	api.useGlobalPipes(
+		new ValidationPipe({
+			whitelist: true,
+			transform: true,
+			forbidNonWhitelisted: false, // warn-only; tighten to true when all DTOs are complete
+		})
+	);
+
+	// Swagger
 	const config = new DocumentBuilder()
 		.setTitle(process.env.npm_package_name)
 		.setDescription(
@@ -16,13 +32,13 @@ async function bootstrap() {
 		)
 		.setVersion(process.env.npm_package_version)
 		.build();
+
 	const document = SwaggerModule.createDocument(api, config);
 	SwaggerModule.setup('/', api, document, {
-		swaggerOptions: {
-			persistAuthorization: true,
-		},
+		swaggerOptions: { persistAuthorization: true },
 	});
 
 	await api.listen(process.env.PORT || 3000);
 }
+
 bootstrap();
