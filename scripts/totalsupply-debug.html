@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>ZCHF Total Supply Debug</title>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+		<style>
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+			body {
+				font-family: monospace;
+				background: #0f0f0f;
+				color: #e0e0e0;
+				padding: 20px;
+			}
+			h1 {
+				font-size: 1.2rem;
+				margin-bottom: 12px;
+				color: #fff;
+			}
+			#controls {
+				display: flex;
+				gap: 12px;
+				align-items: center;
+				margin-bottom: 16px;
+				flex-wrap: wrap;
+			}
+			#api-url {
+				flex: 1;
+				min-width: 320px;
+				background: #1c1c1c;
+				border: 1px solid #333;
+				color: #e0e0e0;
+				padding: 6px 10px;
+				border-radius: 4px;
+				font-family: monospace;
+			}
+			button {
+				background: #2563eb;
+				color: #fff;
+				border: none;
+				padding: 7px 16px;
+				border-radius: 4px;
+				cursor: pointer;
+				font-family: monospace;
+			}
+			button:hover {
+				background: #1d4ed8;
+			}
+			#status {
+				font-size: 0.8rem;
+				color: #888;
+			}
+			#chart-container {
+				position: relative;
+				width: 100%;
+				height: 480px;
+				background: #161616;
+				border-radius: 6px;
+				padding: 16px;
+			}
+			#anomalies {
+				margin-top: 20px;
+			}
+			#anomalies h2 {
+				font-size: 1rem;
+				margin-bottom: 8px;
+				color: #f59e0b;
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				font-size: 0.78rem;
+			}
+			th {
+				text-align: left;
+				padding: 6px 10px;
+				background: #1c1c1c;
+				color: #aaa;
+				border-bottom: 1px solid #333;
+			}
+			td {
+				padding: 5px 10px;
+				border-bottom: 1px solid #1e1e1e;
+			}
+			tr.spike {
+				color: #f87171;
+			}
+			tr.gap {
+				color: #fb923c;
+			}
+			#stats {
+				display: flex;
+				gap: 20px;
+				flex-wrap: wrap;
+				margin-bottom: 14px;
+				font-size: 0.82rem;
+				color: #aaa;
+			}
+			#stats span b {
+				color: #e0e0e0;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>ZCHF Total Supply — Debug Chart</h1>
+
+		<div id="controls">
+			<input id="api-url" type="text" value="https://api.frankencoin.com/ecosystem/frankencoin/totalsupply" />
+			<button onclick="load()">Load</button>
+			<span id="status"></span>
+		</div>
+
+		<div id="stats"></div>
+
+		<div id="chart-container">
+			<canvas id="chart"></canvas>
+		</div>
+
+		<div id="anomalies">
+			<h2>Anomalies (spikes / gaps)</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Timestamp (unix)</th>
+						<th>Date (UTC)</th>
+						<th>Supply</th>
+						<th>Delta</th>
+						<th>Type</th>
+					</tr>
+				</thead>
+				<tbody id="anomaly-table"></tbody>
+			</table>
+		</div>
+
+		<script>
+			let chartInstance = null;
+
+			function setStatus(msg, color) {
+				const el = document.getElementById('status');
+				el.textContent = msg;
+				el.style.color = color || '#888';
+			}
+
+			async function load() {
+				const url = document.getElementById('api-url').value.trim();
+				setStatus('Fetching…');
+				let raw;
+				try {
+					const res = await fetch(url);
+					if (!res.ok) throw new Error(`HTTP ${res.status}`);
+					raw = await res.json();
+				} catch (e) {
+					setStatus('Error: ' + e.message, '#f87171');
+					return;
+				}
+
+				// Sort by unix timestamp
+				const entries = Object.values(raw).sort((a, b) => a.created - b.created);
+				setStatus(`Loaded ${entries.length} entries`, '#4ade80');
+
+				const labels = entries.map((e) => new Date(e.created * 1000).toISOString().slice(0, 10));
+				const supplies = entries.map((e) => e.supply);
+
+				// Gap / spike detection
+				const deltas = supplies.map((v, i) => (i === 0 ? 0 : v - supplies[i - 1]));
+				const absDeltas = deltas
+					.slice(1)
+					.map(Math.abs)
+					.sort((a, b) => a - b);
+				const median = absDeltas[Math.floor(absDeltas.length / 2)] || 1;
+				const MAD_THRESH = Math.max(median * 10, supplies[supplies.length - 1] * 0.1);
+
+				const anomalies = [];
+				for (let i = 1; i < entries.length; i++) {
+					const dt = entries[i].created - entries[i - 1].created;
+					const dv = deltas[i];
+					const isSpike = Math.abs(dv) > MAD_THRESH;
+					const isGap = dt > 86400 * 2;
+					const isNonMono = dt <= 0;
+					if (isSpike || isGap || isNonMono) {
+						anomalies.push({
+							idx: i,
+							ts: entries[i].created,
+							date: labels[i],
+							supply: entries[i].supply,
+							delta: dv,
+							dt,
+							type: isNonMono ? 'NON-MONOTONIC' : isSpike ? 'SPIKE' : 'GAP',
+						});
+					}
+				}
+
+				// Stats
+				document.getElementById('stats').innerHTML = `
+    <span>Entries: <b>${entries.length}</b></span>
+    <span>First: <b>${labels[0]}</b></span>
+    <span>Last: <b>${labels[labels.length - 1]}</b></span>
+    <span>Min supply: <b>${Math.min(...supplies).toFixed(2)}</b></span>
+    <span>Max supply: <b>${Math.max(...supplies).toFixed(2)}</b></span>
+    <span>Anomalies: <b style="color:${anomalies.length ? '#f87171' : '#4ade80'}">${anomalies.length}</b></span>
+  `;
+
+				// Anomaly table
+				const tbody = document.getElementById('anomaly-table');
+				tbody.innerHTML =
+					anomalies.length === 0
+						? '<tr><td colspan="6" style="color:#4ade80;padding:8px 10px">None detected</td></tr>'
+						: anomalies
+								.map(
+									(a, n) => `
+        <tr class="${a.type === 'SPIKE' ? 'spike' : 'gap'}">
+          <td>${n + 1}</td>
+          <td>${a.ts}</td>
+          <td>${a.date}</td>
+          <td>${a.supply.toFixed(4)}</td>
+          <td>${a.delta > 0 ? '+' : ''}${a.delta.toFixed(4)}</td>
+          <td>${a.type}</td>
+        </tr>`
+								)
+								.join('');
+
+				// Highlight anomaly points on chart
+				const pointColors = supplies.map((_, i) => {
+					const a = anomalies.find((x) => x.idx === i);
+					if (!a) return 'rgba(0,0,0,0)';
+					return a.type === 'SPIKE' ? '#f87171' : '#fb923c';
+				});
+				const pointRadius = supplies.map((_, i) => (anomalies.find((x) => x.idx === i) ? 5 : 0));
+
+				if (chartInstance) chartInstance.destroy();
+				const ctx = document.getElementById('chart').getContext('2d');
+				chartInstance = new Chart(ctx, {
+					type: 'line',
+					data: {
+						labels,
+						datasets: [
+							{
+								label: 'Total Supply (ZCHF)',
+								data: supplies,
+								borderColor: '#3b82f6',
+								backgroundColor: 'rgba(59,130,246,0.08)',
+								borderWidth: 1.5,
+								pointRadius,
+								pointBackgroundColor: pointColors,
+								tension: 0,
+								fill: true,
+							},
+						],
+					},
+					options: {
+						responsive: true,
+						maintainAspectRatio: false,
+						animation: false,
+						plugins: {
+							legend: { labels: { color: '#aaa' } },
+							tooltip: {
+								callbacks: {
+									title: (items) => {
+										const i = items[0].dataIndex;
+										return `${labels[i]}  (unix: ${entries[i].created})`;
+									},
+									afterBody: (items) => {
+										const i = items[0].dataIndex;
+										const alloc = entries[i].allocation;
+										return Object.entries(alloc)
+											.filter(([, v]) => v > 0)
+											.map(([k, v]) => `  chain ${k}: ${v.toFixed(2)}`);
+									},
+								},
+							},
+						},
+						scales: {
+							x: {
+								ticks: { color: '#666', maxTicksLimit: 20, maxRotation: 45 },
+								grid: { color: '#1e1e1e' },
+							},
+							y: {
+								ticks: { color: '#666' },
+								grid: { color: '#1e1e1e' },
+							},
+						},
+					},
+				});
+			}
+
+			load();
+		</script>
+	</body>
+</html>
