@@ -1,50 +1,39 @@
 import { MintingUpdateQuery } from 'modules/positions/positions.types';
 import { PriceQuery, PriceQueryObjectArray } from 'modules/prices/prices.types';
-import { formatCurrency, normalizeAddress } from 'utils/format';
+import { formatCurrency, normalizeAddress, shortenString } from 'utils/format';
 import { formatUnits } from 'viem';
 import { AppUrl, ExplorerAddressUrl, ExplorerTxUrl } from 'utils/func-helper';
 
 export function MintingUpdateMessage(minting: MintingUpdateQuery, prices: PriceQueryObjectArray): string {
 	const marketPrice = (prices[normalizeAddress(minting.collateral)] as PriceQuery).price?.chf || 1;
-
 	const liqPrice = parseFloat(formatUnits(BigInt(minting.price), 36 - minting.collateralDecimals));
-	// const liqPriceAdjusted = parseFloat(formatUnits(BigInt(minting.priceAdjusted), 36 - minting.collateralDecimals));
-
 	const ratio = marketPrice / liqPrice;
-	// const ratioAdjusted = marketPrice / liqPriceAdjusted;
-
 	const minted = parseFloat(formatUnits(BigInt(minting.minted), 18));
 	const mintedAdjusted = parseFloat(formatUnits(BigInt(minting.mintedAdjusted), 18));
+	const timeframeDays = Math.round(minting.feeTimeframe / 86400);
+	const sign = mintedAdjusted >= 0 ? '+' : '-';
 
-	const timefram = Math.round(minting.feeTimeframe / 60 / 60 / 24);
+	return `🔄 *New Minting*
 
-	const absStr = (n: number) => (n >= 0 ? '+' : '-');
+🏦 Position: \`${shortenString(minting.position)}\` (v${minting.version})
+👤 Owner: \`${shortenString(minting.owner)}\`
 
-	return `
-*New Minting Update*
+💎 Collateral: *${minting.collateralName} (${minting.collateralSymbol})*
+   Market Price: *${formatCurrency(marketPrice, 2)} ZCHF*
+   Liq. Price: *${formatCurrency(liqPrice, 2)} ZCHF*
+   *Ratio: ${formatCurrency(ratio * 100, 2)}%*
 
-Position: ${minting.position} (v${minting.version})
-Owner: ${minting.owner}
-[App Position](${AppUrl(`/monitoring/${minting.position}`)})
+💵 Minted: *${formatCurrency(minted, 2)} ZCHF*
+   *Change: ${sign}${formatCurrency(Math.abs(mintedAdjusted), 2)} ZCHF*
 
-Collateral: ${minting.collateralName} (${minting.collateralSymbol})
-Market Price: ${formatCurrency(marketPrice, 2)} ZCHF
-Liq. Price: ${formatCurrency(liqPrice, 2)} ZCHF
-*Ratio: ${formatCurrency(ratio * 100, 2)}%*
+📊 Rates
+   Interest: *${formatCurrency(minting.annualInterestPPM / 10000, 2)}%* APY
+   Reserve: *${formatCurrency(minting.reserveContribution / 10000, 2)}%*
 
-Minted: ${formatCurrency(minted, 2)} ZCHF
-*Changed: ${absStr(mintedAdjusted)}${formatCurrency(mintedAdjusted, 2)} ZCHF*
+📊 Fee
+   Timeframe: *${timeframeDays} days*
+   Rate: *${formatCurrency(minting.feePPM / 10000, 2)}%*
+   *Paid: ${formatCurrency(formatUnits(BigInt(minting.feePaid), 18), 2)} ZCHF*
 
-Annual Interest: ${formatCurrency(minting.annualInterestPPM / 10000, 2)}%
-Reserve: ${formatCurrency(minting.reserveContribution / 10000, 2)}%
-
-FeeTimeframe: ${timefram} days
-FeePct: ${formatCurrency(minting.feePPM / 10000, 2)}%
-*FeePaid: ${formatCurrency(formatUnits(BigInt(minting.feePaid), 18), 2)} ZCHF*
-
-[Explorer Position](${ExplorerAddressUrl(minting.position)})
-[Explorer Owner](${ExplorerAddressUrl(minting.owner)})
-[Explorer Collateral](${ExplorerAddressUrl(minting.collateral)})
-[Explorer Transaction](${ExplorerTxUrl(minting.txHash)})
-`;
+[🔍 Position](${ExplorerAddressUrl(minting.position)}) · [🔍 Owner](${ExplorerAddressUrl(minting.owner)}) · [🔍 Tx](${ExplorerTxUrl(minting.txHash)})`;
 }

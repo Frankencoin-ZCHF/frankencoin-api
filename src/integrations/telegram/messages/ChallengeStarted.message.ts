@@ -1,48 +1,38 @@
 import { ChallengesQueryItem } from 'modules/challenges/challenges.types';
 import { PositionQuery } from 'modules/positions/positions.types';
-import { formatCurrency } from 'utils/format';
+import { formatCurrency, shortenString } from 'utils/format';
 import { AppUrl, ExplorerAddressUrl } from 'utils/func-helper';
 import { formatUnits } from 'viem';
 
 export function ChallengeStartedMessage(position: PositionQuery, challenge: ChallengesQueryItem): string {
-	const size: number = parseInt(formatUnits(BigInt(challenge.size), position.collateralDecimals - 2)) / 100;
-	const min: number = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
-	const price: number = parseInt(formatUnits(BigInt(challenge.liqPrice), 36 - position.collateralDecimals - 2)) / 100;
-	const duration: number = parseInt(challenge.duration.toString()) * 1000;
+	const size = parseInt(formatUnits(BigInt(challenge.size), position.collateralDecimals - 2)) / 100;
+	const min = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
+	const price = parseInt(formatUnits(BigInt(challenge.liqPrice), 36 - position.collateralDecimals - 2)) / 100;
+	const duration = parseInt(challenge.duration.toString()) * 1000;
 
-	const startChallenge: number = parseInt(challenge.start.toString()) * 1000;
-	const expirationChallengeVirtual: number = startChallenge + 2 * duration;
-	const expirationPosition: number = position.expiration * 1000;
-	const isQuickAuction: boolean = expirationChallengeVirtual > expirationPosition;
-	const expirationChallenge: number = Math.min(expirationChallengeVirtual, expirationPosition);
-	const expirationPhase1: number | undefined = isQuickAuction ? undefined : startChallenge + duration;
+	const startMs = parseInt(challenge.start.toString()) * 1000;
+	const expirationVirtual = startMs + 2 * duration;
+	const expirationPosition = position.expiration * 1000;
+	const isQuickAuction = expirationVirtual > expirationPosition;
+	const expirationFinal = Math.min(expirationVirtual, expirationPosition);
+	const phase1End = isQuickAuction ? undefined : startMs + duration;
 
-	return `
-*New Challenge Started*
+	return `⚔️ *Challenge Started*
 
-Number: ${challenge.number}
-Challenger: ${challenge.challenger}
-Position: ${position.position} (v${position.version})
-Owner: ${position.owner}
+#${challenge.number} on \`${shortenString(position.position)}\` (v${position.version})
+⚡ Quick Auction: *${isQuickAuction ? 'Yes' : 'No'}*
 
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-At: ${position.collateral}
-Size: ${formatCurrency(size, 2, 2)} ${position.collateralSymbol}
-Min: ${formatCurrency(min, 2, 2)} ${position.collateralSymbol}
-Starting Price: ${formatCurrency(price, 2, 2)} ZCHF
+⚔️ Challenger: \`${shortenString(challenge.challenger)}\`
+👤 Owner: \`${shortenString(position.owner)}\`
 
-Duration: ${formatCurrency(duration / 1000 / 60 / 60, 1, 1)} hours
-Quick Auction: ${isQuickAuction}
-Begin: ${new Date(startChallenge).toString().split(' ').slice(0, 5).join(' ')}
-Phase1 End: ${new Date(expirationPhase1).toString().split(' ').slice(0, 5).join(' ')}
-Phase2 End: ${new Date(expirationChallenge).toString().split(' ').slice(0, 5).join(' ')}
+💎 Collateral: *${position.collateralName} (${position.collateralSymbol})*
+   Size: *${formatCurrency(size, 2, 2)} ${position.collateralSymbol}* (min *${formatCurrency(min, 2, 2)}*)
+   Starting Price: *${formatCurrency(price, 2, 2)} ZCHF*
+   Duration: *${formatCurrency(duration / 1000 / 3600, 1, 1)} hours*
 
-[Buy ${position.collateralSymbol} in Auction](${AppUrl(`/monitoring/${position.position}/auction/${challenge.number}`)})
-[Goto Position](${AppUrl(`/monitoring/${position.position}`)})
+📅 Phase 1 End: *${phase1End ? new Date(phase1End).toUTCString() : 'N/A (quick auction)'}*
+📅 Phase 2 End: *${new Date(expirationFinal).toUTCString()}*
 
-[Explorer Challenger](${ExplorerAddressUrl(challenge.challenger)}) 
-[Explorer Position](${ExplorerAddressUrl(position.position)})
-[Explorer Owner](${ExplorerAddressUrl(position.owner)}) 
-[Explorer Collateral](${ExplorerAddressUrl(position.collateral)}) 
-                        `;
+[💸 Buy in Auction](${AppUrl(`/monitoring/${position.position}/auction/${challenge.number}`)}) · [📋 Position](${AppUrl(`/monitoring/${position.position}`)})
+[🔍 Challenger](${ExplorerAddressUrl(challenge.challenger)}) · [🔍 Position](${ExplorerAddressUrl(position.position)})`;
 }

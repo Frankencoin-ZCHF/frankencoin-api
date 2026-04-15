@@ -1,36 +1,32 @@
 import { PositionQuery } from 'modules/positions/positions.types';
-import { formatCurrency } from 'utils/format';
+import { formatCurrency, shortenString } from 'utils/format';
 import { AppUrl, ExplorerAddressUrl } from 'utils/func-helper';
 import { formatUnits } from 'viem';
 
 export function PositionExpiringSoonMessage(position: PositionQuery): string {
-	const bal: number = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
-	const min: number = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
-	const price: number = parseInt(formatUnits(BigInt(position.price), 36 - position.collateralDecimals - 2)) / 100;
-	const date = new Date(position.expiration * 1000);
+	const bal = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
+	const min = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
+	const price = parseInt(formatUnits(BigInt(position.price), 36 - position.collateralDecimals - 2)) / 100;
+	const expiryDate = new Date(position.expiration * 1000);
+	const expiryDays = formatCurrency((position.expiration * 1000 - Date.now()) / 1000 / 60 / 60 / 24);
+	const auctionHours = Math.floor(position.challengePeriod / 3600);
 
-	return `
-*Position will expire soon*
+	return `⏰ *Position Expiring Soon*
 
-Position: ${position.position} (v${position.version})
-Owner: ${position.owner}
+🏦 Position: \`${shortenString(position.position)}\` (v${position.version})
+👤 Owner: \`${shortenString(position.owner)}\`
 
-Minted: ${formatCurrency(formatUnits(BigInt(position.minted), 18), 2, 2)} ZCHF
-Retained Reserve: ${formatCurrency(position.reserveContribution / 10000, 1, 1)}%
-Auction Duration: ${Math.floor(position.challengePeriod / 60 / 60)} hours
-Expiration: ${formatCurrency((position.expiration * 1000 - Date.now()) / 1000 / 60 / 60 / 24)} days
-At: ${date.toUTCString()}
+📅 Expiry: *${expiryDate.toUTCString()}* (in *${expiryDays} days*)
+⏱ Auction Duration: *${auctionHours} hours*
 
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-At: ${position.collateral}
-Balance: ${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}
-Bal. min.: ${formatCurrency(min, 2, 2)} ${position.collateralSymbol}
-Price: ${formatCurrency(price, 2, 2)} ZCHF
+💎 Collateral: *${position.collateralName} (${position.collateralSymbol})*
+   Address: \`${shortenString(position.collateral)}\`
+   Balance: *${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}* (min *${formatCurrency(min, 2, 2)}*)
+   Liq. Price: *${formatCurrency(price, 2, 2)} ZCHF*
 
-[Overview Position](${AppUrl(`/monitoring/${position.position}`)})
+💵 Minted: *${formatCurrency(formatUnits(BigInt(position.minted), 18), 2, 2)} ZCHF*
+   Reserve: *${formatCurrency(position.reserveContribution / 10000, 1, 1)}%*
 
-[Explorer Position](${ExplorerAddressUrl(position.position)})
-[Explorer Owner](${ExplorerAddressUrl(position.owner)}) 
-[Explorer Collateral](${ExplorerAddressUrl(position.collateral)}) 
-                        `;
+[📋 Overview](${AppUrl(`/monitoring/${position.position}`)})
+[🔍 Position](${ExplorerAddressUrl(position.position)}) · [🔍 Owner](${ExplorerAddressUrl(position.owner)})`;
 }

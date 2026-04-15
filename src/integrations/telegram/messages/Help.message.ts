@@ -1,26 +1,31 @@
 import { AppUrl } from 'utils/func-helper';
 import { mainnet } from 'viem/chains';
 
+const HANDLE_LABELS: Record<string, string> = {
+	'/MintingUpdates': '📊 Minting Updates',
+	'/PriceAlerts': '⚠️ Price Alerts',
+	'/DailyInfos': '📅 Daily Infos (weekly)',
+};
+
 export function HelpMessage(handles: string[], chatSubs: { [handle: string]: boolean }): string {
-	const subTo = handles.filter((h) => chatSubs[h.replace('/', '')]);
+	const subscriptionLines = handles
+		.filter((h) => h !== '/help')
+		.map((h) => {
+			const key = h.replace('/', '');
+			const label = HANDLE_LABELS[h] ?? h;
+			const status = chatSubs[key] ? '✅' : '⬜';
+			return `${status} ${label}`;
+		})
+		.join('\n');
 
-	return `
-*Hello again, from the Frankencoin API Bot!*
+	return `ℹ️ *Frankencoin Bot*
 
-I am listening to changes within the Frankencoin ecosystem.
+Monitoring the Frankencoin ecosystem on ${mainnet.name} (chain ${mainnet.id}).
 
-*Available subscription handles*
-${handles.join('\n')}
+📡 *Subscriptions*
+${subscriptionLines}
 
-*Subscripted to*
-${subTo.length > 0 ? subTo.join('\n') : 'Not subscripted to any handles.'}
+Use /subscribe to toggle alert types.
 
-*Environment*
-Api Version: ${process.env.npm_package_version}
-Chain/Network: ${mainnet.name} (${mainnet.id})
-Time: ${new Date().toString().split(' ').slice(0, 5).join(' ')}
-
-[Goto App](${AppUrl('')})
-[Github Api](https://github.com/Frankencoin-ZCHF/frankencoin-api)
-`;
+v${process.env.npm_package_version} · [🌐 App](${AppUrl('')})`;
 }

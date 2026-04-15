@@ -475,7 +475,35 @@ export class TelegramService {
 			.map(([chatId]) => chatId);
 	}
 
+	private buildSubscriptionKeyboard(chatId: string): TelegramBot.InlineKeyboardButton[][] {
+		const subs = this.telegramGroupState.subscription[chatId] || {};
+		return [
+			[{ text: `${subs['MintingUpdates'] ? '✅' : '⬜'} Minting Updates`, callback_data: 'sub:MintingUpdates' }],
+			[{ text: `${subs['PriceAlerts'] ? '✅' : '⬜'} Price Alerts`, callback_data: 'sub:PriceAlerts' }],
+			[{ text: `${subs['DailyInfos'] ? '✅' : '⬜'} Daily Infos (weekly)`, callback_data: 'sub:DailyInfos' }],
+		];
+	}
+
+	private async sendSubscriptionMenu(chatId: number | string) {
+		const id = chatId.toString();
+		await this.sendMessage(id, '📡 *Manage Subscriptions*\n\nTap to toggle an alert type on or off:');
+		await this.bot.sendMessage(id, '\u200b', {
+			reply_markup: { inline_keyboard: this.buildSubscriptionKeyboard(id) },
+		});
+	}
+
 	async applyListener() {
+		try {
+			await this.bot.setMyCommands([
+				{ command: 'start', description: 'Connect this chat & show info' },
+				{ command: 'help', description: 'Show status & subscriptions' },
+				{ command: 'subscribe', description: 'Manage alert subscriptions' },
+			]);
+			this.logger.log('Bot command menu registered');
+		} catch (e) {
+			this.logger.warn(`Failed to set bot commands: ${e.message}`);
+		}
+
 		const toggle = (handle: string, msg: TelegramBot.Message) => {
 			if (handle !== msg.text) return;
 			const group = msg.chat.id.toString();
@@ -483,10 +511,10 @@ export class TelegramService {
 			const chatSubs = this.telegramGroupState.subscription[group] || {};
 			if (chatSubs[key]) {
 				delete chatSubs[key];
-				this.sendMessage(group, `Removed from subscription: \n${handle}`);
+				this.sendMessage(group, `⬜ Unsubscribed from *${handle}*`);
 			} else {
 				chatSubs[key] = true;
-				this.sendMessage(group, `Added to subscription: \n${handle}`);
+				this.sendMessage(group, `✅ Subscribed to *${handle}*`);
 			}
 			this.telegramGroupState.subscription[group] = chatSubs;
 			this.writeBackupGroups([group]);
@@ -494,12 +522,44 @@ export class TelegramService {
 
 		this.bot.on('message', async (m) => {
 			if (this.upsertTelegramGroup(m.chat.id) == true) await this.writeBackupGroups([String(m.chat.id)]);
-			if (m.text === '/help')
+
+			if (m.text === '/start' || m.text === '/help') {
 				this.sendMessage(
 					m.chat.id,
 					HelpMessage(this.telegramHandles, this.telegramGroupState.subscription[m.chat.id.toString()] || {})
 				);
-			else this.telegramHandles.forEach((h) => toggle(h, m));
+			} else if (m.text === '/subscribe') {
+				await this.sendSubscriptionMenu(m.chat.id);
+			} else {
+				this.telegramHandles.forEach((h) => toggle(h, m));
+			}
+		});
+
+		this.bot.on('callback_query', async (query) => {
+			if (!query.data?.startsWith('sub:')) return;
+			const handle = query.data.replace('sub:', '');
+			const chatId = query.message.chat.id.toString();
+
+			const chatSubs = this.telegramGroupState.subscription[chatId] || {};
+			if (chatSubs[handle]) {
+				delete chatSubs[handle];
+			} else {
+				chatSubs[handle] = true;
+			}
+			this.telegramGroupState.subscription[chatId] = chatSubs;
+			await this.writeBackupGroups([chatId]);
+
+			try {
+				await this.bot.editMessageReplyMarkup(
+					{ inline_keyboard: this.buildSubscriptionKeyboard(chatId) },
+					{ chat_id: query.message.chat.id, message_id: query.message.message_id }
+				);
+			} catch (_) {}
+
+			const isOn = !!chatSubs[handle];
+			await this.bot.answerCallbackQuery(query.id, {
+				text: isOn ? `✅ Subscribed to ${handle}` : `⬜ Unsubscribed from ${handle}`,
+			});
 		});
 	}
 

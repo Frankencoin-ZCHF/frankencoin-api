@@ -2,20 +2,26 @@ import { AppUrl } from 'utils/func-helper';
 import { mainnet } from 'viem/chains';
 
 export function WelcomeGroupMessage(group: string | number, handles: string[]): string {
-	return `
-*Welcome to the Frankencoin API Bot*
+	const subscriptions = handles
+		.filter((h) => h !== '/help')
+		.map((h) => {
+			const labels: Record<string, string> = {
+				'/MintingUpdates': '📊 /MintingUpdates — new minting transactions',
+				'/PriceAlerts': '⚠️ /PriceAlerts — collateral price warnings',
+				'/DailyInfos': '📅 /DailyInfos — weekly ecosystem summary',
+			};
+			return labels[h] ?? h;
+		})
+		.join('\n');
 
-If you receive this message, it means the bot recognized this chat. (${group})
+	return `👋 *Welcome to Frankencoin Bot*
 
-*Available subscription handles:*
-${handles.join('\n')}
+This chat (\`${group}\`) is now connected to the Frankencoin ecosystem monitor on ${mainnet.name}.
 
-*Environment*
-Api Version: ${process.env.npm_package_version}
-Chain/Network: ${mainnet.name} (${mainnet.id})
-Time: ${new Date().toString().split(' ').slice(0, 5).join(' ')}
+📡 *Optional Subscriptions*
+${subscriptions}
 
-[Goto App](${AppUrl('')})
-[Github Api](https://github.com/Frankencoin-ZCHF/frankencoin-api)
-                        `;
+Use /subscribe to manage alerts or /help for status.
+
+v${process.env.npm_package_version} · [🌐 App](${AppUrl('')}) · [📦 GitHub](https://github.com/Frankencoin-ZCHF/frankencoin-api)`;
 }

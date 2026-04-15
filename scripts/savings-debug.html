@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>ZCHF Savings Debug</title>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+		<style>
+			* { box-sizing: border-box; margin: 0; padding: 0; }
+			body { font-family: monospace; background: #f5f5f5; color: #111; padding: 20px; }
+			h1 { font-size: 1.2rem; margin-bottom: 12px; color: #000; }
+			h2 { font-size: 1rem; margin-bottom: 8px; color: #92400e; }
+			h3 { font-size: 0.85rem; margin-bottom: 6px; color: #475569; }
+			#controls {
+				display: flex; gap: 12px; align-items: center;
+				margin-bottom: 16px; flex-wrap: wrap;
+			}
+			#base-url {
+				flex: 1; min-width: 320px;
+				background: #fff; border: 1px solid #ccc;
+				color: #111; padding: 6px 10px;
+				border-radius: 4px; font-family: monospace;
+			}
+			button {
+				background: #2563eb; color: #fff; border: none;
+				padding: 7px 16px; border-radius: 4px; cursor: pointer; font-family: monospace;
+			}
+			button:hover { background: #1d4ed8; }
+			#status { font-size: 0.8rem; color: #666; }
+			#stats {
+				display: flex; gap: 20px; flex-wrap: wrap;
+				margin-bottom: 14px; font-size: 0.82rem; color: #555;
+			}
+			#stats span b { color: #111; }
+			.chart-container {
+				position: relative; width: 100%; height: 400px;
+				background: #fff; border-radius: 6px; padding: 16px;
+				border: 1px solid #e0e0e0; margin-bottom: 20px;
+			}
+			.section { margin-top: 20px; }
+			table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+			th {
+				text-align: left; padding: 6px 10px;
+				background: #f0f0f0; color: #444;
+				border-bottom: 1px solid #ddd;
+			}
+			td { padding: 5px 10px; border-bottom: 1px solid #eee; }
+			tr:hover td { background: #fafafa; }
+			.tag {
+				display: inline-block; padding: 1px 6px;
+				border-radius: 3px; font-size: 0.72rem;
+			}
+			.tag-blue   { background: #dbeafe; color: #1d4ed8; }
+			.tag-green  { background: #dcfce7; color: #15803d; }
+			.tag-yellow { background: #fef9c3; color: #b45309; }
+			.tag-red    { background: #fee2e2; color: #b91c1c; }
+			.tag-gray   { background: #f3f4f6; color: #6b7280; }
+			.chain-block {
+				background: #fff; border: 1px solid #e0e0e0;
+				border-radius: 6px; padding: 12px 16px; margin-bottom: 12px;
+			}
+			.chain-block h3 { margin-bottom: 10px; }
+			.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+			@media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+		</style>
+	</head>
+	<body>
+		<h1>ZCHF Savings — Debug</h1>
+
+		<div id="controls">
+			<input id="base-url" type="text" value="https://api.frankencoin.com" />
+			<button onclick="load()">Load</button>
+			<span id="status"></span>
+		</div>
+
+		<div id="stats"></div>
+
+		<div class="section">
+			<h2>Interest Rate History</h2>
+			<div class="chart-container">
+				<canvas id="chart-rates"></canvas>
+			</div>
+		</div>
+
+		<div class="section" id="section-status">
+			<h2>Current Status (per chain / module)</h2>
+			<div id="status-blocks"></div>
+		</div>
+
+		<div class="section" id="section-unsynced">
+			<h2>Unsynced Bridged Savings Modules</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>Chain</th><th>Module</th><th>Current Rate (PPM)</th><th>Current Rate (%)</th>
+						<th>Expected (ETH Savings)</th><th>Δ PPM</th><th>Last Change (UTC)</th><th>Tx Hash</th>
+					</tr>
+				</thead>
+				<tbody id="unsynced-table"></tbody>
+			</table>
+		</div>
+
+		<div class="section" id="section-rates">
+			<h2>Rate Changes (chronological)</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>#</th><th>Date (UTC)</th><th>Chain</th><th>Module</th>
+						<th>Rate (PPM)</th><th>Rate (%)</th><th>Δ Rate</th><th>Tx Hash</th>
+					</tr>
+				</thead>
+				<tbody id="rates-table"></tbody>
+			</table>
+		</div>
+
+		<div class="section" id="section-proposals">
+			<h2>Rate Proposals (chronological)</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>#</th><th>Proposed At (UTC)</th><th>Chain</th><th>Module</th>
+						<th>Proposed Rate</th><th>Proposed Rate (%)</th>
+						<th>Effective At (UTC)</th><th>Proposer</th><th>Tx Hash</th>
+					</tr>
+				</thead>
+				<tbody id="proposals-table"></tbody>
+			</table>
+		</div>
+
+		<div class="section" id="section-ranked">
+			<h2>Top 20 Accounts by Balance</h2>
+			<table>
+				<thead>
+					<tr>
+						<th>Rank</th><th>Account</th><th>Chain</th><th>Balance (ZCHF)</th>
+						<th>Total Saved</th><th>Interest Earned</th><th>Withdrawn</th><th>Last Updated</th>
+					</tr>
+				</thead>
+				<tbody id="ranked-table"></tbody>
+			</table>
+		</div>
+
+		<script>
+		const CHAIN_NAMES  = { 1: 'Ethereum', 100: 'Gnosis', 8453: 'Base', 10: 'Optimism', 137: 'Polygon' };
+		const MODULE_COLORS = { 'Savings': '#2563eb', 'Mint Rate': '#d97706' };
+
+		let chartRates = null;
+
+		function setStatus(msg, color) {
+			const el = document.getElementById('status');
+			el.textContent = msg;
+			el.style.color = color || '#666';
+		}
+
+		function fmt(weiStr, decimals = 18) {
+			const v = Number(BigInt(weiStr) * 10000n / BigInt(10 ** decimals)) / 10000;
+			return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+		}
+
+		function ppm(rate) { return (rate / 10000).toFixed(2) + '%'; }
+
+		function ts(unix) {
+			return new Date(unix * 1000).toISOString().replace('T', ' ').slice(0, 16);
+		}
+
+		function shortAddr(addr) { return addr ? addr.slice(0, 8) + '…' + addr.slice(-6) : '—'; }
+		function shortHash(hash) { return hash ? hash.slice(0, 10) + '…' : '—'; }
+
+		function chainLabel(chainId) {
+			return CHAIN_NAMES[chainId] ? `${CHAIN_NAMES[chainId]} (${chainId})` : `Chain ${chainId}`;
+		}
+
+		function moduleLabel(chainId, module) {
+			if (Number(chainId) === 1) {
+				const prefix = module.toLowerCase().slice(0, 4);
+				if (prefix === '0x27') return 'Savings';
+				if (prefix === '0x3b') return 'Mint Rate';
+			}
+			return 'Synced';
+		}
+
+		function seriesLabel(chainId, module) {
+			return `${chainLabel(Number(chainId))} · ${moduleLabel(chainId, module)}`;
+		}
+
+		function moduleColor(chainId, module) {
+			return MODULE_COLORS[moduleLabel(chainId, module)] || '#64748b';
+		}
+
+		async function fetchJson(url) {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+			return res.json();
+		}
+
+		async function load() {
+			const base = document.getElementById('base-url').value.trim().replace(/\/$/, '');
+			setStatus('Fetching…');
+			let info, ratesData, proposalsData, ranked;
+			try {
+				[info, ratesData, proposalsData, ranked] = await Promise.all([
+					fetchJson(`${base}/savings/core/info`),
+					fetchJson(`${base}/savings/leadrate/rates`),
+					fetchJson(`${base}/savings/leadrate/proposals`),
+					fetchJson(`${base}/savings/core/ranked`),
+				]);
+			} catch (e) {
+				setStatus('Error: ' + e.message, '#dc2626');
+				return;
+			}
+
+			setStatus('Loaded', '#16a34a');
+			renderStats(info);
+			renderStatusBlocks(info);
+			renderRatesChart(ratesData, proposalsData);
+			renderUnsyncedTable(ratesData);
+			renderRatesTable(ratesData);
+			renderProposalsTable(proposalsData);
+			renderRanked(ranked);
+		}
+
+		function renderStats(info) {
+			const totalBalance  = typeof info.totalBalance  === 'number' ? info.totalBalance  : 0;
+			const totalInterest = typeof info.totalInterest === 'number' ? info.totalInterest : 0;
+			const ratio         = typeof info.ratioOfSupply === 'number' ? info.ratioOfSupply : 0;
+			const rates = [];
+			for (const [chainId, modules] of Object.entries(info.status || {}))
+				for (const [, s] of Object.entries(modules))
+					rates.push(`${chainLabel(Number(chainId))}: ${ppm(s.rate)}`);
+
+			document.getElementById('stats').innerHTML = `
+				<span>Total Balance: <b>${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ZCHF</b></span>
+				<span>Total Interest: <b>${totalInterest.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ZCHF</b></span>
+				<span>Ratio of Supply: <b>${(ratio * 100).toFixed(2)}%</b></span>
+				<span>Rates: <b>${rates.join(' | ') || '—'}</b></span>
+			`;
+		}
+
+		function renderStatusBlocks(info) {
+			const container = document.getElementById('status-blocks');
+			container.innerHTML = '';
+			for (const [chainId, modules] of Object.entries(info.status || {})) {
+				for (const [module, s] of Object.entries(modules)) {
+					const block = document.createElement('div');
+					block.className = 'chain-block';
+					block.innerHTML = `
+						<h3>${seriesLabel(chainId, module)} — <span style="color:#2563eb" title="${module}">${shortAddr(module)}</span>
+							&nbsp;<span style="color:#888;font-size:0.75rem">updated ${ts(s.updated)}</span></h3>
+						<div class="grid-2">
+							<table>
+								<tr><th>Balance</th><td>${fmt(s.balance)} ZCHF</td></tr>
+								<tr><th>Total Saved</th><td>${fmt(s.save)} ZCHF</td></tr>
+								<tr><th>Total Withdrawn</th><td>${fmt(s.withdraw)} ZCHF</td></tr>
+								<tr><th>Total Interest</th><td>${fmt(s.interest)} ZCHF</td></tr>
+								<tr><th>Current Rate</th><td>${ppm(s.rate)} (${s.rate} PPM)</td></tr>
+							</table>
+							<table>
+								<tr><th>Save count</th><td>${s.counter.save}</td></tr>
+								<tr><th>Withdraw count</th><td>${s.counter.withdraw}</td></tr>
+								<tr><th>Interest count</th><td>${s.counter.interest}</td></tr>
+								<tr><th>Rate changes</th><td>${s.counter.rateChanged}</td></tr>
+								<tr><th>Rate proposals</th><td>${s.counter.rateProposed}</td></tr>
+							</table>
+						</div>
+					`;
+					container.appendChild(block);
+				}
+			}
+		}
+
+		function renderRatesChart(ratesData, proposalsData) {
+			const rateSeries = [];
+			for (const [chainId, modules] of Object.entries(ratesData.list || {})) {
+				if (Number(chainId) !== 1) continue;
+				for (const [module, entries] of Object.entries(modules)) {
+					rateSeries.push({
+						label: seriesLabel(chainId, module),
+						color: moduleColor(chainId, module),
+						entries: [...entries].sort((a, b) => a.created - b.created),
+					});
+				}
+			}
+
+			const proposalSeries = [];
+			for (const [chainId, modules] of Object.entries(proposalsData.list || {})) {
+				if (Number(chainId) !== 1) continue;
+				for (const [module, entries] of Object.entries(modules)) {
+					proposalSeries.push({
+						label: seriesLabel(chainId, module) + ' proposals',
+						color: moduleColor(chainId, module),
+						entries: [...entries].sort((a, b) => a.created - b.created),
+					});
+				}
+			}
+
+			const allDates = new Set();
+			for (const s of rateSeries)    s.entries.forEach(e => allDates.add(new Date(e.created * 1000).toISOString().slice(0, 10)));
+			for (const s of proposalSeries) s.entries.forEach(e => allDates.add(new Date(e.created * 1000).toISOString().slice(0, 10)));
+			const labels = [...allDates].sort();
+
+			const datasets = [];
+
+			for (const { label, color, entries } of rateSeries) {
+				const byDate = {};
+				entries.forEach(e => { byDate[new Date(e.created * 1000).toISOString().slice(0, 10)] = e; });
+				let last = null;
+				const data = labels.map(d => { if (byDate[d]) last = byDate[d]; return last ? last.approvedRate / 10000 : null; });
+				datasets.push({
+					label, data,
+					_entries: labels.map(d => byDate[d] || null),
+					borderColor: color,
+					backgroundColor: color + '18',
+					borderWidth: 2,
+					pointRadius: labels.map(d => (byDate[d] ? 4 : 0)),
+					pointBackgroundColor: color,
+					stepped: 'before', fill: false, tension: 0, spanGaps: true,
+				});
+			}
+
+			for (const { label, color, entries } of proposalSeries) {
+				const byDate = {};
+				entries.forEach(e => { byDate[new Date(e.created * 1000).toISOString().slice(0, 10)] = e; });
+				datasets.push({
+					label,
+					data: labels.map(d => (byDate[d] ? byDate[d].nextRate / 10000 : null)),
+					_entries: labels.map(d => byDate[d] || null),
+					borderColor: 'transparent',
+					pointRadius: labels.map(d => (byDate[d] ? 6 : 0)),
+					pointStyle: 'triangle',
+					pointBackgroundColor: color,
+					showLine: false, fill: false, spanGaps: true,
+				});
+			}
+
+			// Compute a clean Y max: find highest value across all datasets, then round up
+			// to the next "nice" step (0.5 if <5%, 1 if <20%, 5 if larger)
+			const allValues = datasets.flatMap(ds => ds.data.filter(v => v != null));
+			const rawMax = allValues.length ? Math.max(...allValues) : 10;
+			function niceMax(v) {
+				const step = v < 5 ? 0.5 : v < 20 ? 1 : 5;
+				return Math.ceil((v + step * 0.5) / step) * step;
+			}
+			const yMax = niceMax(rawMax);
+
+			if (chartRates) chartRates.destroy();
+			const ctx = document.getElementById('chart-rates').getContext('2d');
+			chartRates = new Chart(ctx, {
+				type: 'line',
+				data: { labels, datasets },
+				options: {
+					responsive: true, maintainAspectRatio: false, animation: false,
+					plugins: {
+						legend: { labels: { color: '#333', boxWidth: 12 } },
+						tooltip: {
+							backgroundColor: '#fff', titleColor: '#666',
+							bodyColor: '#111', borderColor: '#ddd', borderWidth: 1,
+							callbacks: {
+								title: (items) => labels[items[0].dataIndex],
+								label: (item) => {
+									const v = item.raw;
+									if (v === null) return null;
+									const e = item.dataset._entries?.[item.dataIndex];
+									const lines = [`${item.dataset.label}: ${v.toFixed(4)}%`];
+									if (e?.approvedRate !== undefined) lines.push(`  PPM: ${e.approvedRate}`, `  Tx: ${shortHash(e.txHash)}`);
+									if (e?.nextRate     !== undefined) lines.push(`  Proposed: ${(e.nextRate / 10000).toFixed(4)}%`, `  Effective: ${ts(e.nextChange)}`);
+									return lines;
+								},
+							},
+						},
+					},
+					scales: {
+						x: { ticks: { color: '#888', maxTicksLimit: 20, maxRotation: 45 }, grid: { color: '#ececec' } },
+						y: {
+							min: 0,
+							max: yMax,
+							ticks: { color: '#888', callback: v => v.toFixed(2) + '%' },
+							grid: { color: '#ececec' },
+							title: { display: true, text: 'Rate (%)', color: '#888' },
+						},
+					},
+				},
+			});
+		}
+
+		function renderUnsyncedTable(ratesData) {
+			const tbody = document.getElementById('unsynced-table');
+			const ethModules = ratesData.rate?.['1'] || ratesData.rate?.[1] || {};
+			let ethSavingsRate = null;
+			for (const [module, entry] of Object.entries(ethModules)) {
+				if (module.toLowerCase().startsWith('0x27')) { ethSavingsRate = entry.approvedRate; break; }
+			}
+			if (ethSavingsRate === null) {
+				tbody.innerHTML = '<tr><td colspan="8" style="color:#888;padding:8px 10px">ETH mainnet Savings rate not found</td></tr>';
+				return;
+			}
+			const unsynced = [];
+			for (const [chainId, modules] of Object.entries(ratesData.rate || {})) {
+				if (Number(chainId) === 1) continue;
+				for (const [module, entry] of Object.entries(modules))
+					if (entry.approvedRate !== ethSavingsRate)
+						unsynced.push({ chainId: Number(chainId), module, entry });
+			}
+			if (unsynced.length === 0) {
+				tbody.innerHTML = `<tr><td colspan="8" style="color:#16a34a;padding:8px 10px">All bridged savings modules are in sync with ETH mainnet rate (${ppm(ethSavingsRate)} / ${ethSavingsRate} PPM)</td></tr>`;
+				return;
+			}
+			tbody.innerHTML = unsynced.map(u => {
+				const delta = u.entry.approvedRate - ethSavingsRate;
+				const dc    = delta > 0 ? '#16a34a' : '#dc2626';
+				return `<tr>
+					<td><span class="tag tag-blue">${chainLabel(u.chainId)}</span></td>
+					<td style="color:#888" title="${u.module}">${shortAddr(u.module)}</td>
+					<td>${u.entry.approvedRate}</td>
+					<td>${ppm(u.entry.approvedRate)}</td>
+					<td style="color:#555">${ppm(ethSavingsRate)} (${ethSavingsRate} PPM)</td>
+					<td style="color:${dc}">${delta > 0 ? '+' : ''}${delta} PPM</td>
+					<td>${ts(u.entry.created)}</td>
+					<td style="color:#aaa" title="${u.entry.txHash}">${shortHash(u.entry.txHash)}</td>
+				</tr>`;
+			}).join('');
+		}
+
+		function renderRatesTable(ratesData) {
+			const all = [];
+			for (const [chainId, modules] of Object.entries(ratesData.list || {}))
+				for (const [module, entries] of Object.entries(modules))
+					entries.forEach(e => all.push({ ...e, chainId: Number(chainId), module }));
+			all.sort((a, b) => a.created - b.created);
+
+			const prevRate = {};
+			const tbody = document.getElementById('rates-table');
+			tbody.innerHTML = all.length === 0
+				? '<tr><td colspan="8" style="color:#888;padding:8px 10px">No data</td></tr>'
+				: all.map((e, i) => {
+					const key   = `${e.chainId}:${e.module}`;
+					const prev  = prevRate[key];
+					const delta = prev !== undefined ? e.approvedRate - prev : null;
+					prevRate[key] = e.approvedRate;
+					const deltaStr = delta === null ? '—' : (delta > 0 ? '+' : '') + (delta / 10000).toFixed(4) + '%';
+					const dc       = delta === null ? '#888' : delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : '#888';
+					const modLabel = moduleLabel(e.chainId, e.module);
+					const modClass = modLabel === 'Savings' ? 'tag-green' : modLabel === 'Mint Rate' ? 'tag-yellow' : 'tag-gray';
+					return `<tr>
+						<td>${i + 1}</td>
+						<td>${ts(e.created)}</td>
+						<td><span class="tag tag-blue">${chainLabel(e.chainId)}</span></td>
+						<td><span class="tag ${modClass}" title="${e.module}">${modLabel}</span></td>
+						<td>${e.approvedRate}</td>
+						<td>${ppm(e.approvedRate)}</td>
+						<td style="color:${dc}">${deltaStr}</td>
+						<td style="color:#aaa" title="${e.txHash}">${shortHash(e.txHash)}</td>
+					</tr>`;
+				}).join('');
+		}
+
+		function renderProposalsTable(proposalsData) {
+			const all = [];
+			for (const [chainId, modules] of Object.entries(proposalsData.list || {}))
+				for (const [module, entries] of Object.entries(modules))
+					entries.forEach(e => all.push({ ...e, chainId: Number(chainId), module }));
+			all.sort((a, b) => a.created - b.created);
+
+			const now   = Math.floor(Date.now() / 1000);
+			const tbody = document.getElementById('proposals-table');
+			tbody.innerHTML = all.length === 0
+				? '<tr><td colspan="9" style="color:#888;padding:8px 10px">No data</td></tr>'
+				: all.map((e, i) => {
+					const isPending = e.nextChange > now;
+					const badge     = isPending
+						? '<span class="tag tag-yellow">Pending</span>'
+						: '<span class="tag tag-gray">Executed</span>';
+					const modLabel = moduleLabel(e.chainId, e.module);
+					const modClass = modLabel === 'Savings' ? 'tag-green' : modLabel === 'Mint Rate' ? 'tag-yellow' : 'tag-gray';
+					return `<tr>
+						<td>${i + 1}</td>
+						<td>${ts(e.created)}</td>
+						<td><span class="tag tag-blue">${chainLabel(e.chainId)}</span></td>
+						<td><span class="tag ${modClass}" title="${e.module}">${modLabel}</span></td>
+						<td>${e.nextRate}</td>
+						<td>${ppm(e.nextRate)}</td>
+						<td>${ts(e.nextChange)} ${badge}</td>
+						<td style="color:#aaa" title="${e.proposer}">${shortAddr(e.proposer)}</td>
+						<td style="color:#aaa" title="${e.txHash}">${shortHash(e.txHash)}</td>
+					</tr>`;
+				}).join('');
+		}
+
+		function renderRanked(ranked) {
+			if (!Array.isArray(ranked)) return;
+			const tbody = document.getElementById('ranked-table');
+			tbody.innerHTML = ranked.slice(0, 20).length === 0
+				? '<tr><td colspan="8" style="color:#888;padding:8px 10px">No data</td></tr>'
+				: ranked.slice(0, 20).map((r, i) => `<tr>
+					<td>${i + 1}</td>
+					<td style="color:#2563eb" title="${r.account}">${shortAddr(r.account)}</td>
+					<td><span class="tag tag-blue">${chainLabel(r.chainId)}</span></td>
+					<td>${fmt(r.balance)}</td>
+					<td>${fmt(r.save)}</td>
+					<td style="color:#16a34a">${fmt(r.interest)}</td>
+					<td style="color:#dc2626">${fmt(r.withdraw)}</td>
+					<td style="color:#aaa">${ts(r.updated)}</td>
+				</tr>`).join('');
+		}
+
+		load();
+		</script>
+	</body>
+</html>

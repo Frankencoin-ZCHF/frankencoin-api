@@ -1,30 +1,23 @@
 import { BidsQueryItem, ChallengesQueryItem } from 'modules/challenges/challenges.types';
 import { PositionQuery } from 'modules/positions/positions.types';
-import { formatCurrency } from 'utils/format';
+import { formatCurrency, shortenString } from 'utils/format';
 import { AppUrl, ExplorerAddressUrl } from 'utils/func-helper';
 import { formatUnits } from 'viem';
 
 export function BidTakenMessage(position: PositionQuery, challenge: ChallengesQueryItem, bid: BidsQueryItem): string {
-	return `
-*New Bid Taken*
+	return `💸 *Bid Taken*
 
-Position: ${bid.position} (v${position.version})
-Bidder: ${bid.bidder}
-Challenge Index: ${bid.number}
-Bid Index: ${bid.numberBid}
-Bid Type: *${bid.bidType}*
+🏦 Position: \`${shortenString(bid.position)}\` (v${position.version})
+👤 Bidder: \`${shortenString(bid.bidder)}\`
+📋 Challenge: #${bid.number} · Bid: #${bid.numberBid}
+🏷 Type: *${bid.bidType}*
 
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-Challenge Size: ${formatCurrency(formatUnits(bid.challengeSize, position.collateralDecimals))} ${position.collateralSymbol}
+💎 Collateral: *${position.collateralName} (${position.collateralSymbol})*
+   Challenge Size: *${formatCurrency(formatUnits(bid.challengeSize, position.collateralDecimals))} ${position.collateralSymbol}*
+   Bid Filled: *${formatCurrency(formatUnits(bid.filledSize, position.collateralDecimals))} ${position.collateralSymbol}*
+   Bid Amount: *${formatCurrency(formatUnits(bid.bid, 18))} ZCHF*
+   Bid Price: *${formatCurrency(formatUnits(bid.price, 36 - position.collateralDecimals))} ZCHF/${position.collateralSymbol}*
 
-Bid Amount: ${formatCurrency(formatUnits(bid.bid, 18))} ZCHF
-Bid Filled: ${formatCurrency(formatUnits(bid.filledSize, position.collateralDecimals))} ${position.collateralSymbol}
-Bid Price: ${formatCurrency(formatUnits(bid.price, 36 - position.collateralDecimals))} ZCHF/${position.collateralSymbol}
-
-[Buy ${position.collateralSymbol} in Auction](${AppUrl(`/monitoring/${bid.position}/auction/${bid.number}`)})
-[Goto Position](${AppUrl(`/monitoring/${bid.position}`)})
-
-[Explorer Bidder](${ExplorerAddressUrl(bid.bidder)}) 
-[Explorer Position](${ExplorerAddressUrl(bid.position)})
-                        `;
+[💸 Buy in Auction](${AppUrl(`/monitoring/${bid.position}/auction/${bid.number}`)}) · [📋 Position](${AppUrl(`/monitoring/${bid.position}`)})
+[🔍 Bidder](${ExplorerAddressUrl(bid.bidder)}) · [🔍 Position](${ExplorerAddressUrl(bid.position)})`;
 }

@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>FPS Price & Earnings Debug</title>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+		<style>
+			* { box-sizing: border-box; margin: 0; padding: 0; }
+			body { font-family: monospace; background: #f5f5f5; color: #111; padding: 20px; }
+			h1 { font-size: 1.2rem; margin-bottom: 12px; color: #000; }
+			h2 { font-size: 0.95rem; color: #92400e; margin-bottom: 6px; }
+			#controls {
+				display: flex; gap: 12px; align-items: center;
+				margin-bottom: 16px; flex-wrap: wrap;
+			}
+			#base-url {
+				flex: 1; min-width: 360px;
+				background: #fff; border: 1px solid #ccc;
+				color: #111; padding: 6px 10px;
+				border-radius: 4px; font-family: monospace;
+			}
+			button {
+				background: #2563eb; color: #fff; border: none;
+				padding: 7px 16px; border-radius: 4px; cursor: pointer; font-family: monospace;
+			}
+			button:hover { background: #1d4ed8; }
+			#status { font-size: 0.8rem; color: #666; }
+			.section { margin-bottom: 28px; }
+			.stat-row {
+				display: flex; gap: 20px; flex-wrap: wrap;
+				margin-bottom: 14px; font-size: 0.82rem; color: #555;
+			}
+			.stat-row span b { color: #111; }
+			.chart-wrap {
+				position: relative; width: 100%; height: 340px;
+				background: #fff; border-radius: 6px; padding: 16px;
+				border: 1px solid #e0e0e0; margin-bottom: 8px;
+			}
+			.chart-wrap.tall { height: 420px; }
+			.note {
+				font-size: 0.74rem; color: #444; line-height: 1.7;
+				margin-bottom: 10px;
+			}
+			.note b { color: #111; }
+			.note code { color: #1d4ed8; }
+			table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+			th {
+				text-align: left; padding: 6px 10px;
+				background: #f0f0f0; color: #444;
+				border-bottom: 1px solid #ddd;
+			}
+			td { padding: 5px 10px; border-bottom: 1px solid #eee; }
+			td.pos     { color: #16a34a; }
+			td.neg     { color: #dc2626; }
+			td.neutral { color: #475569; }
+		</style>
+	</head>
+	<body>
+		<h1>FPS — Price &amp; Earnings Debug</h1>
+
+		<div id="controls">
+			<input id="base-url" type="text" value="https://api.frankencoin.com" />
+			<button onclick="load()">Load</button>
+			<span id="status"></span>
+		</div>
+
+		<div id="stats" class="stat-row"></div>
+
+		<!-- CHART 1: FPS Price + Implied Earnings Value -->
+		<div class="section">
+			<h2>FPS Price vs Implied Earnings Value (earningsPerFPS × 3)</h2>
+			<div class="chart-wrap tall">
+				<canvas id="chart-price"></canvas>
+			</div>
+		</div>
+
+		<!-- CHART 2: daily Δ earningsPerFPS -->
+		<div class="section">
+			<h2>Daily Δ earningsPerFPS</h2>
+			<p class="note">
+				<b>earningsPerFPS</b> is cumulative on-chain — this chart shows the day-over-day delta.
+				Green = earnings accrued, red = loss day.
+			</p>
+			<div class="chart-wrap">
+				<canvas id="chart-daily-eps"></canvas>
+			</div>
+		</div>
+
+		<!-- CHART 3: realized + annual combined -->
+		<div class="section">
+			<h2>Realized Net Earnings (rolling 365d) &amp; Annual Net Earnings (annualized projection)</h2>
+			<p class="note">
+				<span style="color:#7c3aed">■</span> <b>realizedNetEarnings</b> — rolling 365-day window: <code>(totalInflow − totalOutflow)</code> for the trailing year.
+				Drops occur when a high-earning day rolls out of the window, or when loss events (liquidation shortfalls, bad debt) push outflow above inflow.
+			</p>
+			<p class="note" style="margin-top:6px">
+				<span style="color:#d97706">■</span> <b>annualNetEarnings</b> — forward projection: implied annual earnings from avg borrow rate × total minted,
+				minus projected savings interest cost (saved amount × save rate). Forward-looking, not realized.
+			</p>
+			<div class="chart-wrap">
+				<canvas id="chart-earnings"></canvas>
+			</div>
+		</div>
+
+		<!-- TABLE -->
+		<div class="section">
+			<h2>Per-Day Earnings Table</h2>
+			<div style="overflow-x:auto">
+			<table>
+				<thead>
+					<tr>
+						<th>Date</th>
+						<th>FPS Price</th>
+						<th>Implied EV (×3)</th>
+						<th>Price / IEV</th>
+						<th>earningsPerFPS</th>
+						<th>Δ earningsPerFPS</th>
+						<th>annualNetEarnings</th>
+						<th>realizedNetEarnings</th>
+						<th>FPS Supply</th>
+					</tr>
+				</thead>
+				<tbody id="table-body"></tbody>
+			</table>
+			</div>
+		</div>
+
+		<script>
+		const DECIMALS   = 1e18;
+		const MULTIPLIER = 3;
+		let charts = {};
+
+		function setStatus(msg, color) {
+			const el = document.getElementById('status');
+			el.textContent = msg;
+			el.style.color = color || '#666';
+		}
+
+		function fmt(n, decimals = 4) {
+			if (n == null || isNaN(n)) return '—';
+			return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+		}
+		function fmtShort(n) { return fmt(n, 2); }
+		function fmtBig(n) {
+			if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+			if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+			if (Math.abs(n) >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+			return n.toFixed(2);
+		}
+
+		function fromWei(val) {
+			if (val == null) return null;
+			try { return Number(BigInt(val)) / DECIMALS; } catch { return null; }
+		}
+
+		function destroyChart(id) {
+			if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+		}
+
+		function makeChart(id, type, labels, datasets, opts = {}) {
+			destroyChart(id);
+			const ctx = document.getElementById(id).getContext('2d');
+			charts[id] = new Chart(ctx, {
+				type,
+				data: { labels, datasets },
+				options: {
+					responsive: true, maintainAspectRatio: false, animation: false,
+					interaction: { mode: 'index', intersect: false },
+					plugins: {
+						legend: { labels: { color: '#333', boxWidth: 12, font: { size: 11 } } },
+						tooltip: { backgroundColor: '#fff', titleColor: '#666', bodyColor: '#111', borderColor: '#ddd', borderWidth: 1 },
+					},
+					scales: {
+						x: { ticks: { color: '#888', maxTicksLimit: 16, maxRotation: 45 }, grid: { color: '#ececec' } },
+						y: { ticks: { color: '#888' }, grid: { color: '#ececec' }, ...(opts.y || {}) },
+						...(opts.y2 ? { y2: { position: 'right', ticks: { color: '#888' }, grid: { drawOnChartArea: false }, ...opts.y2 } } : {}),
+					},
+					...opts.extra,
+				},
+			});
+		}
+
+		async function load() {
+			const base = document.getElementById('base-url').value.trim().replace(/\/$/, '');
+			const url  = `${base}/analytics/dailyLog/json`;
+			setStatus('Fetching…');
+			let raw;
+			try {
+				const res = await fetch(url);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				raw = await res.json();
+			} catch (e) {
+				setStatus('Error: ' + e.message, '#dc2626');
+				return;
+			}
+
+			const arr = Array.isArray(raw) ? raw : (raw.logs ?? Object.values(raw).find(v => Array.isArray(v)) ?? []);
+			const entries = arr
+				.filter(e => e.date && e.fpsPrice != null)
+				.sort((a, b) => (a.date < b.date ? -1 : 1));
+
+			if (entries.length === 0) {
+				setStatus('No usable entries found', '#dc2626');
+				return;
+			}
+			setStatus(`Loaded ${entries.length} daily entries`, '#16a34a');
+
+			const labels            = entries.map(e => e.date);
+			const fpsPrice          = entries.map(e => fromWei(e.fpsPrice));
+			const fpsTotalSupply    = entries.map(e => fromWei(e.fpsTotalSupply));
+			const earningsPerFPS    = entries.map(e => fromWei(e.earningsPerFPS));
+			const annualNetEarnings = entries.map(e => fromWei(e.annualNetEarnings));
+			const realizedNet       = entries.map(e => fromWei(e.realizedNetEarnings));
+
+			const dailyEPS = earningsPerFPS.map((v, i) =>
+				i === 0 ? 0 : (v != null && earningsPerFPS[i-1] != null ? v - earningsPerFPS[i-1] : null)
+			);
+
+			const impliedEV    = earningsPerFPS.map(v => v != null ? v * MULTIPLIER : null);
+			const priceOverIEV = fpsPrice.map((p, i) =>
+				(p != null && impliedEV[i] != null && impliedEV[i] !== 0) ? p / impliedEV[i] : null
+			);
+
+			const last = entries.length - 1;
+			const latestPrice  = fpsPrice[last];
+			const latestIEV    = impliedEV[last];
+			const latestEPS    = earningsPerFPS[last];
+			const latestAnnual = annualNetEarnings[last];
+			const latestRealiz = realizedNet[last];
+			const latestRatio  = priceOverIEV[last];
+
+			document.getElementById('stats').innerHTML = `
+				<span>Entries: <b>${entries.length}</b></span>
+				<span>Range: <b>${labels[0]}</b> → <b>${labels[last]}</b></span>
+				<span>FPS Price: <b>${fmtShort(latestPrice)} ZCHF</b></span>
+				<span>Implied EV (×${MULTIPLIER}): <b>${fmtShort(latestIEV)} ZCHF</b></span>
+				<span>Price / IEV: <b style="color:${latestRatio != null && latestRatio < 1 ? '#16a34a' : '#d97706'}">${latestRatio != null ? latestRatio.toFixed(3) : '—'}</b></span>
+				<span>earningsPerFPS: <b>${fmt(latestEPS)} ZCHF</b></span>
+				<span>Annual Net Earnings: <b>${fmtBig(latestAnnual ?? 0)} ZCHF</b></span>
+				<span>Realized Net (365d): <b>${fmtBig(latestRealiz ?? 0)} ZCHF</b></span>
+			`;
+
+			makeChart('chart-price', 'line', labels, [
+				{
+					label: 'FPS Price (ZCHF)',
+					data: fpsPrice,
+					borderColor: '#2563eb',
+					backgroundColor: 'rgba(37,99,235,0.06)',
+					borderWidth: 2, pointRadius: 0, tension: 0.1, fill: false, yAxisID: 'y',
+				},
+				{
+					label: `Implied Earnings Value (earningsPerFPS × ${MULTIPLIER})`,
+					data: impliedEV,
+					borderColor: '#16a34a',
+					backgroundColor: 'rgba(22,163,74,0.05)',
+					borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, tension: 0.1, fill: false, yAxisID: 'y',
+				},
+				{
+					label: 'Price / IEV ratio',
+					data: priceOverIEV,
+					borderColor: '#d97706',
+					borderWidth: 1, borderDash: [2, 4], pointRadius: 0, tension: 0, fill: false, yAxisID: 'y2',
+				},
+			], {
+				y:  { title: { display: true, text: 'ZCHF', color: '#888' } },
+				y2: { title: { display: true, text: 'Price / IEV', color: '#888' }, beginAtZero: false },
+			});
+
+			makeChart('chart-daily-eps', 'bar', labels, [
+				{
+					label: 'Daily Δ earningsPerFPS (ZCHF)',
+					data: dailyEPS,
+					backgroundColor: dailyEPS.map(v => (v != null && v >= 0) ? 'rgba(22,163,74,0.55)' : 'rgba(220,38,38,0.55)'),
+					borderWidth: 0,
+				},
+			]);
+
+			makeChart('chart-earnings', 'line', labels, [
+				{
+					label: 'Realized Net Earnings (rolling 365d)',
+					data: realizedNet,
+					borderColor: '#7c3aed',
+					backgroundColor: 'rgba(124,58,237,0.06)',
+					borderWidth: 1.5, pointRadius: 0, tension: 0.1, fill: true,
+				},
+				{
+					label: 'Annual Net Earnings (annualized projection)',
+					data: annualNetEarnings,
+					borderColor: '#d97706',
+					backgroundColor: 'rgba(217,119,6,0.04)',
+					borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, tension: 0.1, fill: false,
+				},
+			]);
+
+			const tbody = document.getElementById('table-body');
+			tbody.innerHTML = entries.map((e, i) => {
+				const p     = fpsPrice[i];
+				const iev   = impliedEV[i];
+				const eps   = earningsPerFPS[i];
+				const deps  = dailyEPS[i];
+				const ann   = annualNetEarnings[i];
+				const real  = realizedNet[i];
+				const sup   = fpsTotalSupply[i];
+				const ratio = priceOverIEV[i];
+
+				const ievClass   = iev != null && p != null ? (iev > p ? 'pos' : 'neg') : 'neutral';
+				const ratioClass = ratio != null ? (ratio < 1 ? 'pos' : ratio > 1.5 ? 'neg' : 'neutral') : 'neutral';
+				const depsClass  = deps != null ? (deps >= 0 ? 'pos' : 'neg') : 'neutral';
+				const annClass   = ann  != null ? (ann  >= 0 ? 'pos' : 'neg') : 'neutral';
+				const realClass  = real != null ? (real >= 0 ? 'pos' : 'neg') : 'neutral';
+
+				return `<tr>
+					<td>${e.date}</td>
+					<td class="neutral">${fmt(p)}</td>
+					<td class="${ievClass}">${fmt(iev)}</td>
+					<td class="${ratioClass}">${ratio != null ? ratio.toFixed(3) : '—'}</td>
+					<td class="neutral">${fmt(eps)}</td>
+					<td class="${depsClass}">${deps != null ? (deps >= 0 ? '+' : '') + fmt(deps) : '—'}</td>
+					<td class="${annClass}">${ann  != null ? fmtBig(ann)  : '—'}</td>
+					<td class="${realClass}">${real != null ? fmtBig(real) : '—'}</td>
+					<td class="neutral">${sup  != null ? fmtBig(sup)  : '—'}</td>
+				</tr>`;
+			}).join('');
+		}
+
+		load();
+		</script>
+	</body>
+</html>

@@ -1,72 +1,54 @@
 import { PriceQuery } from 'modules/prices/prices.types';
 import { PositionQuery } from 'modules/positions/positions.types';
-import { formatCurrency } from 'utils/format';
+import { formatCurrency, shortenString } from 'utils/format';
 import { AppUrl } from 'utils/func-helper';
 import { formatUnits } from 'viem';
 import { PositionPriceAlertState } from 'integrations/telegram/telegram.types';
 
-export function PositionPriceLowest(position: PositionQuery, price: PriceQuery, last: PositionPriceAlertState): string {
-	const bal: number = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
+function priceBody(position: PositionQuery, price: PriceQuery): string {
+	const bal = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
 	const posPrice = parseFloat(formatUnits(BigInt(position.price), 36 - position.collateralDecimals));
+	const ratio = Math.round((price.price.chf / posPrice) * 10000) / 100;
 
-	return `
-*Position Price Declines*
+	return `🏦 Position: \`${shortenString(position.position)}\`
+💎 *${position.collateralName} (${position.collateralSymbol})* — *${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}*
 
-Position: ${position.position}
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-Balance: ${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}
+   Liq. Price: *${formatCurrency(posPrice, 2, 2)} ZCHF*
+   Market Price: *${formatCurrency(price.price.chf, 2, 2)} ZCHF*`;
+}
 
-Position Price: ${posPrice} ZCHF
-CoinGecko Price: ${price.price.chf} ZCHF
-Collateralization: ${Math.round((price.price.chf / posPrice) * 10000) / 100}%
+export function PositionPriceLowest(position: PositionQuery, price: PriceQuery, last: PositionPriceAlertState): string {
+	const posPrice = parseFloat(formatUnits(BigInt(position.price), 36 - position.collateralDecimals));
+	const ratio = Math.round((price.price.chf / posPrice) * 10000) / 100;
 
-[Challenge Position](${AppUrl(`/monitoring/${position.position}/challenge`)})
-[View Position](${AppUrl(`/monitoring/${position.position}`)})
-[View Owner Positions](${AppUrl(`/mypositions?address=${position.owner}`)})
+	return `🔴 *Position Undercollateralized*
 
-`;
+${priceBody(position, price)}
+   *Collateralization: ${ratio}%* 🔴
+
+[⚔️ Challenge](${AppUrl(`/monitoring/${position.position}/challenge`)}) · [📋 Position](${AppUrl(`/monitoring/${position.position}`)})`;
 }
 
 export function PositionPriceAlert(position: PositionQuery, price: PriceQuery, last: PositionPriceAlertState): string {
-	const bal: number = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
 	const posPrice = parseFloat(formatUnits(BigInt(position.price), 36 - position.collateralDecimals));
+	const ratio = Math.round((price.price.chf / posPrice) * 10000) / 100;
 
-	return `
-*Position Price Alert*
+	return `🚨 *Price Alert*
 
-Position: ${position.position}
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-Balance: ${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}
+${priceBody(position, price)}
+   *Collateralization: ${ratio}%* 🚨
 
-Position Price: ${posPrice} ZCHF
-CoinGecko Price: ${price.price.chf} ZCHF
-Collateralization: ${Math.round((price.price.chf / posPrice) * 10000) / 100}%
-
-[Challenge Position](${AppUrl(`/monitoring/${position.position}/challenge`)})
-[View Position](${AppUrl(`/monitoring/${position.position}`)})
-[View Owner Positions](${AppUrl(`/mypositions?address=${position.owner}`)})
-
-`;
+[⚔️ Challenge](${AppUrl(`/monitoring/${position.position}/challenge`)}) · [📋 Position](${AppUrl(`/monitoring/${position.position}`)})`;
 }
 
 export function PositionPriceWarning(position: PositionQuery, price: PriceQuery, last: PositionPriceAlertState): string {
-	const bal: number = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
 	const posPrice = parseFloat(formatUnits(BigInt(position.price), 36 - position.collateralDecimals));
+	const ratio = Math.round((price.price.chf / posPrice) * 10000) / 100;
 
-	return `
-*Position Price Warning*
+	return `⚠️ *Price Warning*
 
-Position: ${position.position}
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-Balance: ${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}
+${priceBody(position, price)}
+   *Collateralization: ${ratio}%* ⚠️
 
-Position Price: ${posPrice} ZCHF
-CoinGecko Price: ${price.price.chf} ZCHF
-Collateralization: ${Math.round((price.price.chf / posPrice) * 10000) / 100}%
-
-[Challenge Position](${AppUrl(`/monitoring/${position.position}/challenge`)})
-[View Position](${AppUrl(`/monitoring/${position.position}`)})
-[View Owner Positions](${AppUrl(`/mypositions?address=${position.owner}`)})
-
-`;
+[⚔️ Challenge](${AppUrl(`/monitoring/${position.position}/challenge`)}) · [📋 Position](${AppUrl(`/monitoring/${position.position}`)})`;
 }
