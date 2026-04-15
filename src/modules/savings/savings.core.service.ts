@@ -1,6 +1,5 @@
 import { gql } from '@apollo/client/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { EcosystemFrankencoinService } from 'modules/ecosystem/ecosystem.frankencoin.service';
 import {
 	ApiSavingsActivity,
@@ -180,7 +179,6 @@ export class SavingsCoreService {
 		return list;
 	}
 
-	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateSavingsStatus() {
 		this.logger.debug('Updating savings status');
 		const response = await PONDER_CLIENT.query<{
@@ -247,7 +245,6 @@ export class SavingsCoreService {
 		this.fetchedStatus = list;
 	}
 
-	@Cron(CronExpression.EVERY_10_MINUTES)
 	async updateSavingsRank() {
 		this.logger.debug('Updating updateSavingsRank');
 		const response = await PONDER_CLIENT.query<{

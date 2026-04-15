@@ -121,7 +121,6 @@ export class EcosystemFrankencoinService {
 		return this.ecosystemTotalSupply;
 	}
 
-	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateEcosystemKeyValues() {
 		this.logger.debug('Updating EcosystemKeyValues');
 		const response = await PONDER_CLIENT.query<{
@@ -156,10 +155,11 @@ export class EcosystemFrankencoinService {
 			mappingKeyValues[i.id] = i;
 		}
 
-		this.ecosystemFrankencoinKeyValues = { ...mappingKeyValues };
+		if (JSON.stringify(mappingKeyValues) !== JSON.stringify(this.ecosystemFrankencoinKeyValues)) {
+			this.ecosystemFrankencoinKeyValues = { ...mappingKeyValues };
+		}
 	}
 
-	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateEcosystemERC20Status() {
 		this.logger.debug('Updating EcosystemERC20Status');
 		const response = await PONDER_CLIENT.query<{
@@ -193,6 +193,7 @@ export class EcosystemFrankencoinService {
 		const d = response.data.eRC20Statuss.items;
 
 		// chainId mapping
+		const updatedFrankencoin = { ...this.ecosystemFrankencoin };
 		for (const i of d) {
 			// verify chainId with token address
 			if (i.chainId == 1) {
@@ -203,7 +204,7 @@ export class EcosystemFrankencoinService {
 				if (a != i.token) continue;
 			}
 
-			this.ecosystemFrankencoin[i.chainId as ChainId] = {
+			updatedFrankencoin[i.chainId as ChainId] = {
 				chainId: i.chainId,
 				updated: parseInt(i.updated as any),
 				address: i.token,
@@ -214,6 +215,10 @@ export class EcosystemFrankencoinService {
 					balance: formatFloat(i.balance, 0),
 				},
 			};
+		}
+
+		if (JSON.stringify(updatedFrankencoin) !== JSON.stringify(this.ecosystemFrankencoin)) {
+			this.ecosystemFrankencoin = updatedFrankencoin;
 		}
 	}
 

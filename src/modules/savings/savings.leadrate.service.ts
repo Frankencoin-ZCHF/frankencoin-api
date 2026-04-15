@@ -1,6 +1,5 @@
 import { gql } from '@apollo/client/core';
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { PONDER_CLIENT } from 'app.config';
 import {
 	LeadrateRateQuery,
@@ -110,7 +109,6 @@ export class SavingsLeadrateService {
 		};
 	}
 
-	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateLeadrateRates() {
 		this.logger.debug('Updating leadrate rates');
 		const response = await PONDER_CLIENT.query<{
@@ -164,7 +162,6 @@ export class SavingsLeadrateService {
 		this.fetchedRates = list;
 	}
 
-	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateLeadrateProposals() {
 		this.logger.debug('Updating leadrate proposals');
 		const response = await PONDER_CLIENT.query<{

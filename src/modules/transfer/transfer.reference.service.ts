@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { PONDER_CLIENT } from 'app.config';
 import { gql } from '@apollo/client/core';
 import { TransferReferenceObjectArray, TransferReferenceQuery } from './transfer.reference.types';
@@ -209,7 +208,6 @@ export class TransferReferenceService {
 		}
 	}
 
-	@Cron(CronExpression.EVERY_10_MINUTES)
 	async updateReferences() {
 		this.logger.debug('Updating transfer references...');
 		const { data } = await PONDER_CLIENT.query<{

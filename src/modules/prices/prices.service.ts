@@ -30,7 +30,6 @@ import { normalizeAddress } from 'utils/format';
 export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
 
-	private fetchedAt: number = 0;
 	private fetchedPrices: PriceQueryObjectArray = {};
 	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
 
@@ -306,13 +305,7 @@ export class PricesService {
 		return yearlyValue;
 	}
 
-	@Cron(CronExpression.EVERY_MINUTE)
 	async updatePrices() {
-		const now = Date.now();
-
-		if (this.fetchedAt + 60000 > now) return;
-		this.fetchedAt = now;
-
 		this.logger.debug('Updating Prices');
 
 		const fps = this.getFps();
