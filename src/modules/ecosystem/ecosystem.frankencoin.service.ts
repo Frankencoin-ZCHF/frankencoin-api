@@ -121,6 +121,7 @@ export class EcosystemFrankencoinService {
 		return this.ecosystemTotalSupply;
 	}
 
+	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateEcosystemKeyValues() {
 		this.logger.debug('Updating EcosystemKeyValues');
 		const response = await PONDER_CLIENT.query<{
@@ -158,6 +159,7 @@ export class EcosystemFrankencoinService {
 		this.ecosystemFrankencoinKeyValues = { ...mappingKeyValues };
 	}
 
+	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateEcosystemERC20Status() {
 		this.logger.debug('Updating EcosystemERC20Status');
 		const response = await PONDER_CLIENT.query<{
@@ -219,7 +221,8 @@ export class EcosystemFrankencoinService {
 	async updateTotalSupply() {
 		this.logger.debug('Updating updateTotalSupply');
 
-		const returnData: FrankencoinSupplyQueryObject = { ...this.ecosystemTotalSupply };
+		// Deep copy to avoid mutating live state through shared object references
+		const returnData: FrankencoinSupplyQueryObject = JSON.parse(JSON.stringify(this.ecosystemTotalSupply));
 
 		for (const chain of Object.values(SupportedChains)) {
 			const chainId = chain.id;
@@ -231,37 +234,58 @@ export class EcosystemFrankencoinService {
 				frankencoin = ADDRESS[chainId].ccipBridgedFrankencoin;
 			}
 
-			const response = await PONDER_CLIENT.query<{
-				eRC20TotalSupplys: {
-					items: EcosystemERC20TotalSupply[];
-				};
-			}>({
-				fetchPolicy: 'no-cache',
-				query: gql`
-				query {
-					eRC20TotalSupplys(
-						orderBy: "created"
-						orderDirection: "asc"
-						where: { chainId: ${chainId}, token: "${frankencoin}" }
-						limit: 1000
-					) {
-						items {
-							supply
-							created
+			// Paginate through all events — Ponder caps at 1000 per request
+			let after: string | null = null;
+			let hasNextPage = true;
+			const allItems: EcosystemERC20TotalSupply[] = [];
+
+			while (hasNextPage) {
+				const afterArg = after ? `, after: "${after}"` : '';
+				const response = await PONDER_CLIENT.query<{
+					eRC20TotalSupplys: {
+						items: EcosystemERC20TotalSupply[];
+						pageInfo: { endCursor: string; hasNextPage: boolean };
+					};
+				}>({
+					fetchPolicy: 'no-cache',
+					query: gql`
+					query {
+						eRC20TotalSupplys(
+							orderBy: "created"
+							orderDirection: "asc"
+							where: { chainId: ${chainId}, token: "${frankencoin}" }
+							limit: 1000
+							${afterArg}
+						) {
+							items {
+								supply
+								created
+							}
+							pageInfo {
+								endCursor
+								hasNextPage
+							}
 						}
 					}
-				}
-			`,
-			});
+				`,
+				});
 
-			if (!response.data || !response.data.eRC20TotalSupplys.items) {
-				this.logger.warn(`No eRC20TotalSupplys data (chain: ${chain.name}) found.`);
-				return;
+				if (!response.data || !response.data.eRC20TotalSupplys.items) {
+					this.logger.warn(`No eRC20TotalSupplys data (chain: ${chain.name}) found.`);
+					break;
+				}
+
+				const page = response.data.eRC20TotalSupplys;
+				allItems.push(...page.items);
+				hasNextPage = page.pageInfo.hasNextPage;
+				after = page.pageInfo.endCursor;
 			}
 
-			const items = response.data.eRC20TotalSupplys.items;
+			if (allItems.length === 0) continue;
 
-			items.forEach((i) => {
+			this.logger.debug(`Chain ${chain.name}: fetched ${allItems.length} supply events`);
+
+			allItems.forEach((i) => {
 				if (returnData[i.created] == undefined)
 					returnData[i.created] = {
 						created: i.created,
