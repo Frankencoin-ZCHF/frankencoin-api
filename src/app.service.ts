@@ -16,7 +16,7 @@ import { IndexerHealthService } from 'core/data-source/indexer-health.service';
 import { mainnet } from 'viem/chains';
 
 export const INDEXING_TIMEOUT_COUNT: number = 3;
-export const POLLING_DELAY: number = 3_000; // 3000ms (= 3sec)
+export const POLLING_DELAY: number = 6_000; // e.g. 6000ms (= 6sec)
 export const BLOCK_HEIGHT_TOLERANCE: number = 2; // Allow indexer to be up to 2 blocks behind
 
 export type IndexerStatus = {
@@ -59,22 +59,11 @@ export class ApiService {
 			this.minter.updateMinters(),
 			this.positions.updatePositonV1s(),
 			this.positions.updatePositonV2s(),
-			this.positions.updateMintingUpdateV1s(),
-			this.positions.updateMintingUpdateV2s(),
-			this.prices.updatePrices(),
-			this.frankencoin.updateEcosystemKeyValues(),
-			this.frankencoin.updateEcosystemERC20Status(),
-			this.fps.updateFpsInfo(),
-			this.leadrate.updateLeadrateRates(),
-			this.leadrate.updateLeadrateProposals(),
-			this.savings.updateSavingsStatus(),
-			this.savings.updateSavingsRank(),
 			this.challenges.updateChallengeV1s(),
 			this.challenges.updateChallengeV2s(),
 			this.challenges.updateBidV1s(),
 			this.challenges.updateBidV2s(),
 			this.challenges.updateChallengesPrices(),
-			this.transferRef.updateReferences(),
 			this.telegram.updateTelegram(),
 		];
 

@@ -306,6 +306,7 @@ export class PricesService {
 		return yearlyValue;
 	}
 
+	@Cron(CronExpression.EVERY_MINUTE)
 	async updatePrices() {
 		const now = Date.now();
 

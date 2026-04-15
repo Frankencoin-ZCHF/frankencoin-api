@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PONDER_CLIENT, PONDER_CLIENT_BACKUP, VIEM_CONFIG } from 'app.config';
 import { gql } from '@apollo/client/core';
 import { DataSourceManagerService } from 'core/data-source/data-source.manager.service';
@@ -685,6 +686,7 @@ export class PositionsService {
 		};
 	}
 
+	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateMintingUpdateV1s() {
 		this.logger.debug('Updating Positions MintingUpdates V1');
 		const currentSource = this.dataSource.getCurrentSource();
@@ -788,6 +790,7 @@ export class PositionsService {
 		}
 	}
 
+	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateMintingUpdateV2s() {
 		this.logger.debug('Updating Positions MintingUpdates V2');
 		const currentSource = this.dataSource.getCurrentSource();

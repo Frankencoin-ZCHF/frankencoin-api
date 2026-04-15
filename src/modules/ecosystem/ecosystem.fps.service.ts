@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PONDER_CLIENT, VIEM_CONFIG } from 'app.config';
 import { ApiEcosystemFpsInfo } from './ecosystem.fps.types';
 import { gql } from '@apollo/client/core';
@@ -16,6 +17,7 @@ export class EcosystemFpsService {
 		return this.fpsInfo;
 	}
 
+	@Cron(CronExpression.EVERY_5_MINUTES)
 	async updateFpsInfo() {
 		this.logger.debug('Updating EcosystemFpsInfo');
 
