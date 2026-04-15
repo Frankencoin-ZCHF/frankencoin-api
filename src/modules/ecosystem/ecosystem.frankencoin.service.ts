@@ -27,6 +27,7 @@ export class EcosystemFrankencoinService {
 	private ecosystemFrankencoinKeyValues: EcosystemFrankencoinKeyValues;
 	private ecosystemFrankencoin: EcosystemFrankencoinMapping = {} as EcosystemFrankencoinMapping;
 	private ecosystemTotalSupply: FrankencoinSupplyQueryObject = {} as FrankencoinSupplyQueryObject;
+	private supplyFirstRun = true;
 
 	constructor(
 		private readonly prisma: PrismaService,
@@ -66,15 +67,17 @@ export class EcosystemFrankencoinService {
 		}
 	}
 
-	async writeBackupSupplyQuery() {
+	async writeBackupSupplyQuery(all = false) {
 		if (!this.prisma.isEnabled()) {
 			return;
 		}
 
 		try {
-			const latestTimestamps = Object.keys(this.ecosystemTotalSupply).slice(-3);
+			const timestamps = all
+				? Object.keys(this.ecosystemTotalSupply)
+				: Object.keys(this.ecosystemTotalSupply).slice(-3);
 
-			for (const timestamp of latestTimestamps) {
+			for (const timestamp of timestamps) {
 				await this.prisma.ecosystemSupply.upsert({
 					where: { timestamp: BigInt(timestamp) },
 					create: { timestamp: BigInt(timestamp), data: this.ecosystemTotalSupply[timestamp] as any },
@@ -82,7 +85,7 @@ export class EcosystemFrankencoinService {
 				});
 			}
 
-			this.logger.log(`Supply query backup stored to database (${latestTimestamps.length} entries)`);
+			this.logger.log(`Supply query backup stored to database (${timestamps.length} entries)`);
 		} catch (error) {
 			this.logger.error('Failed to write supply data to database', error);
 		}
@@ -225,6 +228,8 @@ export class EcosystemFrankencoinService {
 	@Cron(CronExpression.EVERY_10_MINUTES)
 	async updateTotalSupply() {
 		this.logger.debug('Updating updateTotalSupply');
+		const all = this.supplyFirstRun;
+		if (all) this.logger.log('Supply first run — rewriting all timestamps from Ponder');
 
 		// Deep copy to avoid mutating live state through shared object references
 		const returnData: FrankencoinSupplyQueryObject = JSON.parse(JSON.stringify(this.ecosystemTotalSupply));
@@ -290,19 +295,29 @@ export class EcosystemFrankencoinService {
 
 			this.logger.debug(`Chain ${chain.name}: fetched ${allItems.length} supply events`);
 
+			// On first run after startup (all=true) rewrite every timestamp so a fresh
+			// Ponder re-index is fully reflected without needing a manual DB wipe.
+			// On subsequent runs only add new timestamps or update the last 7 days,
+			// preventing sparse Ponder checkpoints from corrupting accumulated history.
+			const recentCutoff = Math.floor(Date.now() / 1000) - 7 * 86400;
+
 			allItems.forEach((i) => {
-				if (returnData[i.created] == undefined)
+				const ts = Number(i.created);
+				const supplyValue = parseFloat(formatUnits(i.supply, 18));
+
+				if (returnData[i.created] == undefined) {
+					// New timestamp — always add it
 					returnData[i.created] = {
 						created: i.created,
 						supply: 0,
-						allocation: {
-							[chainId]: parseFloat(formatUnits(i.supply, 18)),
-						} as FrankencoinSupplyQuery['allocation'],
+						allocation: { [chainId]: supplyValue } as FrankencoinSupplyQuery['allocation'],
 					};
-				else {
+				} else if (all || ts >= recentCutoff) {
+					// First run or recent entry — overwrite with Ponder data
 					const alloc = returnData[i.created]['allocation'];
-					returnData[i.created]['allocation'] = { ...alloc, [chainId]: parseFloat(formatUnits(i.supply, 18)) };
+					returnData[i.created]['allocation'] = { ...alloc, [chainId]: supplyValue };
 				}
+				// Historical entry on a normal run → skip to protect accumulated history
 			});
 		}
 
@@ -341,6 +356,8 @@ export class EcosystemFrankencoinService {
 		this.ecosystemTotalSupply = { ...returnData };
 		const snapshotAfter = JSON.stringify(this.ecosystemTotalSupply);
 
-		if (snapshotAfter != snapshotBefore) this.writeBackupSupplyQuery();
+		if (snapshotAfter != snapshotBefore) this.writeBackupSupplyQuery(all);
+
+		this.supplyFirstRun = false;
 	}
 }
