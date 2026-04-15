@@ -486,10 +486,14 @@ export class TelegramService {
 
 	private async sendSubscriptionMenu(chatId: number | string) {
 		const id = chatId.toString();
-		await this.sendMessage(id, '📡 *Manage Subscriptions*\n\nTap to toggle an alert type on or off:');
-		await this.bot.sendMessage(id, '\u200b', {
-			reply_markup: { inline_keyboard: this.buildSubscriptionKeyboard(id) },
-		});
+		try {
+			await this.bot.sendMessage(id, '📡 *Manage Subscriptions*\n\nTap to toggle an alert type on or off:', {
+				parse_mode: 'Markdown',
+				reply_markup: { inline_keyboard: this.buildSubscriptionKeyboard(id) },
+			});
+		} catch (error) {
+			this.logger.warn(`Failed to send subscription menu to ${id}: ${error?.message}`);
+		}
 	}
 
 	async applyListener() {
@@ -524,7 +528,7 @@ export class TelegramService {
 			if (this.upsertTelegramGroup(m.chat.id) == true) await this.writeBackupGroups([String(m.chat.id)]);
 
 			if (m.text === '/start' || m.text === '/help') {
-				this.sendMessage(
+				await this.sendMessage(
 					m.chat.id,
 					HelpMessage(this.telegramHandles, this.telegramGroupState.subscription[m.chat.id.toString()] || {})
 				);
