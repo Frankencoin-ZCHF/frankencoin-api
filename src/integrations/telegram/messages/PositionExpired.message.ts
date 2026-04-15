@@ -1,66 +1,48 @@
 import { PositionQuery } from 'modules/positions/positions.types';
-import { formatCurrency } from 'utils/format';
+import { formatCurrency, shortenString } from 'utils/format';
 import { AppUrl, ExplorerAddressUrl } from 'utils/func-helper';
 import { formatUnits } from 'viem';
 
 export function PositionExpiredMessage(position: PositionQuery): string {
-	const bal: number = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
-	const min: number = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
-	const price: number = parseInt(formatUnits(BigInt(position.price), 36 - position.collateralDecimals - 2)) / 100;
-	const duration: number = position.challengePeriod * 1000;
+	const bal = parseInt(formatUnits(BigInt(position.collateralBalance), position.collateralDecimals - 2)) / 100;
+	const min = parseInt(formatUnits(BigInt(position.minimumCollateral), position.collateralDecimals - 2)) / 100;
+	const price = parseInt(formatUnits(BigInt(position.price), 36 - position.collateralDecimals - 2)) / 100;
+	const duration = position.challengePeriod * 1000;
 
-	const begin = new Date(position.expiration * 1000);
-	const mid = new Date(position.expiration * 1000 + 1 * duration);
-	const zero = new Date(position.expiration * 1000 + 2 * duration);
+	const t0 = new Date(position.expiration * 1000);
+	const t1 = new Date(position.expiration * 1000 + duration);
+	const t2 = new Date(position.expiration * 1000 + 2 * duration);
 
-	const header = `
-*Position is expired*
+	const header = `💀 *Position Expired*
 
-Position: ${position.position} (v${position.version})
-Owner: ${position.owner}
+🏦 Position: \`${shortenString(position.position)}\` (v${position.version})
+👤 Owner: \`${shortenString(position.owner)}\`
 
-Minted: ${formatCurrency(formatUnits(BigInt(position.minted), 18), 2, 2)} ZCHF
-Retained Reserve: ${formatCurrency(position.reserveContribution / 10000, 1, 1)}%
-Auction Duration: ${Math.floor(position.challengePeriod / 60 / 60)} hours
+💎 Collateral: *${position.collateralName} (${position.collateralSymbol})*
+   Address: \`${shortenString(position.collateral)}\`
+   Balance: *${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}* (min *${formatCurrency(min, 2, 2)}*)
 
-Collateral: ${position.collateralName} (${position.collateralSymbol})
-At: ${position.collateral}
-Balance: ${formatCurrency(bal, 2, 2)} ${position.collateralSymbol}
-Bal. min.: ${formatCurrency(min, 2, 2)} ${position.collateralSymbol}
-`;
+💵 Minted: *${formatCurrency(formatUnits(BigInt(position.minted), 18), 2, 2)} ZCHF*
+   Reserve: *${formatCurrency(position.reserveContribution / 10000, 1, 1)}%* · Auction: *${Math.floor(position.challengePeriod / 3600)} hours*`;
 
 	const v1Body = `
-*Challenge is available*
 
-Declines (1x -> 0x Price): ${begin.toUTCString()}
-Price (1x): ${formatCurrency(price, 2, 2)} ZCHF per 1 ${position.collateralSymbol}
-
-Zero: ${mid.toUTCString()}
-Price (0x): 0.00 ZCHF per 1 ${position.collateralSymbol}
-`;
+⚔️ *Challenge Available*
+   1x → 0x from: *${t0.toUTCString()}*
+   Price (1x): *${formatCurrency(price, 2, 2)} ZCHF/${position.collateralSymbol}*
+   Zero at: *${t1.toUTCString()}*`;
 
 	const v2Body = `
-*ForceSell is available*
 
-Declines (10x -> 1x Price): ${begin.toUTCString()}
-Price (10x): ${formatCurrency(price * 10, 2, 2)} ZCHF per 1 ${position.collateralSymbol}
-
-Continues (1x -> 0x Price): ${mid.toUTCString()}
-Price (1x): ${formatCurrency(price, 2, 2)} ZCHF per 1 ${position.collateralSymbol}
-
-Zero: ${zero.toUTCString()}
-Price (0x): 0.00 ZCHF per 1 ${position.collateralSymbol}
-`;
+⚡ *ForceSell Available*
+   10x → 1x from: *${t0.toUTCString()}* (Price: *${formatCurrency(price * 10, 2, 2)} ZCHF*)
+   1x → 0x from: *${t1.toUTCString()}* (Price: *${formatCurrency(price, 2, 2)} ZCHF*)
+   Zero at: *${t2.toUTCString()}*`;
 
 	const footer = `
 
-[Overview Position](${AppUrl(`/monitoring/${position.position}`)})
-[Buy Collateral](${AppUrl(`/monitoring/${position.position}/${position.version == 1 ? 'challenge' : 'forceSell'}`)})
+[📋 Overview](${AppUrl(`/monitoring/${position.position}`)}) · [💸 Buy Collateral](${AppUrl(`/monitoring/${position.position}/${position.version == 1 ? 'challenge' : 'forceSell'}`)})
+[🔍 Position](${ExplorerAddressUrl(position.position)}) · [🔍 Owner](${ExplorerAddressUrl(position.owner)})`;
 
-[Explorer Position](${ExplorerAddressUrl(position.position)})
-[Explorer Owner](${ExplorerAddressUrl(position.owner)}) 
-[Explorer Collateral](${ExplorerAddressUrl(position.collateral)}) 
-`;
-
-	return position.version == 1 ? header + v1Body + footer : header + v2Body + footer;
+	return header + (position.version == 1 ? v1Body : v2Body) + footer;
 }

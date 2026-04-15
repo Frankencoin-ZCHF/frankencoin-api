@@ -7,16 +7,13 @@ export function EquityInvestedMessage(log: AnalyticsTransactionLog): string {
 	const d = new Date(Number(log.timestamp) * 1000);
 	const cap = BigInt(log.fpsPrice) * BigInt(log.fpsTotalSupply);
 
-	return `
-*Equity Invested*
+	return `💰 *Equity Invested*
 
-Date: ${d.toString().split(' ').slice(0, 5).join(' ')}
 *Amount: ${formatCurrency(formatUnits(log.amount, 18))} ZCHF*
+📅 Date: *${d.toUTCString()}*
 
-Current Price: ${formatCurrency(formatUnits(log.fpsPrice, 18))} ZCHF
-Current Market Cap.: ${formatCurrency(formatUnits(cap, 18 * 2))} ZCHF
+FPS Price: *${formatCurrency(formatUnits(log.fpsPrice, 18))} ZCHF*
+Market Cap: *${formatCurrency(formatUnits(cap, 36))} ZCHF*
 
-[Goto Governance](${AppUrl(`/equity`)})
-[Explorer Transaction](${ExplorerTxUrl(log.txHash)})
-`;
+[🏦 Equity](${AppUrl('/equity')}) · [🔍 Explorer](${ExplorerTxUrl(log.txHash)})`;
 }

@@ -4,37 +4,31 @@ import { formatCurrency } from 'utils/format';
 import { formatUnits } from 'viem';
 
 export function DailyInfosMessage(before: AnalyticsDailyLog, now: AnalyticsDailyLog, supply: FrankencoinSupplyQueryObject): string {
-	// overwrite total supply with multichain supply
-	const timestampBefore = new Date(before.date).getTime();
-	const timestampAfter = new Date(now.date).getTime();
+	const tsAfter = new Date(now.date).getTime();
+	const tsBefore = new Date(before.date).getTime();
 
 	const keys = Object.keys(supply).map((i) => parseInt(i) * 1000);
 
-	const filteredBefore = keys.filter((i) => i <= timestampBefore);
-	const keyBefore = filteredBefore.at(-1);
+	const keyBefore = keys.filter((i) => i <= tsBefore).at(-1);
 	const supplyBefore = supply[keyBefore / 1000].supply;
 
-	const filteredAfter = keys.filter((i) => i <= timestampAfter);
-	const keyAfter = filteredAfter.at(-1);
+	const keyAfter = keys.filter((i) => i <= tsAfter).at(-1);
 	const supplyAfter = supply[keyAfter / 1000].supply;
 
-	// Total Supply, changes
-	const totalSupplyChangePct = (supplyAfter / supplyBefore - 1) * 100;
+	const supplyChangePct = (supplyAfter / supplyBefore - 1) * 100;
 	const fpsPriceChangePct = (BigInt(now.fpsPrice) * 10n ** 20n) / BigInt(before.fpsPrice) - 10n ** 20n;
 
 	const inSavingsPct = (BigInt(now.totalSavings) * 10n ** 20n) / BigInt(now.totalSupply);
 	const inEquityPct = (BigInt(now.totalEquity) * 10n ** 20n) / BigInt(now.totalSupply);
 
-	return `
-*Frankencoin Infos*
+	return `📊 *Frankencoin Weekly Snapshot*
 
-Total Supply: ${formatCurrency(supplyAfter, 0, 0)} ZCHF 
-Last 30d: ${formatCurrency(totalSupplyChangePct)}%
+💵 Total Supply: *${formatCurrency(supplyAfter, 0, 0)} ZCHF*
+   Last 30d: *${formatCurrency(supplyChangePct)}%*
 
-In Equity: ${formatCurrency(formatUnits(inEquityPct, 18))}%
-In Savings: ${formatCurrency(formatUnits(inSavingsPct, 18))}%
+🔒 In Equity: *${formatCurrency(formatUnits(inEquityPct, 18))}%*
+💰 In Savings: *${formatCurrency(formatUnits(inSavingsPct, 18))}%*
 
-FPS Price: ${formatCurrency(formatUnits(now.fpsPrice, 18), 0, 0)} ZCHF 
-Last 30d: ${formatCurrency(formatUnits(fpsPriceChangePct, 18))}%
-`;
+📈 FPS Price: *${formatCurrency(formatUnits(now.fpsPrice, 18), 0, 0)} ZCHF*
+   Last 30d: *${formatCurrency(formatUnits(fpsPriceChangePct, 18))}%*`;
 }
