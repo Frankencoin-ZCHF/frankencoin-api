@@ -64,6 +64,12 @@
 
 		<div id="anomalies">
 			<h2>Anomalies (spikes / gaps)</h2>
+			<p style="font-size:0.8rem;color:#555;margin-bottom:10px;line-height:1.6">
+				<span style="color:#dc2626;font-weight:bold">SPIKE</span> — supply increases by &gt;20% in a single step.
+				Typical cause: a new chain's allocation suddenly added to an existing timestamp (e.g. Ponder checkpoint corruption).<br>
+				<span style="color:#ea580c;font-weight:bold">GAP</span> — supply drops by &gt;20% in a single step.
+				Typical cause: a forward-filled allocation disappears at a timestamp where only a subset of chains contributed data.
+			</p>
 			<table>
 				<thead>
 					<tr>

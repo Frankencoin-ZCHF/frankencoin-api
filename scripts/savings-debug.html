@@ -75,6 +75,30 @@
 		<div id="stats"></div>
 
 		<div class="section">
+			<h2>Total Savings Over Time</h2>
+			<div class="chart-container">
+				<canvas id="chart-savings-history"></canvas>
+			</div>
+		</div>
+
+		<div class="section">
+			<div class="grid-2">
+				<div>
+					<h2>Chain Balance Allocation</h2>
+					<div class="chart-container" style="height:300px">
+						<canvas id="chart-chain-alloc"></canvas>
+					</div>
+				</div>
+				<div>
+					<h2>Per-Chain Activity (ZCHF)</h2>
+					<div class="chart-container" style="height:300px">
+						<canvas id="chart-chain-activity"></canvas>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="section">
 			<h2>Interest Rate History</h2>
 			<div class="chart-container">
 				<canvas id="chart-rates"></canvas>
@@ -144,6 +168,20 @@
 		const MODULE_COLORS = { 'Savings': '#2563eb', 'Mint Rate': '#d97706' };
 
 		let chartRates = null;
+		let chartSavingsHistory = null;
+		let chartChainAlloc = null;
+		let chartChainActivity = null;
+
+		const CHAIN_COLORS = {
+			1:     '#2563eb',
+			100:   '#16a34a',
+			8453:  '#d97706',
+			10:    '#dc2626',
+			137:   '#7c3aed',
+			42161: '#0891b2',
+			43114: '#db2777',
+			146:   '#65a30d',
+		};
 
 		function setStatus(msg, color) {
 			const el = document.getElementById('status');
@@ -195,13 +233,14 @@
 		async function load() {
 			const base = document.getElementById('base-url').value.trim().replace(/\/$/, '');
 			setStatus('Fetching…');
-			let info, ratesData, proposalsData, ranked;
+			let info, ratesData, proposalsData, ranked, dailyLog;
 			try {
-				[info, ratesData, proposalsData, ranked] = await Promise.all([
+				[info, ratesData, proposalsData, ranked, dailyLog] = await Promise.all([
 					fetchJson(`${base}/savings/core/info`),
 					fetchJson(`${base}/savings/leadrate/rates`),
 					fetchJson(`${base}/savings/leadrate/proposals`),
 					fetchJson(`${base}/savings/core/ranked`),
+					fetchJson(`${base}/analytics/dailyLog/json`),
 				]);
 			} catch (e) {
 				setStatus('Error: ' + e.message, '#dc2626');
@@ -211,6 +250,9 @@
 			setStatus('Loaded', '#16a34a');
 			renderStats(info);
 			renderStatusBlocks(info);
+			renderSavingsHistoryChart(dailyLog);
+			renderChainAllocChart(info);
+			renderChainActivityChart(info);
 			renderRatesChart(ratesData, proposalsData);
 			renderUnsyncedTable(ratesData);
 			renderRatesTable(ratesData);
@@ -265,6 +307,174 @@
 					container.appendChild(block);
 				}
 			}
+		}
+
+		function fmtWei(weiStr) {
+			if (!weiStr || weiStr === '0') return 0;
+			try { return Number(BigInt(weiStr) * 100n / BigInt(10 ** 18)) / 100; }
+			catch { return 0; }
+		}
+
+		function renderSavingsHistoryChart(dailyLog) {
+			const logs = (dailyLog?.logs || []).filter(l => l.totalSavings && l.totalSavings !== '0');
+			if (!logs.length) return;
+
+			const labels   = logs.map(l => l.date);
+			const savings  = logs.map(l => fmtWei(l.totalSavings));
+			const supply   = logs.map(l => fmtWei(l.totalSupply));
+			const ratios   = logs.map((_, i) => supply[i] > 0 ? +((savings[i] / supply[i]) * 100).toFixed(2) : 0);
+
+			if (chartSavingsHistory) chartSavingsHistory.destroy();
+			chartSavingsHistory = new Chart(document.getElementById('chart-savings-history').getContext('2d'), {
+				type: 'line',
+				data: {
+					labels,
+					datasets: [
+						{
+							label: 'Total Savings (ZCHF)',
+							data: savings,
+							borderColor: '#2563eb',
+							backgroundColor: '#2563eb18',
+							borderWidth: 2,
+							pointRadius: 0,
+							fill: true,
+							tension: 0.2,
+							yAxisID: 'y',
+						},
+						{
+							label: '% of Supply in Savings',
+							data: ratios,
+							borderColor: '#16a34a',
+							backgroundColor: 'transparent',
+							borderWidth: 1.5,
+							borderDash: [4, 3],
+							pointRadius: 0,
+							fill: false,
+							tension: 0.2,
+							yAxisID: 'y2',
+						},
+					],
+				},
+				options: {
+					responsive: true, maintainAspectRatio: false, animation: false,
+					plugins: {
+						legend: { labels: { color: '#333', boxWidth: 12 } },
+						tooltip: {
+							mode: 'index', intersect: false,
+							callbacks: {
+								label: item => item.datasetIndex === 0
+									? `Savings: ${item.raw.toLocaleString('en-US', { maximumFractionDigits: 0 })} ZCHF`
+									: `Ratio: ${item.raw.toFixed(2)}%`,
+							},
+						},
+					},
+					scales: {
+						x: { ticks: { color: '#888', maxTicksLimit: 18, maxRotation: 45 }, grid: { color: '#ececec' } },
+						y: {
+							position: 'left',
+							ticks: { color: '#888', callback: v => (v / 1e6).toFixed(1) + 'M' },
+							grid: { color: '#ececec' },
+							title: { display: true, text: 'Total Savings (ZCHF)', color: '#888' },
+						},
+						y2: {
+							position: 'right',
+							ticks: { color: '#16a34a', callback: v => v.toFixed(1) + '%' },
+							grid: { drawOnChartArea: false },
+							title: { display: true, text: '% of Supply', color: '#16a34a' },
+						},
+					},
+				},
+			});
+		}
+
+		function renderChainAllocChart(info) {
+			const balances = {};
+			for (const [chainId, modules] of Object.entries(info.status || {})) {
+				let total = 0;
+				for (const s of Object.values(modules)) total += fmtWei(s.balance);
+				if (total > 0) balances[chainId] = total;
+			}
+			const chains = Object.keys(balances);
+			if (!chains.length) return;
+
+			if (chartChainAlloc) chartChainAlloc.destroy();
+			chartChainAlloc = new Chart(document.getElementById('chart-chain-alloc').getContext('2d'), {
+				type: 'doughnut',
+				data: {
+					labels: chains.map(id => chainLabel(Number(id))),
+					datasets: [{
+						data: chains.map(id => balances[id]),
+						backgroundColor: chains.map(id => CHAIN_COLORS[Number(id)] || '#94a3b8'),
+						borderWidth: 2,
+						borderColor: '#fff',
+					}],
+				},
+				options: {
+					responsive: true, maintainAspectRatio: false, animation: false,
+					plugins: {
+						legend: { position: 'right', labels: { color: '#333', boxWidth: 12 } },
+						tooltip: {
+							callbacks: {
+								label: item => {
+									const v = item.raw;
+									const total = item.dataset.data.reduce((a, b) => a + b, 0);
+									const pct = ((v / total) * 100).toFixed(1);
+									return ` ${v.toLocaleString('en-US', { maximumFractionDigits: 0 })} ZCHF (${pct}%)`;
+								},
+							},
+						},
+					},
+				},
+			});
+		}
+
+		function renderChainActivityChart(info) {
+			const chains = [], saved = [], withdrawn = [], interest = [];
+			for (const [chainId, modules] of Object.entries(info.status || {})) {
+				let s = 0, w = 0, i = 0;
+				for (const mod of Object.values(modules)) {
+					s += fmtWei(mod.save);
+					w += fmtWei(mod.withdraw);
+					i += fmtWei(mod.interest);
+				}
+				if (s + w + i > 0) {
+					chains.push(chainLabel(Number(chainId)));
+					saved.push(s); withdrawn.push(w); interest.push(i);
+				}
+			}
+			if (!chains.length) return;
+
+			if (chartChainActivity) chartChainActivity.destroy();
+			chartChainActivity = new Chart(document.getElementById('chart-chain-activity').getContext('2d'), {
+				type: 'bar',
+				data: {
+					labels: chains,
+					datasets: [
+						{ label: 'Total Saved',     data: saved,     backgroundColor: '#2563eb99' },
+						{ label: 'Total Withdrawn', data: withdrawn, backgroundColor: '#dc262699' },
+						{ label: 'Interest Earned', data: interest,  backgroundColor: '#16a34a99' },
+					],
+				},
+				options: {
+					responsive: true, maintainAspectRatio: false, animation: false,
+					plugins: {
+						legend: { labels: { color: '#333', boxWidth: 12 } },
+						tooltip: {
+							callbacks: {
+								label: item => ` ${item.dataset.label}: ${item.raw.toLocaleString('en-US', { maximumFractionDigits: 0 })} ZCHF`,
+							},
+						},
+					},
+					scales: {
+						x: { ticks: { color: '#888' }, grid: { color: '#ececec' } },
+						y: {
+							ticks: { color: '#888', callback: v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v.toLocaleString() },
+							grid: { color: '#ececec' },
+							title: { display: true, text: 'ZCHF', color: '#888' },
+						},
+					},
+				},
+			});
 		}
 
 		function renderRatesChart(ratesData, proposalsData) {
