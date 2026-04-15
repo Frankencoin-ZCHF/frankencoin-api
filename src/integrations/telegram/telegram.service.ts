@@ -257,7 +257,8 @@ export class TelegramService {
 		}
 
 		// Positions expiring soon (24 hours)
-		const expiringSoonPosition1 = Object.values(this.position.getPositionsOpen().map).filter((p) => {
+		const openPositions = Object.values(this.position.getPositionsOpen().map);
+		const expiringSoonPosition1 = openPositions.filter((p) => {
 			const stateDate = new Date(this.telegramState.positionsExpiringSoon1).getTime();
 			const warningDays = 1 * 24 * 60 * 60 * 1000;
 			const isSoon = p.expiration * 1000 < Date.now() + warningDays;
@@ -272,7 +273,7 @@ export class TelegramService {
 		}
 
 		// Positions expired
-		const expiredPosition = Object.values(this.position.getPositionsOpen().map).filter((p) => {
+		const expiredPosition = openPositions.filter((p) => {
 			const stateDate = new Date(this.telegramState.positionsExpired).getTime();
 			const isExpired = p.expiration * 1000 < Date.now();
 			const isNew = isExpired && stateDate < p.expiration * 1000;
@@ -294,7 +295,7 @@ export class TelegramService {
 		}
 
 		// Position Price Warning
-		Object.values(this.position.getPositionsOpen().map).forEach((p) => {
+		openPositions.forEach((p) => {
 			const posPrice = parseFloat(formatUnits(BigInt(p.price), 36 - p.collateralDecimals));
 			const THRES_LOWEST = 1; // 100%
 			const THRES_ALERT = 1.05; // 105%

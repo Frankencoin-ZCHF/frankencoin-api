@@ -90,28 +90,48 @@ export class EcosystemCollateralService {
 		const ecosystemTotalValueLocked: PriceQueryCurrencies = {};
 		const map: { [key: Address]: ApiEcosystemCollateralStatsItem } = {};
 
+		// Pre-compute totalLimit per collateral in one pass over all positions
+		const nowSec = Date.now() / 1000;
+		const totalLimitByCollateral: Record<string, bigint> = {};
+		for (const p of this.positionsService.getPositionsList().list) {
+			if (!p.isOriginal || p.expiration <= nowSec) continue;
+			const key = normalizeAddress(p.collateral);
+			totalLimitByCollateral[key] = (totalLimitByCollateral[key] ?? 0n) + BigInt(p.limitForClones);
+		}
+
 		for (const c of Object.values(collateralPositionsDetails)) {
 			const price = prices[normalizeAddress(c.address)]?.price?.usd as number;
 			if (!price) continue;
 
+			// Single pass over positions — replaces 7 separate filter/reduce calls
+			const nowMs = Date.now();
+			let open = 0,
+				closed = 0,
+				denied = 0,
+				requested = 0,
+				originals = 0,
+				clones = 0;
+			let totalMinted = 0n,
+				totalBalance = 0n;
+			for (const p of c.positions as PositionQuery[]) {
+				if (p.closed) {
+					closed++;
+				} else if (p.denied) {
+					denied++;
+				} else {
+					open++;
+					totalMinted += BigInt(p.minted);
+					if (p.start * 1000 + FIVEDAYS_MS > nowMs) requested++;
+				}
+				if (p.isOriginal) {
+					originals++;
+				} else {
+					clones++;
+				}
+				totalBalance += BigInt(p.collateralBalance);
+			}
 			const total = c.positions.length;
-			const open = c.positions.filter((p: PositionQuery) => !p.closed && !p.denied).length;
-			const requested = c.positions.filter((p: PositionQuery) => p.start * 1000 + FIVEDAYS_MS > Date.now()).length;
-			const closed = c.positions.filter((p: PositionQuery) => p.closed).length;
-			const denied = c.positions.filter((p: PositionQuery) => p.denied).length;
-			const originals = c.positions.filter((p: PositionQuery) => p.isOriginal).length;
-			const clones = c.positions.filter((p: PositionQuery) => p.isClone).length;
-			const totalMinted = c.positions
-				.filter((p: PositionQuery) => !p.closed && !p.denied)
-				.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.minted), 0n);
-			const totalLimit = this.positionsService
-				.getPositionsList()
-				.list.filter(
-					(p: PositionQuery) =>
-						normalizeAddress(p.collateral) === normalizeAddress(c.address) && p.isOriginal && p.expiration > Date.now() / 1000
-				)
-				.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.limitForClones), 0n);
-			const totalBalance = c.positions.reduce((a: bigint, b: PositionQuery) => a + BigInt(b.collateralBalance), 0n);
+			const totalLimit = totalLimitByCollateral[normalizeAddress(c.address)] ?? 0n;
 			const totalBalanceNumUsd = parseInt(formatUnits(totalBalance, c.decimals)) * price;
 			const totalValueLocked: PriceQueryCurrencies = {
 				usd: totalBalanceNumUsd,
