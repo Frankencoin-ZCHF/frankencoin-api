@@ -399,7 +399,7 @@ export class PricesService {
 			if (this.fetchedPrices[addr]?.timestamp > 0) {
 				const priceUsd = this.fetchedPrices[addr].price.usd;
 				if (priceUsd == undefined) continue;
-				const priceChf = Math.round((priceUsd / zchfPrice) * 100) / 100;
+				const priceChf = Math.floor((priceUsd / zchfPrice) * 10000) / 10000;
 				this.fetchedPrices[addr].price.chf = addr === frankencoin ? 1 : priceChf;
 			}
 		}
