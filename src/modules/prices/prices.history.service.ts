@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PricesService } from './prices.service';
 import { ERC20Info, PriceHistoryRatio, PriceQueryObjectArray } from './prices.types';
 import { PriceHistoryQueryObjectArray } from '../../../exports';
@@ -14,7 +14,7 @@ import { mainnet } from 'viem/chains';
 import { ADDRESS, StablecoinBridgeABI } from '@frankencoin/zchf';
 
 @Injectable()
-export class PricesHistoryService {
+export class PricesHistoryService implements OnModuleInit {
 	private readonly logger = new Logger(this.constructor.name);
 	private fetchedHistory: PriceHistoryQueryObjectArray = {};
 	private fetchedHistoryRatio: PriceHistoryRatio = {
@@ -32,6 +32,10 @@ export class PricesHistoryService {
 	) {
 		this.readBackupHistoryQuery();
 		this.readBackupHistoryRatio();
+	}
+
+	onModuleInit() {
+		this.prices.registerHistoryService(this);
 	}
 
 	async readBackupHistoryQuery() {
