@@ -316,13 +316,29 @@
 		}
 
 		function renderSavingsHistoryChart(dailyLog) {
-			const logs = (dailyLog?.logs || []).filter(l => l.totalSavings && l.totalSavings !== '0');
+			const allLogs = dailyLog?.logs || [];
+
+			// Detect the real savings activation point: find the first index where savings
+			// exceeds 100k ZCHF and the following entry also exceeds it (rules out blips).
+			// Everything before that is pre-launch data and must be ignored.
+			const ACTIVATION_THRESHOLD = 100_000;
+			let startIdx = allLogs.length; // default: nothing to show
+			for (let i = 0; i < allLogs.length - 1; i++) {
+				const cur  = fmtWei(allLogs[i].totalSavings   || '0');
+				const next = fmtWei(allLogs[i + 1].totalSavings || '0');
+				if (cur >= ACTIVATION_THRESHOLD && next >= ACTIVATION_THRESHOLD) {
+					startIdx = i;
+					break;
+				}
+			}
+
+			const logs = allLogs.slice(startIdx);
 			if (!logs.length) return;
 
 			const labels   = logs.map(l => l.date);
 			const savings  = logs.map(l => fmtWei(l.totalSavings));
 			const supply   = logs.map(l => fmtWei(l.totalSupply));
-			const ratios   = logs.map((_, i) => supply[i] > 0 ? +((savings[i] / supply[i]) * 100).toFixed(2) : 0);
+			const ratios   = logs.map((_, i) => supply[i] > 0 ? Math.min(100, Math.max(0, +((savings[i] / supply[i]) * 100).toFixed(2))) : null);
 
 			if (chartSavingsHistory) chartSavingsHistory.destroy();
 			chartSavingsHistory = new Chart(document.getElementById('chart-savings-history').getContext('2d'), {
@@ -351,6 +367,7 @@
 							pointRadius: 0,
 							fill: false,
 							tension: 0.2,
+							spanGaps: false,
 							yAxisID: 'y2',
 						},
 					],
@@ -378,6 +395,8 @@
 						},
 						y2: {
 							position: 'right',
+							min: 0,
+							max: 100,
 							ticks: { color: '#16a34a', callback: v => v.toFixed(1) + '%' },
 							grid: { drawOnChartArea: false },
 							title: { display: true, text: '% of Supply', color: '#16a34a' },
