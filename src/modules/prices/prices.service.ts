@@ -21,6 +21,11 @@ import { ADDRESS, ChainMain, SupportedChain } from '@frankencoin/zchf';
 import { PrismaService } from 'core/database/prisma.service';
 import { mainnet } from 'viem/chains';
 import { getEndOfYearPrice } from './yearly.service';
+import { PriceHistoryQueryObjectArray } from '../../../exports';
+
+interface IHistoryService {
+	getHistory(): PriceHistoryQueryObjectArray;
+}
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ContractBlacklist, ContractWhitelist } from './prices.mgm';
 import { getChain } from 'utils/func-helper';
@@ -32,6 +37,11 @@ export class PricesService {
 
 	private fetchedPrices: PriceQueryObjectArray = {};
 	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
+	private historyService: IHistoryService | null = null;
+
+	registerHistoryService(service: IHistoryService) {
+		this.historyService = service;
+	}
 
 	constructor(
 		private readonly prisma: PrismaService,
@@ -290,7 +300,11 @@ export class PricesService {
 						const priceCurrent = parseUnits(String(this.fetchedPrices[c].price.chf), 18);
 						p = priceCurrent;
 					} else {
-						const priceHistory = getEndOfYearPrice({ year: y, contract: selected.collateral });
+						const priceHistory = getEndOfYearPrice({
+							year: y,
+							contract: selected.collateral,
+							history: this.historyService?.getHistory(),
+						});
 						p = priceHistory;
 					}
 
