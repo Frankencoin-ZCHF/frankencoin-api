@@ -39,6 +39,11 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
+
+# Prisma client is generated at build time as root. Hand the directory
+# to the runtime user so `prisma db push` can refresh it on schema changes
+# without hitting EACCES.
+RUN chown -R api:nodejs /app/node_modules/.prisma
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
