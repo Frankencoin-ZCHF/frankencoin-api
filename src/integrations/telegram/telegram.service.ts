@@ -31,6 +31,11 @@ import { formatFloat, normalizeAddress } from 'utils/format';
 import { EquityInvestedMessage } from './messages/EquityInvested.message';
 import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
 import { PositionDeniedMessage } from './messages/PositionDenied.message';
+import { BridgeService } from 'modules/bridge/bridge.service';
+import { CCIPProposalMessage } from './messages/CCIPProposal.message';
+import { CCIPProposalDeniedMessage } from './messages/CCIPProposalDenied.message';
+import { CCIPProposalEnactedMessage } from './messages/CCIPProposalEnacted.message';
+import { CCIPRateLimitMessage } from './messages/CCIPRateLimit.message';
 
 @Injectable()
 export class TelegramService {
@@ -49,7 +54,8 @@ export class TelegramService {
 		private readonly position: PositionsService,
 		private readonly prices: PricesService,
 		private readonly challenge: ChallengesService,
-		private readonly analytics: AnalyticsService
+		private readonly analytics: AnalyticsService,
+		private readonly bridge: BridgeService
 	) {
 		this.telegramState = {
 			minterApplied: this.startUpTime,
@@ -66,6 +72,10 @@ export class TelegramService {
 			bids: this.startUpTime,
 			equityInvested: this.startUpTime,
 			equityRedeemed: this.startUpTime,
+			ccipProposalNew: this.startUpTime,
+			ccipProposalDenied: this.startUpTime,
+			ccipProposalEnacted: this.startUpTime,
+			ccipRateLimit: this.startUpTime,
 		};
 
 		this.telegramGroupState = {
@@ -433,6 +443,48 @@ export class TelegramService {
 			this.telegramState.equityRedeemed = Date.now();
 			for (const i of equityRedeemed) {
 				this.sendMessageAll(EquityRedeemedMessage(i));
+			}
+		}
+
+		// BRIDGE ALERTS — new proposals
+		const newCcipProposals = this.bridge.getPendingProposals().filter((p) => p.created * 1000 > this.telegramState.ccipProposalNew);
+		if (newCcipProposals.length > 0) {
+			this.telegramState.ccipProposalNew = Date.now();
+			for (const proposal of newCcipProposals) {
+				!isSoftStart && this.sendMessageAll(CCIPProposalMessage(proposal));
+			}
+		}
+
+		// BRIDGE ALERTS — denied proposals
+		const deniedCcipProposals = this.bridge
+			.getDeniedProposals()
+			.filter((p) => p.deniedAt * 1000 > this.telegramState.ccipProposalDenied);
+		if (deniedCcipProposals.length > 0) {
+			this.telegramState.ccipProposalDenied = Date.now();
+			for (const proposal of deniedCcipProposals) {
+				!isSoftStart && this.sendMessageAll(CCIPProposalDeniedMessage(proposal));
+			}
+		}
+
+		// BRIDGE ALERTS — enacted proposals
+		const enactedCcipProposals = this.bridge
+			.getEnactedProposals()
+			.filter((p) => p.enactedAt * 1000 > this.telegramState.ccipProposalEnacted);
+		if (enactedCcipProposals.length > 0) {
+			this.telegramState.ccipProposalEnacted = Date.now();
+			for (const proposal of enactedCcipProposals) {
+				!isSoftStart && this.sendMessageAll(CCIPProposalEnactedMessage(proposal));
+			}
+		}
+
+		// BRIDGE ALERTS — rate limit changes
+		const rateLimitUpdates = this.bridge
+			.getChains()
+			.list.filter((c) => c.rateLimitUpdatedAt !== null && c.rateLimitUpdatedAt * 1000 > this.telegramState.ccipRateLimit);
+		if (rateLimitUpdates.length > 0) {
+			this.telegramState.ccipRateLimit = Date.now();
+			for (const chain of rateLimitUpdates) {
+				!isSoftStart && this.sendMessageAll(CCIPRateLimitMessage(chain));
 			}
 		}
 	}
