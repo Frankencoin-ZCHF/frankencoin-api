@@ -40,12 +40,12 @@ export class BridgeService {
 		this.logger.debug('Updating CCIP proposals');
 
 		const response = await PONDER_CLIENT.query<{
-			CCIPAdminProposals: { items: CCIPAdminProposalQuery[] };
+			cCIPAdminProposals: { items: CCIPAdminProposalQuery[] };
 		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					CCIPAdminProposals(orderBy: "created", orderDirection: "desc", limit: 1000) {
+					cCIPAdminProposals(orderBy: "created", orderDirection: "desc", limit: 1000) {
 						items {
 							chainId
 							hash
@@ -63,12 +63,12 @@ export class BridgeService {
 			`,
 		});
 
-		if (!response.data?.CCIPAdminProposals?.items) {
-			this.logger.warn('No CCIPAdminProposals data found.');
+		if (!response.data?.cCIPAdminProposals?.items) {
+			this.logger.warn('No cCIPAdminProposals data found.');
 			return;
 		}
 
-		this.fetchedProposals = response.data.CCIPAdminProposals.items.map((r) => ({
+		this.fetchedProposals = response.data.cCIPAdminProposals.items.map((r) => ({
 			chainId: r.chainId,
 			hash: r.hash,
 			proposer: r.proposer,
@@ -86,12 +86,12 @@ export class BridgeService {
 		this.logger.debug('Updating CCIP chains');
 
 		const response = await PONDER_CLIENT.query<{
-			CCIPAdminChains: { items: CCIPAdminChainQuery[] };
+			cCIPAdminChains: { items: CCIPAdminChainQuery[] };
 		}>({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
-					CCIPAdminChains(limit: 1000) {
+					cCIPAdminChains(limit: 1000) {
 						items {
 							chainId
 							remoteChainSelector
@@ -110,12 +110,12 @@ export class BridgeService {
 			`,
 		});
 
-		if (!response.data?.CCIPAdminChains?.items) {
-			this.logger.warn('No CCIPAdminChains data found.');
+		if (!response.data?.cCIPAdminChains?.items) {
+			this.logger.warn('No cCIPAdminChains data found.');
 			return;
 		}
 
-		this.fetchedChains = response.data.CCIPAdminChains.items.map((r) => ({
+		this.fetchedChains = response.data.cCIPAdminChains.items.map((r) => ({
 			...r,
 			rateLimitUpdatedAt: r.rateLimitUpdatedAt !== null ? parseInt(r.rateLimitUpdatedAt as any) : null,
 		}));
