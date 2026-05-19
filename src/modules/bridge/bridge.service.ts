@@ -55,8 +55,11 @@ export class BridgeService {
 							status
 							details
 							created
+							txHash
 							deniedAt
+							deniedTxHash
 							enactedAt
+							enactedTxHash
 						}
 					}
 				}
@@ -77,8 +80,11 @@ export class BridgeService {
 			status: r.status,
 			details: r.details,
 			created: parseInt(r.created as any),
+			txHash: r.txHash,
 			deniedAt: r.deniedAt !== null ? parseInt(r.deniedAt as any) : null,
+			deniedTxHash: r.deniedTxHash ?? null,
 			enactedAt: r.enactedAt !== null ? parseInt(r.enactedAt as any) : null,
+			enactedTxHash: r.enactedTxHash ?? null,
 		}));
 	}
 
@@ -104,6 +110,7 @@ export class BridgeService {
 							inboundCapacity
 							inboundRate
 							rateLimitUpdatedAt
+							rateLimitTxHash
 						}
 					}
 				}

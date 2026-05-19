@@ -9,8 +9,11 @@ export type CCIPAdminProposalQuery = {
 	status: string;
 	details: string | null;
 	created: string;
+	txHash: string;
 	deniedAt: string | null;
+	deniedTxHash: string | null;
 	enactedAt: string | null;
+	enactedTxHash: string | null;
 };
 
 export type CCIPAdminChainQuery = {
@@ -25,6 +28,7 @@ export type CCIPAdminChainQuery = {
 	inboundCapacity: string;
 	inboundRate: string;
 	rateLimitUpdatedAt: string | null;
+	rateLimitTxHash: string | null;
 };
 
 // ── API response types ────────────────────────────────────────────────────────
@@ -38,8 +42,11 @@ export type ApiCCIPProposal = {
 	status: string;
 	details: string | null;
 	created: number;
+	txHash: string;
 	deniedAt: number | null;
+	deniedTxHash: string | null;
 	enactedAt: number | null;
+	enactedTxHash: string | null;
 };
 
 export type ApiCCIPChain = {
@@ -54,6 +61,7 @@ export type ApiCCIPChain = {
 	inboundCapacity: string;
 	inboundRate: string;
 	rateLimitUpdatedAt: number | null;
+	rateLimitTxHash: string | null;
 };
 
 export type ApiCCIPProposals = {
