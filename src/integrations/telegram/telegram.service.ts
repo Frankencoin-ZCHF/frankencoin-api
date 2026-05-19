@@ -24,7 +24,7 @@ import { formatUnits } from 'viem';
 import { PriceQuery } from 'modules/prices/prices.types';
 import { PositionPriceAlert, PositionPriceLowest, PositionPriceWarning } from './messages/PositionPrice.message';
 import { AnalyticsService } from 'modules/analytics/analytics.service';
-import { DailyInfosMessage } from './messages/DailyInfos.message';
+import { WeeklyInfosMessage } from './messages/WeeklyInfos.message';
 import { mainnet } from 'viem/chains';
 import { EcosystemFrankencoinService } from 'modules/ecosystem/ecosystem.frankencoin.service';
 import { formatFloat, normalizeAddress } from 'utils/format';
@@ -42,7 +42,7 @@ export class TelegramService {
 	private readonly startUpTime = Date.now();
 	private readonly logger = new Logger(this.constructor.name);
 	private readonly bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/DailyInfos', '/help'];
+	private telegramHandles: string[] = ['/MintingUpdates', '/PriceAlerts', '/WeeklyInfos', '/help'];
 	private telegramState: TelegramState;
 	private telegramGroupState: TelegramGroupState;
 
@@ -522,9 +522,12 @@ export class TelegramService {
 
 	getSubscribedGroups(handle: string): string[] {
 		const key = handle.replace('/', '');
-		return Object.entries(this.telegramGroupState.subscription)
-			.filter(([_, subs]) => subs[key])
-			.map(([chatId]) => chatId);
+		return (
+			Object.entries(this.telegramGroupState.subscription)
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				.filter(([_, subs]) => subs[key])
+				.map(([chatId]) => chatId)
+		);
 	}
 
 	private buildSubscriptionKeyboard(chatId: string): TelegramBot.InlineKeyboardButton[][] {
@@ -532,7 +535,7 @@ export class TelegramService {
 		return [
 			[{ text: `${subs['MintingUpdates'] ? '✅' : '⬜'} Minting Updates`, callback_data: 'sub:MintingUpdates' }],
 			[{ text: `${subs['PriceAlerts'] ? '✅' : '⬜'} Price Alerts`, callback_data: 'sub:PriceAlerts' }],
-			[{ text: `${subs['DailyInfos'] ? '✅' : '⬜'} Daily Infos (weekly)`, callback_data: 'sub:DailyInfos' }],
+			[{ text: `${subs['WeeklyInfos'] ? '✅' : '⬜'} Weekly Infos`, callback_data: 'sub:WeeklyInfos' }],
 		];
 	}
 
@@ -620,16 +623,20 @@ export class TelegramService {
 	}
 
 	@Cron(CronExpression.EVERY_WEEK)
-	scheduleDailyInfos() {
-		const days = 1000 * 3600 * 24 * 30;
-		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() - days);
-		const groups = this.getSubscribedGroups('/DailyInfos');
+	scheduleWeeklyInfos() {
+		const days = 3600 * 24 * 30; // seconds
+		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() / 1000 - days);
+		const groups = this.getSubscribedGroups('/WeeklyInfos');
 
 		const before = infos.at(0);
 		const now = infos.at(-1);
 
-		const supply = this.frankencoin.getTotalSupply();
+		if (!before || !now) {
+			this.logger.warn('scheduleWeeklyInfos: no analytics data available, skipping');
+			return;
+		}
 
-		this.sendMessageGroup(groups, DailyInfosMessage(before, now, supply));
+		const supply = this.frankencoin.getTotalSupply();
+		this.sendMessageGroup(groups, WeeklyInfosMessage(before, now, supply));
 	}
 }
