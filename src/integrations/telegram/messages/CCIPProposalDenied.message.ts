@@ -1,7 +1,8 @@
 import { ApiCCIPProposal } from 'modules/bridge/bridge.types';
 import { shortenString } from 'utils/format';
-import { getChain } from 'utils/func-helper';
+import { AppUrl, ExplorerAddressUrl, ExplorerTxUrl, getChain } from 'utils/func-helper';
 import { ChainId } from '@frankencoin/zchf';
+import { Chain } from 'viem';
 
 const typeLabel: Record<string, string> = {
 	AddChain: '🔗 Add Chain',
@@ -11,12 +12,14 @@ const typeLabel: Record<string, string> = {
 };
 
 export function CCIPProposalDeniedMessage(proposal: ApiCCIPProposal): string {
-	const chainName = getChain(proposal.chainId as ChainId)?.name;
+	const chain = getChain(proposal.chainId as ChainId) as Chain;
 
 	return `🚫 *CCIP Proposal Denied*
 
-🌐 Chain: *${chainName}* (${proposal.chainId})
+🌐 Chain: *${chain?.name}* (${proposal.chainId})
 📋 Type: *${typeLabel[proposal.type] ?? proposal.type}*
-👤 Proposer: \`${proposal.proposer ? shortenString(proposal.proposer) : 'unknown'}\`
-🔑 Hash: \`${shortenString(proposal.hash)}\``;
+👤 Proposer: \`${proposal.proposer ?? 'unknown'}\`
+🔑 Hash: \`${shortenString(proposal.hash)}\`
+
+${proposal.deniedTxHash ? `[🔍 Transaction](${ExplorerTxUrl(proposal.deniedTxHash, chain)})` : ''}${proposal.proposer ? ` · [👤 Proposer](${ExplorerAddressUrl(proposal.proposer, chain)})` : ''} · [🏛️ Governance](${AppUrl('/governance', chain)})`;
 }
