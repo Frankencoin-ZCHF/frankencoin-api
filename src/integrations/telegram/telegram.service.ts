@@ -451,7 +451,7 @@ export class TelegramService {
 		if (newCcipProposals.length > 0) {
 			this.telegramState.ccipProposalNew = Date.now();
 			for (const proposal of newCcipProposals) {
-				!isSoftStart && this.sendMessageAll(CCIPProposalMessage(proposal));
+				this.sendMessageAll(CCIPProposalMessage(proposal));
 			}
 		}
 
@@ -462,7 +462,7 @@ export class TelegramService {
 		if (deniedCcipProposals.length > 0) {
 			this.telegramState.ccipProposalDenied = Date.now();
 			for (const proposal of deniedCcipProposals) {
-				!isSoftStart && this.sendMessageAll(CCIPProposalDeniedMessage(proposal));
+				this.sendMessageAll(CCIPProposalDeniedMessage(proposal));
 			}
 		}
 
@@ -473,7 +473,7 @@ export class TelegramService {
 		if (enactedCcipProposals.length > 0) {
 			this.telegramState.ccipProposalEnacted = Date.now();
 			for (const proposal of enactedCcipProposals) {
-				!isSoftStart && this.sendMessageAll(CCIPProposalEnactedMessage(proposal));
+				this.sendMessageAll(CCIPProposalEnactedMessage(proposal));
 			}
 		}
 
@@ -484,7 +484,7 @@ export class TelegramService {
 		if (rateLimitUpdates.length > 0) {
 			this.telegramState.ccipRateLimit = Date.now();
 			for (const chain of rateLimitUpdates) {
-				!isSoftStart && this.sendMessageAll(CCIPRateLimitMessage(chain));
+				this.sendMessageAll(CCIPRateLimitMessage(chain));
 			}
 		}
 	}
