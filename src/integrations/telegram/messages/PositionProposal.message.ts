@@ -30,6 +30,6 @@ export function PositionProposalMessage(position: PositionQuery): string {
    Auction: *${auctionHours} hours*
    Expiry: *${expiryDays} days*
 
-[⚔️ Challenge](${AppUrl(`/monitoring/${position.position}/challenge`)}) · [🚫 Veto](${AppUrl(`/monitoring/${position.position}/veto`)})
+[⚔️ Challenge](${AppUrl(`/monitoring/${position.position}/challenge`)}) · [🚫 Veto](${AppUrl(`/governance`)})
 [🔍 Position](${ExplorerAddressUrl(position.position)}) · [🔍 Owner](${ExplorerAddressUrl(position.owner)})`;
 }
