@@ -58,8 +58,8 @@ export class TelegramService {
 		private readonly bridge: BridgeService
 	) {
 		this.telegramState = {
-			minterApplied: 1780036420000, // this.startUpTime,
-			minterVetoed: 1780036420000, // this.startUpTime,
+			minterApplied: this.startUpTime,
+			minterVetoed: this.startUpTime,
 			leadrateProposal: this.startUpTime,
 			leadrateChanged: this.startUpTime,
 			positions: this.startUpTime,
