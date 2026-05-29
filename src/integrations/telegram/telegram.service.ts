@@ -58,8 +58,8 @@ export class TelegramService {
 		private readonly bridge: BridgeService
 	) {
 		this.telegramState = {
-			minterApplied: this.startUpTime,
-			minterVetoed: this.startUpTime,
+			minterApplied: 1780036420000, // this.startUpTime,
+			minterVetoed: 1780036420000, // this.startUpTime,
 			leadrateProposal: this.startUpTime,
 			leadrateChanged: this.startUpTime,
 			positions: this.startUpTime,
@@ -167,10 +167,19 @@ export class TelegramService {
 				notFound: 'chat not found',
 				deleted: 'the group chat was deleted',
 				blocked: 'bot was blocked by the user',
+				parseEntities: 'parse entities',
 			};
 
 			if (typeof error === 'object') {
-				if (error?.message.includes(msg.deleted)) {
+				if (error?.message.includes(msg.parseEntities)) {
+					// Markdown parsing failed — retry as plain text so the alert is never lost
+					this.logger.warn(`Markdown parse error for group ${group}, retrying as plain text`);
+					try {
+						await this.bot.sendMessage(group.toString(), message, { disable_web_page_preview: true });
+					} catch (e2) {
+						this.logger.warn(`Plain text fallback also failed for group ${group}: ${e2?.message}`);
+					}
+				} else if (error?.message.includes(msg.deleted)) {
 					this.logger.warn(msg.deleted + `: ${group}`);
 					this.removeTelegramGroup(group);
 				} else if (error?.message.includes(msg.notFound)) {
