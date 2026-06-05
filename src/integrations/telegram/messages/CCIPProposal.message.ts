@@ -1,6 +1,6 @@
 import { ApiCCIPProposal } from 'modules/bridge/bridge.types';
-import { shortenString } from 'utils/format';
-import { AppUrl, ExplorerAddressUrl, ExplorerTxUrl, getChain } from 'utils/func-helper';
+import { escapeMd, shortenString } from 'utils/format';
+import { AppUrl, ExplorerAddressUrl, ExplorerTxUrl, getChain, getChainByChainSelector } from 'utils/func-helper';
 import { ChainId } from '@frankencoin/zchf';
 import { Chain } from 'viem';
 
@@ -19,7 +19,7 @@ export function CCIPProposalMessage(proposal: ApiCCIPProposal): string {
 	return `⚠️ *New CCIP Proposal*
 
 🌐 Chain: *${chain?.name}* (${proposal.chainId})
-📋 Type: *${typeLabel[proposal.type] ?? proposal.type}*
+📋 Type: *${escapeMd(typeLabel[proposal.type] ?? proposal.type ?? '')}*
 👤 Proposer: \`${proposal.proposer ?? 'unknown'}\`
 ⏰ Veto Until: *${deadline.toUTCString()}*
 ${details}
@@ -33,14 +33,14 @@ function parseDetails(type: string | null, raw: string | null): string {
 	try {
 		const d = JSON.parse(raw);
 		if (type === 'AddChain') {
-			return `🔗 Remote Chain: \`${d.remoteChainSelector}\`\n📍 Token: \`${d.remoteTokenAddress ?? '?'}\``;
+			return `🔗 Remote Chain: \`${d.remoteChainSelector}\` (${getChainByChainSelector(d.chain).name})\n📍 Token: \`${d.remoteTokenAddress ?? '?'}\``;
 		}
 		if (type === 'RemotePoolUpdate') {
 			const action = d.add ? '➕ Add pool' : '➖ Remove pool';
 			return `${action} on chain \`${d.chain}\`\n📍 Pool: \`${d.poolAddress ?? '?'}\``;
 		}
 		if (type === 'RemoveChain') {
-			return `🔗 Remote Chain: \`${d.chain}\``;
+			return `🔗 Remote Chain: \`${d.chain}\` (${getChainByChainSelector(d.chain).name})`;
 		}
 		if (type === 'AdminTransfer') {
 			return `👤 New Admin: \`${d.newAdmin ?? '?'}\``;

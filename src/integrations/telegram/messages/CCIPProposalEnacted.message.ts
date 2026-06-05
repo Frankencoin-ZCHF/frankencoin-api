@@ -1,5 +1,5 @@
 import { ApiCCIPProposal } from 'modules/bridge/bridge.types';
-import { shortenString } from 'utils/format';
+import { escapeMd, shortenString } from 'utils/format';
 import { AppUrl, ExplorerAddressUrl, ExplorerTxUrl, getChain } from 'utils/func-helper';
 import { ChainId } from '@frankencoin/zchf';
 import { Chain } from 'viem';
@@ -17,7 +17,7 @@ export function CCIPProposalEnactedMessage(proposal: ApiCCIPProposal): string {
 	return `✅ *CCIP Proposal Enacted*
 
 🌐 Chain: *${chain?.name}* (${proposal.chainId})
-📋 Type: *${typeLabel[proposal.type] ?? proposal.type}*
+📋 Type: *${escapeMd(typeLabel[proposal.type] ?? proposal.type ?? '')}*
 👤 Proposer: \`${proposal.proposer ?? 'unknown'}\`
 🔑 Hash: \`${shortenString(proposal.hash)}\`
 
