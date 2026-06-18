@@ -1,0 +1,34 @@
+// Telegram group subscriptions and state
+model TelegramGroup {
+  chatId        String   @id
+  subscriptions Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("telegram_groups")
+}
+
+// Telegram app ↔ bot link sessions (one per browser session, many per Telegram user/group)
+model TelegramSession {
+  jti        String    @id
+  telegramId String?
+  context    String    @default("dm") // "dm" | "group"
+  status     String    @default("unlinked")
+  linkedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+
+  @@map("telegram_sessions")
+}
+
+// Personalized alerts per Telegram identity (user DM or group chat)
+model TelegramUserAlert {
+  id         String   @id @default(uuid())
+  telegramId String
+  type       String
+  address    String
+  createdAt  DateTime @default(now())
+
+  @@unique([telegramId, type, address])
+  @@map("telegram_user_alerts")
+}
