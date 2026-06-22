@@ -56,5 +56,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Prisma
 prisma/migrations/
+prisma/backup/backup*
 
 .claude
+
+/prisma/backup/*
