@@ -15,6 +15,6 @@ FILENAME="backup_${TIMESTAMP}.dump"
 echo "Dumping database to prisma/backup/${FILENAME}..."
 docker run --rm \
   -v "${SCRIPT_DIR}:/backup" \
-  postgres:16 \
+  postgres:18.4 \
   pg_dump "$DATABASE_URL" -Fc -f "/backup/${FILENAME}"
 echo "Done. ($(du -sh "${SCRIPT_DIR}/${FILENAME}" | cut -f1))"

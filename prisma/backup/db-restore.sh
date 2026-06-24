@@ -33,7 +33,7 @@ fi
 
 docker run --rm \
   -v "${SCRIPT_DIR}:/backup" \
-  postgres:16 \
+  postgres:18.4 \
   pg_restore \
     --no-owner \
     --no-privileges \
