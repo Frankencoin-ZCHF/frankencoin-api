@@ -563,6 +563,7 @@ export class TelegramService {
 				{ command: 'start', description: 'Subscribe to alerts (GOV, ALL, or owner address)' },
 				{ command: 'stop', description: 'Unsubscribe (GOV, ALL, or owner address)' },
 				{ command: 'status', description: 'Show your active subscriptions' },
+				{ command: 'help', description: 'Show available commands' },
 			]);
 			this.logger.log('Bot command menu registered');
 		} catch (e) {
@@ -585,6 +586,8 @@ export class TelegramService {
 				await this.handleStop(m.chat.id, id, param);
 			} else if (text === '/status') {
 				await this.handleStatus(m.chat.id, id);
+			} else if (text === '/help') {
+				await this.sendMessage(m.chat.id, WelcomeGroupMessage(m.chat.id));
 			}
 		});
 	}

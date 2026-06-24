@@ -3,7 +3,7 @@ import { AppUrl } from 'utils/func-helper';
 export function WelcomeGroupMessage(group: string | number): string {
 	return `👋 *Welcome to Frankencoin Bot*
 
-This chat (\`${group}\`) is now connected to the Frankencoin ecosystem.
+This chat (\`${group}\`) is connected to the Frankencoin ecosystem.
 
 */start* — Subscribe to all alerts (Governance + All Positions)
 */start GOV* | */stop GOV* — Toggle Governance alerts
