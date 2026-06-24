@@ -32,6 +32,8 @@
 		"prisma:studio": "npx prisma studio --schema=./prisma/schema",
 		"prisma:push": "npx prisma db push --schema=./prisma/schema",
 		"prisma:reset": "npx prisma migrate reset --schema=./prisma/schema",
+		"prisma:backup": "bash prisma/backup/db-dump.sh",
+		"prisma:restore": "bash prisma/backup/db-restore.sh",
 		"migrate:subscriptions": "ts-node -r tsconfig-paths/register prisma/scripts/migrate-subscriptions-to-alerts.ts",
 		"telegram:users": "ts-node -r tsconfig-paths/register scripts/list-telegram-user.ts",
 		"telegram:mocks": "ts-node -r tsconfig-paths/register scripts/send-telegram-mocks.ts",
