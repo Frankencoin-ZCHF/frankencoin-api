@@ -153,7 +153,11 @@ export class TelegramService {
 		}
 
 		this.logger.log(`Registered Telegram Group: ${id}`);
-		this.sendMessage(id, WelcomeGroupMessage(id));
+		await this.sendMessage(id, WelcomeGroupMessage(id));
+
+		await this.addAlert(id, 'governance', '');
+		await this.addAlert(id, 'allPositions', '');
+		await this.sendMessage(chatId, '✅ Subscribed to *Governance* and *All Positions* alerts.');
 		return true;
 	}
 
@@ -171,7 +175,8 @@ export class TelegramService {
 
 	// ─── Alert management ─────────────────────────────────────────────────────
 
-	private async addAlert(telegramId: string, type: string, address: string): Promise<void> {
+	private async addAlert(telegramId: string | number, type: string, address: string): Promise<void> {
+		telegramId = telegramId.toString();
 		await this.prisma.safeExecute(() =>
 			this.prisma.telegramUserAlert.upsert({
 				where: { telegramId_type_address: { telegramId, type, address } },
