@@ -1,3 +1,5 @@
+export type AlertType = 'governance' | 'allPositions' | 'owner';
+
 // @dev: timestamps of last trigger emits
 export type TelegramState = {
 	minterApplied: number;

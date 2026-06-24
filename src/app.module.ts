@@ -19,7 +19,6 @@ import { PricesModule } from 'modules/prices/prices.module';
 import { SavingsModule } from 'modules/savings/savings.module';
 import { TelegramModule } from 'integrations/telegram/telegram.module';
 import { TransferModule } from 'modules/transfer/transfer.module';
-import { AuthModule } from 'modules/auth/auth.module';
 
 // Root orchestration service
 import { ApiService } from 'app.service';
@@ -47,7 +46,6 @@ import { ApiService } from 'app.service';
 		TransferModule,
 		AnalyticsModule,
 		TelegramModule,
-		AuthModule,
 	],
 	providers: [ApiService],
 })

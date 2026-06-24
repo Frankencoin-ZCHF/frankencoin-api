@@ -13,7 +13,7 @@ dotenv.config();
 
 import TelegramBot from 'node-telegram-bot-api';
 import { WelcomeGroupMessage } from '../src/integrations/telegram/messages/WelcomeGroup.message';
-import { HelpMessage } from '../src/integrations/telegram/messages/Help.message';
+import { StatusMessage } from '../src/integrations/telegram/messages/Status.message';
 import { MinterProposalMessage } from '../src/integrations/telegram/messages/MinterProposal.message';
 import { MinterProposalVetoedMessage } from '../src/integrations/telegram/messages/MinterProposalVetoed.message';
 import { LeadrateProposalMessage } from '../src/integrations/telegram/messages/LeadrateProposal.message';
@@ -351,7 +351,7 @@ const mockCCIPChain: any = {
 // ---------------------------------------------------------------------------
 const messages: Array<{ label: string; text: string }> = [
 	{ label: 'WelcomeGroup', text: WelcomeGroupMessage(CHAT_ID) },
-	{ label: 'Help', text: HelpMessage(CHAT_ID) },
+	{ label: 'Status', text: StatusMessage(CHAT_ID, true, true, ['0xOwnerAddress1234567890aBcDeF1234567890aB']) },
 	{ label: 'MinterProposal', text: MinterProposalMessage(mockMinter) },
 	{ label: 'MinterProposalVetoed', text: MinterProposalVetoedMessage(mockMinter) },
 	{ label: 'LeadrateProposal', text: LeadrateProposalMessage(mockLeadrateProposal, [mockLeadrateRate]) },
