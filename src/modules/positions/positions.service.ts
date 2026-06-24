@@ -171,7 +171,16 @@ export class PositionsService {
 			const mintedDataPromises: Promise<bigint>[] = [];
 			const availableForClonesDataPromises: Promise<bigint>[] = [];
 
-			for (const p of items) {
+			// Ponder same-batch factory child event miss: when a position is opened and then acted on
+			// (e.g. denied) within the same ethGetLogsBlockRange window, Ponder silently drops the child
+			// contract events during a full re-index. Position 0xf35378277191c1f0d90869426f7177aa0393f77d
+			// was opened at block 25287288 and denied at block 25287602 — both inside window [25286536–25291535]
+			// — so after re-indexing it incorrectly shows denied: false. Filter it out until ponder is fixed
+			// or the indexer is backfilled. See: ponder/docs/ponder-factory-same-batch-miss.md
+			const PONDER_SAME_BATCH_MISS = new Set(['0xf35378277191c1f0d90869426f7177aa0393f77d']);
+			const filteredItems = items.filter((p) => !PONDER_SAME_BATCH_MISS.has(normalizeAddress(p.position)));
+
+			for (const p of filteredItems) {
 				// Forces the collateral balance to be overwritten with the latest blockchain state, instead of the ponder state.
 				// This ensures that collateral transfers can be made without using the smart contract or application directly,
 				// and the API will be aware of the updated state.
@@ -208,8 +217,8 @@ export class PositionsService {
 			const mintedData = await Promise.allSettled(mintedDataPromises);
 			const availableForClonesData = await Promise.allSettled(availableForClonesDataPromises);
 
-			for (let idx = 0; idx < items.length; idx++) {
-				const p = items[idx] as PositionQueryV1;
+			for (let idx = 0; idx < filteredItems.length; idx++) {
+				const p = filteredItems[idx] as PositionQueryV1;
 				const b = (balanceOfData[idx] as PromiseFulfilledResult<bigint>).value;
 				const m = (mintedData[idx] as PromiseFulfilledResult<bigint>).value;
 				const a = (availableForClonesData[idx] as PromiseFulfilledResult<bigint>).value;
