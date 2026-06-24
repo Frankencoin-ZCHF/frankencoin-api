@@ -143,10 +143,12 @@ export class TelegramService {
 		if (!id) return false;
 		const chatId = id.toString();
 
+		const existing = await this.prisma.safeExecute(() => this.prisma.telegramGroup.findUnique({ where: { chatId } }));
+		if (existing) return false;
+
 		try {
 			await this.prisma.telegramGroup.create({ data: { chatId } });
 		} catch (e: any) {
-			if (e?.code !== 'P2002') this.logger.error(e);
 			return false;
 		}
 
