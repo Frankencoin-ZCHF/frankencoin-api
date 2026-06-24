@@ -141,10 +141,16 @@ export class TelegramService {
 
 	async upsertTelegramGroup(id: number | string): Promise<boolean> {
 		if (!id) return false;
-		const existing = await this.prisma.safeExecute(() => this.prisma.telegramGroup.findUnique({ where: { chatId: id.toString() } }));
-		if (existing) return false;
-		await this.prisma.safeExecute(() => this.prisma.telegramGroup.create({ data: { chatId: id.toString() } }));
-		this.logger.log(`Upserted Telegram Group: ${id}`);
+		const chatId = id.toString();
+
+		try {
+			await this.prisma.telegramGroup.create({ data: { chatId } });
+		} catch (e: any) {
+			if (e?.code !== 'P2002') this.logger.error(e);
+			return false;
+		}
+
+		this.logger.log(`Registered Telegram Group: ${id}`);
 		this.sendMessage(id, WelcomeGroupMessage(id));
 		return true;
 	}

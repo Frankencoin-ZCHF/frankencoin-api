@@ -11,6 +11,7 @@ This chat (\`${group}\`) is connected to the Frankencoin ecosystem.
 */start <owner>* — Subscribe to Governance + track an owner
 */stop <owner>* — Stop tracking an owner
 */status* — Show your active subscriptions
+*/help* — Show this message again
 
 v${process.env.npm_package_version} · [🌐 App](${AppUrl('')}) · [📦 GitHub](https://github.com/Frankencoin-ZCHF/frankencoin-api)`;
 }
