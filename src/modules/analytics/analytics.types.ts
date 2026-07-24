@@ -54,28 +54,12 @@ export type AnalyticsTransactionLog = {
 
 	totalInflow: bigint;
 	totalOutflow: bigint;
-	totalTradeFee: bigint;
-
-	totalSupply: bigint;
 	totalEquity: bigint;
 	totalSavings: bigint;
 
 	fpsTotalSupply: bigint;
 	fpsPrice: bigint;
 
-	totalMintedV1: bigint;
-	totalMintedV2: bigint;
-
-	currentMintLeadRate: bigint;
-	currentSaveLeadRate: bigint;
-	projectedInterests: bigint;
-
-	annualV1Interests: bigint;
-	annualV2Interests: bigint;
-	annualV1BorrowRate: bigint;
-	annualV2BorrowRate: bigint;
-
-	annualNetEarnings: bigint;
 	realizedNetEarnings: bigint;
 	earningsPerFPS: bigint;
 };
@@ -87,28 +71,12 @@ export type AnalyticsDailyLog = {
 
 	totalInflow: bigint;
 	totalOutflow: bigint;
-	totalTradeFee: bigint;
-
-	totalSupply: bigint;
 	totalEquity: bigint;
 	totalSavings: bigint;
 
 	fpsTotalSupply: bigint;
 	fpsPrice: bigint;
 
-	totalMintedV1: bigint;
-	totalMintedV2: bigint;
-
-	currentMintLeadRate: bigint;
-	currentSaveLeadRate: bigint;
-	projectedInterests: bigint;
-
-	annualV1Interests: bigint;
-	annualV2Interests: bigint;
-	annualV1BorrowRate: bigint;
-	annualV2BorrowRate: bigint;
-
-	annualNetEarnings: bigint;
 	realizedNetEarnings: bigint;
 	earningsPerFPS: bigint;
 };

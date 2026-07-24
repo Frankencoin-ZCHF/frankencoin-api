@@ -39,18 +39,24 @@ export function WeeklyInfosMessage(before: AnalyticsDailyLog, now: AnalyticsDail
 	const savingsBefore = BigInt(before.totalSavings);
 	const savingsChangePct = pct(savingsNow, savingsBefore);
 
-	const inSavingsPct = (savingsNow * 10n ** 20n) / BigInt(now.totalSupply);
-	const inEquityPct = (equityNow * 10n ** 20n) / BigInt(now.totalSupply);
+	// totalSupply was removed from AnalyticDailyLog; shares of supply are computed against
+	// the authoritative cross-chain supply figure (`supplyAfter`, already derived above from
+	// FrankencoinService.getTotalSupply()) instead of the log's own field.
+	const equityNowDecimal = parseFloat(formatUnits(equityNow, 18));
+	const inEquityPct = supplyAfter > 0 ? (equityNowDecimal / supplyAfter) * 100 : 0;
+
+	const savingsNowDecimal = parseFloat(formatUnits(savingsNow, 18));
+	const inSavingsPct = supplyAfter > 0 ? (savingsNowDecimal / supplyAfter) * 100 : 0;
 
 	return `📊 *Frankencoin Weekly Snapshot*
 
 💵 Total Supply: *${formatCurrency(supplyAfter, 0, 0)} ZCHF*
    30d: ${arrow(supplyChangePct)} *${formatCurrency(supplyChangePct)}%*
 
-💰 Savings: *${fmtZCHF(savingsNow)} ZCHF* (${formatCurrency(formatUnits(inSavingsPct, 18))}% of supply)
-	30d: ${arrow(savingsChangePct)} *${formatCurrency(savingsChangePct)}%*
+💰 Savings: *${fmtZCHF(savingsNow)} ZCHF* (${formatCurrency(inSavingsPct)}% of supply)
+   30d: ${arrow(savingsChangePct)} *${formatCurrency(savingsChangePct)}%*
 
-🔒 Equity: *${fmtZCHF(equityNow)} ZCHF* (${formatCurrency(formatUnits(inEquityPct, 18))}% of supply)
+🔒 Equity: *${fmtZCHF(equityNow)} ZCHF* (${formatCurrency(inEquityPct)}% of supply)
    30d: ${arrow(equityChangePct)} *${formatCurrency(equityChangePct)}%*
 
 📈 FPS Price: *${formatCurrency(formatUnits(BigInt(now.fpsPrice), 18), 0, 0)} ZCHF*
