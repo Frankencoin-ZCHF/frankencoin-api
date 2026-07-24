@@ -244,28 +244,12 @@ export class AnalyticsService {
 
 							totalInflow,
 							totalOutflow,
-							totalTradeFee,
-
-							totalSupply,
 							totalEquity,
 							totalSavings,
 
 							fpsTotalSupply,
 							fpsPrice,
 
-							totalMintedV1,
-							totalMintedV2,
-
-							currentMintLeadRate,
-							currentSaveLeadRate,
-							projectedInterests,
-							annualV1Interests,
-							annualV2Interests,
-
-							annualV1BorrowRate,
-							annualV2BorrowRate,
-
-							annualNetEarnings,
 							realizedNetEarnings,
 							earningsPerFPS,
 						}
@@ -317,28 +301,12 @@ export class AnalyticsService {
 
 							totalInflow
 							totalOutflow
-							totalTradeFee
-
-							totalSupply
 							totalEquity
 							totalSavings
 
 							fpsTotalSupply
 							fpsPrice
 
-							totalMintedV1
-							totalMintedV2
-
-							currentMintLeadRate
-							currentSaveLeadRate
-							projectedInterests
-							annualV1Interests
-							annualV2Interests
-
-							annualV1BorrowRate
-							annualV2BorrowRate
-
-							annualNetEarnings
 							realizedNetEarnings
 							earningsPerFPS
 						}
