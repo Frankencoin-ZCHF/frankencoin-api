@@ -337,7 +337,7 @@ export class TelegramService {
 		// GOVERNANCE ALERTS (equity) — large equity events
 
 		const { logs } = await this.analytics.getTransactionLog(true, 100);
-		const equityMinAmount = 10000;
+		const equityMinAmount = 1000;
 
 		const equityInvested = logs
 			.filter((i) => Number(i.timestamp) * 1000 > this.telegramState.equityInvested)
