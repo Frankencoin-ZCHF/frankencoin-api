@@ -313,7 +313,13 @@ export class AnalyticsService {
 					}
 				}
 			`,
+		}).catch((error) => {
+			// keep serving the previously fetched logs while the indexer is unavailable
+			this.logger.warn(`Failed to fetch daily log: ${error?.message ?? error}`);
+			return null;
 		});
+
+		if (!fetched) return;
 
 		if (!fetched.data || !fetched.data.analyticDailyLogs.items) {
 			this.logger.warn('No daily log data found.');
