@@ -84,6 +84,7 @@ export class ApiService {
 		if (this.guard('fps', 5 * MIN)) promises.push(this.fps.updateFpsInfo());
 		if (this.guard('fcsInfo', 5 * MIN)) promises.push(this.fcs.updateFcsInfo());
 		if (this.guard('fcsDiscount', 5 * MIN)) promises.push(this.fcs.updateFcsDiscount());
+		if (this.guard('fcsFees', 5 * MIN)) promises.push(this.fcs.updateFcsFees());
 		if (this.guard('leaRates', 5 * MIN)) promises.push(this.leadrate.updateLeadrateRates());
 		if (this.guard('leaProposals', 5 * MIN)) promises.push(this.leadrate.updateLeadrateProposals());
 		if (this.guard('savingsStatus', 5 * MIN)) promises.push(this.savings.updateSavingsStatus());

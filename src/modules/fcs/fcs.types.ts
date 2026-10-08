@@ -35,3 +35,24 @@ export type ApiFcsDiscount = {
 	// seconds remaining until weightedRecentRedemptions decays back to 0, floored at 0
 	recoveryCountdownSeconds: number;
 };
+
+export type FcsFeeDaily = {
+	date: string;
+	timestamp: string;
+	amount: string;
+	count: string;
+};
+
+export type ApiFcsFees = {
+	num: number;
+	// sum of all daily fees in ZCHF
+	total: number;
+	days: {
+		date: string;
+		timestamp: number;
+		// fee paid into Equity on this day, in ZCHF
+		amount: number;
+		// number of withdrawals that paid a non-zero fee
+		count: number;
+	}[];
+};
