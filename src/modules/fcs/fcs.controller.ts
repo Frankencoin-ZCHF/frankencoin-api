@@ -1,7 +1,7 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FcsService } from './fcs.service';
-import { ApiFcsDiscount, ApiFcsInfo } from './fcs.types';
+import { ApiFcsDiscount, ApiFcsFees, ApiFcsInfo } from './fcs.types';
 
 @ApiTags('FCS Controller')
 @Controller('fcs')
@@ -55,5 +55,28 @@ export class FcsController {
 	})
 	getDiscount(): ApiFcsDiscount {
 		return this.fcs.getFcsDiscount();
+	}
+
+	@Get('fees')
+	@ApiOperation({
+		summary: 'Get FCS redemption fees per day',
+		description:
+			'Returns: ApiFcsFees, the daily sum of the redemption fee (in ZCHF) that FCS pays into the Equity contract on every redemption, ' +
+			'plus the total over all days. A day only appears if at least one redemption paid a non-zero fee.',
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'Returns FCS redemption fees per day',
+		schema: {
+			type: 'ApiFcsFees',
+			example: {
+				num: 1,
+				total: 12.5,
+				days: [{ date: '2026-10-08', timestamp: 1791417600, amount: 12.5, count: 3 }],
+			},
+		},
+	})
+	getFees(): ApiFcsFees {
+		return this.fcs.getFcsFees();
 	}
 }
