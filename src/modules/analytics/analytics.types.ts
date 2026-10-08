@@ -108,14 +108,54 @@ export type ApiAnalyticsCollateralExposure = {
 export type ApiAnalyticsFpsEarnings = {
 	investFees: number;
 	redeemFees: number;
+	fcsRedemptionFees: number;
 	minterProposalFees: number;
 	positionProposalFees: number;
+	// excess profit share + released reserve, from successful challenges and forced sales
+	challengeProfits: number;
+	forcedSaleProfits: number;
 	otherProfitClaims: number;
 	otherContributions: number;
 
 	// loss or costs
 	savingsInterestCosts: number;
+	// shortfalls covered by equity on successful challenges and forced sales
+	challengeLosses: number;
+	forcedSaleLosses: number;
 	otherLossClaims: number;
+};
+
+export type AnalyticsMintingRevenueDaily = {
+	chainId: number;
+	date: string;
+	hub: string;
+	kind: string;
+	timestamp: string;
+	excessProfit: string;
+	reserveReleased: string;
+	lossCovered: string;
+	count: string;
+};
+
+export type ApiMintingRevenue = {
+	num: number;
+	// totals in ZCHF per kind: net = excessProfit + reserveReleased - lossCovered
+	totals: Record<
+		'Challenge' | 'ForcedSale',
+		{ excessProfit: number; reserveReleased: number; lossCovered: number; net: number; count: number }
+	>;
+	days: {
+		chainId: number;
+		date: string;
+		hub: string;
+		kind: string;
+		timestamp: number;
+		excessProfit: number;
+		reserveReleased: number;
+		lossCovered: number;
+		net: number;
+		count: number;
+	}[];
 };
 
 export type ApiTransactionLog = {
