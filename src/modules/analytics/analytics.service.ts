@@ -1,11 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT, VIEM_CONFIG } from 'app.config';
 import { EcosystemFpsService } from 'modules/ecosystem/ecosystem.fps.service';
+import { FcsService } from 'modules/fcs/fcs.service';
 import { PositionsService } from 'modules/positions/positions.service';
 import { uniqueValues } from 'utils/format-array';
 import { formatUnits } from 'viem';
 import {
 	AnalyticsDailyLog,
+	AnalyticsMintingRevenueDaily,
 	AnalyticsExposureItem,
 	AnalyticsProfitLossLog,
 	AnalyticsTransactionLog,
@@ -13,6 +15,7 @@ import {
 	ApiAnalyticsFpsEarnings,
 	ApiAnalyticsProfitLossLog,
 	ApiDailyLog,
+	ApiMintingRevenue,
 	ApiTransactionLog,
 } from './analytics.types';
 import { EcosystemFrankencoinService } from 'modules/ecosystem/ecosystem.frankencoin.service';
@@ -29,15 +32,18 @@ export class AnalyticsService {
 	private readonly logger = new Logger(this.constructor.name);
 	private exposure: ApiAnalyticsCollateralExposure;
 	private fetchedDailyLogs: AnalyticsDailyLog[] = [];
+	private mintingRevenue: ApiMintingRevenue = AnalyticsService.emptyMintingRevenue();
 
 	constructor(
 		private readonly positions: PositionsService,
 		private readonly fps: EcosystemFpsService,
 		private readonly fc: EcosystemFrankencoinService,
 		private readonly minters: EcosystemMinterService,
-		private readonly save: SavingsCoreService
+		private readonly save: SavingsCoreService,
+		private readonly fcs: FcsService
 	) {
 		setTimeout(() => this.updateDailyLog(), 10000);
+		setTimeout(() => this.updateMintingRevenue(), 10000);
 	}
 
 	async getProfitLossLog(): Promise<ApiAnalyticsProfitLossLog> {
@@ -203,23 +209,39 @@ export class AnalyticsService {
 		const minterProposalFees = this.minters
 			.getMintersList()
 			.list.reduce<number>((a, b) => a + parseFloat(formatUnits(BigInt(b.applicationFee), 18)), 0);
-		const otherProfitClaims: number = this.fps.getEcosystemFpsInfo().earnings.profit - positionProposalFees - minterProposalFees;
+		const fcsRedemptionFees: number = this.fcs.getFcsFees().total;
+		const revenue = this.getMintingRevenue().totals;
+		const challengeProfits = revenue.Challenge.excessProfit + revenue.Challenge.reserveReleased;
+		const forcedSaleProfits = revenue.ForcedSale.excessProfit + revenue.ForcedSale.reserveReleased;
+		const challengeLosses = revenue.Challenge.lossCovered;
+		const forcedSaleLosses = revenue.ForcedSale.lossCovered;
+		const otherProfitClaims: number =
+			this.fps.getEcosystemFpsInfo().earnings.profit -
+			positionProposalFees -
+			minterProposalFees -
+			challengeProfits -
+			forcedSaleProfits;
 
 		const expo = await this.getCollateralExposure();
 		const equityAdjusted: number = expo.general.equityInReserve;
 		const otherContributions: number =
-			equityAdjusted - minterProposalFees - investFees - redeemFees - positionProposalFees - otherProfitClaims;
+			equityAdjusted - minterProposalFees - investFees - redeemFees - fcsRedemptionFees - positionProposalFees - otherProfitClaims;
 
 		return {
 			minterProposalFees,
 			investFees,
 			redeemFees,
+			fcsRedemptionFees,
 			positionProposalFees,
+			challengeProfits,
+			forcedSaleProfits,
 			otherProfitClaims,
 			otherContributions,
 
 			savingsInterestCosts: this.save.getInfo().totalInterest,
-			otherLossClaims: this.fps.getEcosystemFpsInfo().earnings.loss,
+			challengeLosses,
+			forcedSaleLosses,
+			otherLossClaims: this.fps.getEcosystemFpsInfo().earnings.loss - challengeLosses - forcedSaleLosses,
 		};
 	}
 
@@ -334,5 +356,108 @@ export class AnalyticsService {
 			num: this.fetchedDailyLogs.length,
 			logs: this.fetchedDailyLogs,
 		};
+	}
+
+	private static emptyMintingRevenue(): ApiMintingRevenue {
+		const zero = () => ({ excessProfit: 0, reserveReleased: 0, lossCovered: 0, net: 0, count: 0 });
+		return { num: 0, totals: { Challenge: zero(), ForcedSale: zero() }, days: [] };
+	}
+
+	@Interval(10 * 60 * 1000) // 10min
+	async updateMintingRevenue() {
+		this.logger.debug('Fetching minting revenue...');
+
+		// Paginate through all days, Ponder caps at 1000 per request
+		let after: string | null = null;
+		let hasNextPage = true;
+		const items: AnalyticsMintingRevenueDaily[] = [];
+
+		while (hasNextPage) {
+			const afterArg = after ? `, after: "${after}"` : '';
+			const response = await PONDER_CLIENT.query<{
+				mintingRevenueDailys: {
+					items: AnalyticsMintingRevenueDaily[];
+					pageInfo: { endCursor: string; hasNextPage: boolean };
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query: gql`
+					query {
+						mintingRevenueDailys(orderBy: "timestamp", orderDirection: "asc", limit: 1000${afterArg}) {
+							items {
+								chainId
+								date
+								hub
+								kind
+								timestamp
+								excessProfit
+								reserveReleased
+								lossCovered
+								count
+							}
+							pageInfo {
+								endCursor
+								hasNextPage
+							}
+						}
+					}
+				`,
+			}).catch((error) => {
+				// keep serving the previously fetched data while the indexer is unavailable
+				this.logger.warn(`Failed to fetch minting revenue: ${error?.message ?? error}`);
+				return null;
+			});
+
+			if (!response) return;
+
+			if (!response.data || !response.data.mintingRevenueDailys?.items) {
+				this.logger.warn('No minting revenue data found.');
+				return;
+			}
+
+			const page = response.data.mintingRevenueDailys;
+			items.push(...page.items);
+			hasNextPage = page.pageInfo.hasNextPage;
+			after = page.pageInfo.endCursor;
+		}
+
+		const result = AnalyticsService.emptyMintingRevenue();
+		const f = (v: string) => parseFloat(formatUnits(BigInt(v), 18));
+
+		for (const i of items) {
+			const excessProfit = f(i.excessProfit);
+			const reserveReleased = f(i.reserveReleased);
+			const lossCovered = f(i.lossCovered);
+			const net = excessProfit + reserveReleased - lossCovered;
+			const count = Number(i.count);
+
+			result.days.push({
+				chainId: i.chainId,
+				date: i.date,
+				hub: i.hub,
+				kind: i.kind,
+				timestamp: Number(i.timestamp),
+				excessProfit,
+				reserveReleased,
+				lossCovered,
+				net,
+				count,
+			});
+
+			const t = result.totals[i.kind as 'Challenge' | 'ForcedSale'];
+			if (!t) continue;
+			t.excessProfit += excessProfit;
+			t.reserveReleased += reserveReleased;
+			t.lossCovered += lossCovered;
+			t.net += net;
+			t.count += count;
+		}
+
+		result.num = result.days.length;
+		this.mintingRevenue = result;
+	}
+
+	getMintingRevenue(): ApiMintingRevenue {
+		return this.mintingRevenue;
 	}
 }

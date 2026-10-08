@@ -522,28 +522,77 @@ export class AnalyticsController {
 				minterProposalFees: { type: 'number', description: 'Fees from minter modules proposals' },
 				investFees: { type: 'number', description: 'Fees from FPS investments' },
 				redeemFees: { type: 'number', description: 'Fees from FPS redemptions' },
+				fcsRedemptionFees: { type: 'number', description: 'Redemption fees paid by FCS into Equity' },
 				positionProposalFees: { type: 'number', description: 'Fees from new position proposals' },
-				otherProfitClaims: { type: 'number', description: 'Other profit claims, interests, auctions' },
+				challengeProfits: { type: 'number', description: 'Excess profit share and released reserve from successful challenges' },
+				forcedSaleProfits: { type: 'number', description: 'Released reserve from forced sales of expired positions' },
+				otherProfitClaims: { type: 'number', description: 'Other profit claims, interests' },
 				otherContributions: {
 					type: 'number',
 					description: 'Other contributions to reserve, incl. ERC20 transfers, FPS investments, ...',
 				},
 				savingsInterestCosts: { type: 'number', description: 'Interest paid on savings' },
-				otherLossClaims: { type: 'number', description: 'Other loss claims, losses from auctions' },
+				challengeLosses: { type: 'number', description: 'Shortfalls covered by equity on successful challenges' },
+				forcedSaleLosses: { type: 'number', description: 'Shortfalls covered by equity on forced sales' },
+				otherLossClaims: { type: 'number', description: 'Other loss claims' },
 			},
 			example: {
 				minterProposalFees: 17000,
 				investFees: 33584.129316535655,
 				redeemFees: 26150.225212696816,
+				fcsRedemptionFees: 0,
 				positionProposalFees: 33000,
+				challengeProfits: 0,
+				forcedSaleProfits: 0,
 				otherProfitClaims: 1086590.7072530529,
 				otherContributions: 2371836.405744001,
 				savingsInterestCosts: 43351.40845064168,
+				challengeLosses: 0,
+				forcedSaleLosses: 0,
 				otherLossClaims: 44486.556006992374,
 			},
 		},
 	})
 	getEarnings() {
 		return this.analytics.getFpsEarnings();
+	}
+
+	@Get('mintingRevenue')
+	@ApiOperation({
+		summary: 'Get daily revenue from successful challenges and forced sales',
+		description:
+			'Returns: ApiMintingRevenue, per day, hub (V1/V2) and kind (Challenge/ForcedSale): excess profit sent to equity, reserve released into equity, ' +
+			'and loss covered by equity (all in ZCHF), plus totals per kind. net = excessProfit + reserveReleased - lossCovered.',
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'Returns minting revenue per day and totals per kind',
+		schema: {
+			type: 'ApiMintingRevenue',
+			example: {
+				num: 1,
+				totals: {
+					Challenge: { excessProfit: 120.5, reserveReleased: 300, lossCovered: 0, net: 420.5, count: 2 },
+					ForcedSale: { excessProfit: 0, reserveReleased: 0, lossCovered: 0, net: 0, count: 0 },
+				},
+				days: [
+					{
+						chainId: 1,
+						date: '2026-10-08',
+						hub: 'V2',
+						kind: 'Challenge',
+						timestamp: 1791417600,
+						excessProfit: 120.5,
+						reserveReleased: 300,
+						lossCovered: 0,
+						net: 420.5,
+						count: 2,
+					},
+				],
+			},
+		},
+	})
+	getMintingRevenue() {
+		return this.analytics.getMintingRevenue();
 	}
 }
