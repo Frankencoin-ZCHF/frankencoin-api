@@ -534,7 +534,10 @@ export class AnalyticsController {
 				savingsInterestCosts: { type: 'number', description: 'Interest paid on savings' },
 				challengeLosses: { type: 'number', description: 'Shortfalls covered by equity on successful challenges' },
 				forcedSaleLosses: { type: 'number', description: 'Shortfalls covered by equity on forced sales' },
-				otherLossClaims: { type: 'number', description: 'Other loss claims' },
+				otherLossClaims: {
+					type: 'number',
+					description: 'Loss claims not attributed to savings interest, challenges or forced sales',
+				},
 			},
 			example: {
 				minterProposalFees: 17000,
@@ -549,7 +552,7 @@ export class AnalyticsController {
 				savingsInterestCosts: 43351.40845064168,
 				challengeLosses: 0,
 				forcedSaleLosses: 0,
-				otherLossClaims: 44486.556006992374,
+				otherLossClaims: 0,
 			},
 		},
 	})

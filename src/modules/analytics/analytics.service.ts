@@ -215,6 +215,8 @@ export class AnalyticsService {
 		const forcedSaleProfits = revenue.ForcedSale.excessProfit + revenue.ForcedSale.reserveReleased;
 		const challengeLosses = revenue.Challenge.lossCovered;
 		const forcedSaleLosses = revenue.ForcedSale.lossCovered;
+		// savings interest is paid out through Loss events, so it is part of the total losses and not additive to them
+		const savingsInterestCosts = this.save.getInfo().totalInterest;
 		const otherProfitClaims: number =
 			this.fps.getEcosystemFpsInfo().earnings.profit -
 			positionProposalFees -
@@ -238,10 +240,10 @@ export class AnalyticsService {
 			otherProfitClaims,
 			otherContributions,
 
-			savingsInterestCosts: this.save.getInfo().totalInterest,
+			savingsInterestCosts,
 			challengeLosses,
 			forcedSaleLosses,
-			otherLossClaims: this.fps.getEcosystemFpsInfo().earnings.loss - challengeLosses - forcedSaleLosses,
+			otherLossClaims: this.fps.getEcosystemFpsInfo().earnings.loss - savingsInterestCosts - challengeLosses - forcedSaleLosses,
 		};
 	}
 
