@@ -35,10 +35,15 @@ export type PriceQueryObjectArray = {
 	[key: Address]: PriceQuery;
 };
 
-export type PriceMarketChartObject = {
+export type PriceMarketChartEntry = {
 	prices: [timestamp: number, value: number][];
 	market_caps: [timestamp: number, value: number][];
 	total_volumes: [timestamp: number, value: number][];
+};
+
+export type PriceMarketChartObject = {
+	frankencoin: PriceMarketChartEntry;
+	'frankencoin-shares': PriceMarketChartEntry;
 };
 
 export type PriceHistoryQuery = ERC20Info & {
