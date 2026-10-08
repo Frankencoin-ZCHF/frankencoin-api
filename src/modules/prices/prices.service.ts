@@ -8,6 +8,7 @@ import {
 	ApiPriceMarketChart,
 	ERC20Info,
 	ERC20InfoObjectArray,
+	PriceMarketChartEntry,
 	PriceMarketChartObject,
 	PriceQueryCurrencies,
 	PriceQueryObjectArray,
@@ -37,7 +38,10 @@ export class PricesService {
 	private readonly logger = new Logger(this.constructor.name);
 
 	private fetchedPrices: PriceQueryObjectArray = {};
-	private fetchedMarketChart: PriceMarketChartObject = { prices: [], market_caps: [], total_volumes: [] };
+	private fetchedMarketChart: PriceMarketChartObject = {
+		frankencoin: { prices: [], market_caps: [], total_volumes: [] },
+		'frankencoin-shares': { prices: [], market_caps: [], total_volumes: [] },
+	};
 	private historyService: IHistoryService | null = null;
 	private ownerValueLockedCache = new TtlCache<ApiOwnerValueLocked>(1 * 60 * 1000);
 
@@ -145,14 +149,30 @@ export class PricesService {
 		return this.fetchedMarketChart;
 	}
 
-	async fetchMarketChartCoingecko(): Promise<PriceMarketChartObject | null> {
-		const url = `/api/v3/coins/frankencoin/market_chart?vs_currency=chf&days=90`;
-		const data = await (await COINGECKO_CLIENT(url)).json();
-		if (data.status) {
-			this.logger.debug(data.status?.error_message || 'Error fetching market chart from coingecko');
-			return null;
-		}
-		return data;
+	async fetchMarketChartCoingecko(): Promise<Partial<PriceMarketChartObject>> {
+		const coins = ['frankencoin', 'frankencoin-shares'] as const;
+		const results = await Promise.all(
+			coins.map(async (coin) => {
+				try {
+					const url = `/api/v3/coins/${coin}/market_chart?vs_currency=chf&days=90`;
+					const data = await (await COINGECKO_CLIENT(url)).json();
+					if (data.status) {
+						this.logger.debug(data.status?.error_message || `Error fetching market chart for ${coin} from coingecko`);
+						return null;
+					}
+					return data as PriceMarketChartEntry;
+				} catch (error) {
+					this.logger.debug(`Error fetching market chart for ${coin} from coingecko: ${error}`);
+					return null;
+				}
+			})
+		);
+		const chart: Partial<PriceMarketChartObject> = {};
+		coins.forEach((coin, i) => {
+			const entry = results[i];
+			if (entry) chart[coin] = entry;
+		});
+		return chart;
 	}
 
 	async fetchPriceTheGraph(erc: ERC20Info): Promise<PriceQueryCurrencies | null> {
@@ -425,6 +445,7 @@ export class PricesService {
 		this.logger.debug('Updating Market Chart');
 
 		const data = await this.fetchMarketChartCoingecko();
-		if (data) this.fetchedMarketChart = data;
+		// coins that failed to fetch keep their previously cached data
+		this.fetchedMarketChart = { ...this.fetchedMarketChart, ...data };
 	}
 }

@@ -289,59 +289,88 @@ export class PricesController {
 	@ApiOperation({
 		summary: 'Get Frankencoin market chart data',
 		description:
-			'Returns: ApiPriceMarketChart, historical chart data for Frankencoin (ZCHF) from CoinGecko. ' +
-			'Includes arrays of [timestamp, value] pairs for prices, market caps, and trading volumes over time.',
+			'Returns: ApiPriceMarketChart, 90 days of historical chart data in CHF from CoinGecko, keyed by coin: ' +
+			'`frankencoin` (ZCHF) and `frankencoin-shares` (FPS). ' +
+			'Each entry includes arrays of [timestamp, value] pairs for prices, market caps, and trading volumes over time.',
 	})
 	@ApiResponse({
 		status: 200,
-		description: 'Returns market chart data with prices, market caps, and volumes',
+		description: 'Returns market chart data per coin with prices, market caps, and volumes',
 		schema: {
 			type: 'ApiPriceMarketChart',
 			properties: {
-				prices: {
-					type: 'array',
-					items: {
-						type: 'array',
-						items: { type: 'number' },
-						minItems: 2,
-						maxItems: 2,
+				frankencoin: {
+					type: 'object',
+					properties: {
+						prices: {
+							type: 'array',
+							items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+							description: 'Array of [timestamp, price] pairs',
+						},
+						market_caps: {
+							type: 'array',
+							items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+							description: 'Array of [timestamp, market_cap] pairs',
+						},
+						total_volumes: {
+							type: 'array',
+							items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+							description: 'Array of [timestamp, volume] pairs',
+						},
 					},
-					description: 'Array of [timestamp, price] pairs',
+					description: 'ZCHF market chart',
 				},
-				market_caps: {
-					type: 'array',
-					items: {
-						type: 'array',
-						items: { type: 'number' },
-						minItems: 2,
-						maxItems: 2,
+				'frankencoin-shares': {
+					type: 'object',
+					properties: {
+						prices: {
+							type: 'array',
+							items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+							description: 'Array of [timestamp, price] pairs',
+						},
+						market_caps: {
+							type: 'array',
+							items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+							description: 'Array of [timestamp, market_cap] pairs',
+						},
+						total_volumes: {
+							type: 'array',
+							items: { type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2 },
+							description: 'Array of [timestamp, volume] pairs',
+						},
 					},
-					description: 'Array of [timestamp, market_cap] pairs',
-				},
-				total_volumes: {
-					type: 'array',
-					items: {
-						type: 'array',
-						items: { type: 'number' },
-						minItems: 2,
-						maxItems: 2,
-					},
-					description: 'Array of [timestamp, volume] pairs',
+					description: 'FPS market chart',
 				},
 			},
 			example: {
-				prices: [
-					[1761138132588, 1.0004542301551684],
-					[1761141720383, 1.0034832126771194],
-				],
-				market_caps: [
-					[1761138132588, 14538951.566572659],
-					[1761141720383, 14555105.414817618],
-				],
-				total_volumes: [
-					[1761138132588, 1201170.4564115603],
-					[1761141720383, 1236903.40655455],
-				],
+				frankencoin: {
+					prices: [
+						[1761138132588, 1.0004542301551684],
+						[1761141720383, 1.0034832126771194],
+					],
+					market_caps: [
+						[1761138132588, 14538951.566572659],
+						[1761141720383, 14555105.414817618],
+					],
+					total_volumes: [
+						[1761138132588, 1201170.4564115603],
+						[1761141720383, 1236903.40655455],
+					],
+				},
+				'frankencoin-shares': {
+					prices: [
+						[1761138132588, 3.5012345678],
+						[1761141720383, 3.4987654321],
+					],
+					market_caps: [
+						[1761138132588, 35000000.12],
+						[1761141720383, 34950000.34],
+					],
+					total_volumes: [
+						[1761138132588, 12345.67],
+						[1761141720383, 23456.78],
+					],
+				},
 			},
 		},
 	})
