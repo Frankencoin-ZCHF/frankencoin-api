@@ -266,6 +266,20 @@ export class PricesService {
 		}
 	}
 
+	async fetchPriceSwissgrams(): Promise<PriceQueryCurrencies | null> {
+		try {
+			const response = await fetch('https://api.swissgrams.com/api/v1/sgg');
+			const data = await response.json();
+			const usd = Number(data?.USD?.price);
+			if (!data?.success || !usd) return null;
+
+			return { usd };
+		} catch (error) {
+			this.logger.error(`Error fetching price from Swissgrams: ${error}`);
+			return null;
+		}
+	}
+
 	async fetchPriceSources(erc: ERC20Info): Promise<{ price: PriceQueryCurrencies; source: PriceSource } | null> {
 		// Priority 1: Custom overwrite (e.g., Frankencoin Pool Share)
 		if (normalizeAddress(erc.address) === normalizeAddress(ADDRESS[mainnet.id].equity)) {
@@ -274,6 +288,11 @@ export class PricesService {
 			const zchfPrice: number = this.fetchedPrices[zchfAddress]?.price?.usd;
 			if (!zchfPrice || !priceInChf) return null;
 			return { price: { usd: priceInChf * zchfPrice }, source: 'custom' };
+		} else if (normalizeAddress(erc.address) === normalizeAddress('0x2Bd214946806DbEE88Dd3b44b26A21759723d8A2')) {
+			// Priority 1: Custom overwrite for SGG (Swissgrams gold token)
+			const sggPrice = await this.fetchPriceSwissgrams();
+			if (sggPrice) return { price: sggPrice, source: 'custom' };
+			return null;
 		}
 
 		// Priority: DeFiLlama
