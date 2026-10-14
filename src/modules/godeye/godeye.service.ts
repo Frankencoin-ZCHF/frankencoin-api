@@ -367,7 +367,6 @@ export class GodEyeService {
 		}
 
 		const nodes: GodEyeNode[] = ids.map(nodeOf);
-		if (focusId !== undefined) nodes[0].label = nodes[0].label || 'Focus';
 		let othersNode: GodEyeNode = null;
 		if (othersUsed) {
 			let rest = 0;

@@ -17,6 +17,7 @@ export class GodEyeController {
 		if (this.html && process.env.NODE_ENV === 'production') return this.html;
 		const candidates = [
 			join(__dirname, 'ui', 'godeye.html'),
+			join(__dirname, '..', '..', '..', 'modules', 'godeye', 'ui', 'godeye.html'), // nest assets copy next to dist/src
 			join(process.cwd(), 'src', 'modules', 'godeye', 'ui', 'godeye.html'),
 			join(process.cwd(), 'dist', 'src', 'modules', 'godeye', 'ui', 'godeye.html'),
 		];
