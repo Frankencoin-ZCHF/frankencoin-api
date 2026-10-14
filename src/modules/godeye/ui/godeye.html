@@ -1136,8 +1136,9 @@ async function boot() {
 			t = await api('tokens');
 			if (t.sync.ready) break;
 			showProgress(t.sync);
-		} catch {
+		} catch (e) {
 			showToast('Cannot reach the GodEye API…', true); showProgress(null);
+			$('ptxt').textContent = `${location.origin}${API}/tokens failed (${e.status || 'network error'}). Is the API running? Retrying…`;
 		}
 		await new Promise((r) => setTimeout(r, 1000));
 	}
