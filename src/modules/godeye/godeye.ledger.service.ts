@@ -120,7 +120,7 @@ export class GodEyeLedgerService {
 	private phase: 'idle' | 'positions' | 'ledgers' = 'idle';
 
 	constructor() {
-		setTimeout(() => this.sync(), 4000);
+		setTimeout(() => this.sync().catch((e) => this.logger.error(`Initial sync failed: ${e?.message || e}`)), 4000);
 	}
 
 	// ---------------------------------------------------------------- address table
@@ -192,6 +192,19 @@ export class GodEyeLedgerService {
 	}
 
 	// ---------------------------------------------------------------- sync
+	/** indexer queries with retry, a network blip must not abort a 150k row sync (progress is resumable anyway) */
+	private async query(options: Parameters<typeof PONDER_CLIENT.query>[0], tries = 4): Promise<any> {
+		for (let i = 1; ; i++) {
+			try {
+				return await PONDER_CLIENT.query(options);
+			} catch (e) {
+				if (i >= tries) throw e;
+				this.logger.warn(`Indexer request failed (${e?.message}), retry ${i}/${tries - 1}`);
+				await new Promise((r) => setTimeout(r, 1000 * i * i));
+			}
+		}
+	}
+
 	@Interval(60_000)
 	async sync() {
 		if (this.syncing) return;
@@ -247,7 +260,7 @@ export class GodEyeLedgerService {
 	}
 
 	private async fetchStatus(): Promise<{ chainId: number; token: string; balance: number }[]> {
-		const r = await PONDER_CLIENT.query({
+		const r = await this.query({
 			fetchPolicy: 'no-cache',
 			query: gql`
 				query {
@@ -268,7 +281,7 @@ export class GodEyeLedgerService {
 		const pull = async (entity: string) => {
 			let after: string | null = null;
 			do {
-				const r: any = await PONDER_CLIENT.query({
+				const r: any = await this.query({
 					fetchPolicy: 'no-cache',
 					query: gql(`
 						query($after: String) {
@@ -294,7 +307,7 @@ export class GodEyeLedgerService {
 		const started = Date.now();
 		const isZchf = ledger.symbol === 'ZCHF';
 		for (;;) {
-			const r = await PONDER_CLIENT.query({
+			const r = await this.query({
 				fetchPolicy: 'no-cache',
 				query: gql`
 					query ($chainId: Int!, $token: String!, $cursor: BigInt!) {
