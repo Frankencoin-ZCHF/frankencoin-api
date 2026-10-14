@@ -36,6 +36,8 @@ export class TokenLedger {
 	via: Uint8Array;
 
 	lastCount = 0n;
+	/** indexer transfer counter we are syncing towards */
+	target = 0;
 	syncedAt = 0;
 	/** bumped on every append, used as cache key */
 	version = 0;
@@ -115,6 +117,7 @@ export class GodEyeLedgerService {
 	private syncing = false;
 	private lastRun = 0;
 	private lastError: string | null = null;
+	private phase: 'idle' | 'positions' | 'ledgers' = 'idle';
 
 	constructor() {
 		setTimeout(() => this.sync(), 4000);
@@ -154,7 +157,22 @@ export class GodEyeLedgerService {
 	}
 
 	status() {
-		return { syncing: this.syncing, lastRun: this.lastRun, lastError: this.lastError, ledgers: this.ledgers.size };
+		const list = [...this.ledgers.values()];
+		// the UI waits for mainnet ZCHF only, the other ledgers keep syncing in the background
+		const main = list.filter((l) => l.symbol === 'ZCHF' && l.chainId === 1);
+		const target = main.reduce((a, l) => a + l.target, 0);
+		const done = main.reduce((a, l) => a + Math.min(Number(l.lastCount), l.target), 0);
+		return {
+			syncing: this.syncing,
+			phase: this.phase,
+			lastRun: this.lastRun,
+			lastError: this.lastError,
+			ledgers: this.ledgers.size,
+			progress: target > 0 ? done / target : 0,
+			done,
+			target,
+			ready: list.some((l) => l.symbol === 'ZCHF' && l.chainId === 1 && l.n > 0 && Number(l.lastCount) >= l.target),
+		};
 	}
 
 	tokens(): GodEyeTokenInfo[] {
@@ -179,8 +197,16 @@ export class GodEyeLedgerService {
 		if (this.syncing) return;
 		this.syncing = true;
 		try {
+			this.phase = 'positions';
 			await this.syncPositionTx();
+			this.phase = 'ledgers';
 			const status = await this.fetchStatus();
+			// register all ledgers up front so progress covers the full workload
+			for (const s of status) {
+				const key = `${s.chainId}:${s.token}`;
+				if (!this.ledgers.has(key)) this.ledgers.set(key, new TokenLedger(s.chainId, s.token, this.symbolOf(s.chainId, s.token)));
+				this.ledgers.get(key).target = s.balance;
+			}
 			const rank = (s: any) => (s.chainId === 1 && s.token === ADDRESS[1].frankencoin.toLowerCase() ? 0 : s.chainId === 1 ? 1 : 2);
 			status.sort((a, b) => rank(a) - rank(b) || b.balance - a.balance);
 
@@ -204,6 +230,7 @@ export class GodEyeLedgerService {
 			this.logger.error(`Ledger sync failed: ${this.lastError}`);
 		} finally {
 			this.lastRun = Date.now();
+			this.phase = 'idle';
 			this.syncing = false;
 		}
 	}

@@ -133,6 +133,11 @@ canvas.mini { width: 100%; height: 90px; display: block; border-radius: 8px; bac
 #toast { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; padding: 16px 22px; text-align: center; display: none; }
 #toast .spin { width: 22px; height: 22px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: sp 0.9s linear infinite; margin: 0 auto 10px; }
 @keyframes sp { to { transform: rotate(360deg); } }
+#toast { min-width: 340px; }
+#pbar { display: none; height: 6px; margin-top: 14px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+#pbar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--gold)); box-shadow: 0 0 12px rgba(94,200,255,.6); transition: width .5s ease; }
+#ptxt { margin-top: 8px; color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+#ptxt.err { color: #ff6b81; }
 #hint { position: fixed; right: 364px; bottom: 140px; z-index: 3; color: var(--faint); font-size: 11px; text-align: right; pointer-events: none; transition: right .25s; }
 #right.hidden ~ #hint { right: 24px; }
 #hint kbd { background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-family: var(--mono); font-size: 10px; color: var(--dim); }
@@ -244,7 +249,7 @@ canvas.mini { width: 100%; height: 90px; display: block; border-radius: 8px; bac
 </section>
 
 <div id="tip" class="glass"></div>
-<div id="toast" class="glass"><div class="spin"></div><div id="toastText">Loading…</div></div>
+<div id="toast" class="glass"><div class="spin"></div><div id="toastText">Loading…</div><div id="pbar"><i id="pfill"></i></div><div id="ptxt"></div></div>
 
 <script>
 (() => {
@@ -782,7 +787,18 @@ async function reload(refit = false) {
 	}
 }
 function showToast(html, spin) { $('toast').style.display = 'block'; $('toastText').innerHTML = html; $('toast').querySelector('.spin').style.display = spin ? 'block' : 'none'; }
-function hideToast() { $('toast').style.display = 'none'; }
+function showProgress(sync) {
+	const bar = $('pbar'), txt = $('ptxt');
+	if (!sync) { bar.style.display = 'none'; txt.textContent = 'Retrying…'; txt.className = ''; return; }
+	const phase = sync.phase === 'positions' ? 'Reading positions' : sync.phase === 'ledgers' ? 'Mirroring ERC20 transfers from the indexer' : 'Waiting for the first sync';
+	$('toast').style.display = 'block'; $('toast').querySelector('.spin').style.display = 'block';
+	$('toastText').innerHTML = `<b>${phase}</b><br><small style="color:var(--dim)">One-off on API start, then it only fetches new transfers.</small>`;
+	bar.style.display = 'block';
+	$('pfill').style.width = (sync.target ? Math.max(sync.progress * 100, 2) : 2) + '%';
+	if (sync.lastError) { txt.className = 'err'; txt.textContent = 'Sync error: ' + sync.lastError + ' (retrying every minute)'; }
+	else { txt.className = ''; txt.textContent = sync.target ? `${Math.round(sync.progress * 100)}% · ${sync.done.toLocaleString()} / ${sync.target.toLocaleString()} transfers` : 'Contacting indexer…'; }
+}
+function hideToast() { $('toast').style.display = 'none'; $('pbar').style.display = 'none'; $('ptxt').textContent = ''; }
 
 let schedT = 0;
 function scheduleReload(ms = 90) { clearTimeout(schedT); schedT = setTimeout(() => reload(), ms); }
@@ -1116,10 +1132,16 @@ async function boot() {
 	showToast('Waking the eye…', true);
 	let t;
 	for (;;) {
-		try { t = await api('tokens'); if (t.tokens.length && t.tokens.some((x) => x.symbol === 'ZCHF' && x.chainId === 1 && x.transfers > 0)) break; } catch { /* retry */ }
-		showToast('Syncing the ledger from the indexer…<br><small style="color:var(--dim)">The first start mirrors every ERC20 transfer — about a minute.</small>', true);
-		await new Promise((r) => setTimeout(r, 2500));
+		try {
+			t = await api('tokens');
+			if (t.sync.ready) break;
+			showProgress(t.sync);
+		} catch {
+			showToast('Cannot reach the GodEye API…', true); showProgress(null);
+		}
+		await new Promise((r) => setTimeout(r, 1000));
 	}
+	hideToast();
 	S.tokens = t.tokens.filter((x) => x.transfers > 0);
 	$('token').innerHTML = S.tokens.map((x) => `<option value="${x.key}">${esc(x.symbol)} · ${esc(x.chain)} (${x.transfers.toLocaleString()})</option>`).join('');
 	if (!S.token || !S.tokens.some((x) => x.key === S.token)) S.token = S.tokens.find((x) => x.symbol === 'ZCHF' && x.chainId === 1).key;
