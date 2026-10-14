@@ -16,6 +16,7 @@ import { BridgeModule } from 'modules/bridge/bridge.module';
 import { ChallengesModule } from 'modules/challenges/challenges.module';
 import { EcosystemModule } from 'modules/ecosystem/ecosystem.module';
 import { FcsModule } from 'modules/fcs/fcs.module';
+import { GodEyeModule } from 'modules/godeye/godeye.module';
 import { PositionsModule } from 'modules/positions/positions.module';
 import { PricesModule } from 'modules/prices/prices.module';
 import { ReportingModule } from 'modules/reporting/reporting.module';
@@ -52,6 +53,7 @@ import { ApiService } from 'app.service';
 		TelegramModule,
 		FcsModule,
 		ReportingModule,
+		GodEyeModule,
 	],
 	providers: [ApiService],
 })
