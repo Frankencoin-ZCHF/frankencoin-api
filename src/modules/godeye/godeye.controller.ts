@@ -131,6 +131,27 @@ export class GodEyeController {
 		return this.godeye.getAddress(address, token, num(chainId));
 	}
 
+	@Get('address/:address/transfers')
+	@ApiOperation({
+		summary: 'GodEye: raw transfers of one address in a time window',
+		description:
+			'The transactions behind a day of the timeline view, with tx hashes. Optionally narrowed to one counterparty with `peer`; ' +
+			'if nothing matches (mints/burns routed through a position) all transfers of the window are returned and `peerMatched` is false. Max 100 rows.',
+	})
+	@ApiQuery({ name: 'from', required: true, description: 'Window start, unix seconds' })
+	@ApiQuery({ name: 'to', required: true, description: 'Window end (exclusive), unix seconds, max one year after `from`' })
+	@ApiQuery({ name: 'peer', required: false, description: 'Only transfers with this counterparty' })
+	transfers(
+		@Param('address') address: string,
+		@Query('from') from: string,
+		@Query('to') to: string,
+		@Query('peer') peer?: string,
+		@Query('token') token?: string,
+		@Query('chainId') chainId?: string
+	) {
+		return this.godeye.getTransfers(address, token, num(chainId), num(from), num(to), peer);
+	}
+
 	@Get('address/:address/journey')
 	@ApiOperation({
 		summary: 'GodEye: day-by-day activity of one address',

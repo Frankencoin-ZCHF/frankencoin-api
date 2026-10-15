@@ -44,7 +44,7 @@ const EXTERNAL: Record<string, GodEyeLabel> = {
 };
 
 /** kinds a curated entry may use ('mint' is the zero address, 'others' is the aggregated rest of the network) */
-const BOOK_KINDS: GodEyeKind[] = ['wallet', 'position', 'minter', 'savings', 'equity', 'bridge', 'dex', 'contract'];
+const BOOK_KINDS: GodEyeKind[] = ['wallet', 'position', 'minter', 'savings', 'equity', 'bridge', 'dex', 'exchange', 'contract'];
 
 @Injectable()
 export class GodEyeLabelsService {

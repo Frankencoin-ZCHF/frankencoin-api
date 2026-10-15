@@ -153,6 +153,12 @@ canvas#jstage { position: fixed; inset: 0; width: 100%; height: 100%; display: n
 body.journey canvas#jstage { display: block; }
 body.journey canvas#stage, body.journey #minimap, body.journey #crumb, body.journey #ltoggle { display: none !important; }
 .good { color: #4ade80; } .bad { color: #ff6b81; }
+.txrow > .tx { cursor: pointer; border-radius: 6px; }
+.txrow > .tx:hover, .txrow.open > .tx { background: rgba(255, 255, 255, 0.05); }
+.txs { margin: 2px 0 8px 6px; padding-left: 8px; border-left: 1px dashed var(--line-strong); display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.txl { display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; align-items: center; }
+.txl a { color: var(--accent); text-decoration: none; font-family: var(--mono); }
+.txl a:hover { text-decoration: underline; }
 .jbar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, 0.05); margin-bottom: 8px; }
 .jbar i { display: block; height: 100%; transition: width .3s; }
 .jsel { border: 1px solid rgba(94, 200, 255, 0.3); background: rgba(94, 200, 255, 0.06); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -287,6 +293,7 @@ const KIND = {
 	equity:   { color: '#ffd84d', name: 'Equity & reserve' },
 	bridge:   { color: '#ff8fd1', name: 'Bridges' },
 	dex:      { color: '#38e8c6', name: 'DEX pools' },
+	exchange: { color: '#ff7a45', name: 'Exchanges' },
 	contract: { color: '#9aa7b8', name: 'Contracts' },
 	others:   { color: '#66728a', name: 'Rest of network' },
 };
@@ -1330,8 +1337,19 @@ function jRenderPanels() {
 		const d = jr.days[k];
 		const mine = J.selected !== null ? d.peers.find((p) => p.i === J.selected) : d.peers[0];
 		if (!mine) continue;
-		rows.push({ t: d.t, in: J.selected !== null ? mine.in : d.in, out: J.selected !== null ? mine.out : d.out, txs: J.selected !== null ? mine.count : d.txs, who: jName(jr.peers[mine.i]), extra: d.peers.length - 1, balance: d.balance });
+		rows.push({ peer: J.selected !== null ? jr.peers[J.selected].address : '', t: d.t, in: J.selected !== null ? mine.in : d.in, out: J.selected !== null ? mine.out : d.out, txs: J.selected !== null ? mine.count : d.txs, who: jName(jr.peers[mine.i]), extra: d.peers.length - 1, balance: d.balance });
 	}
+	const txBlock = (key) => {
+		const o = J.txOpen.get(key);
+		if (!o) return '';
+		if (o.state === 'loading') return '<div class="txs"><span class="addr">loading transactions…</span></div>';
+		if (o.state === 'error') return '<div class="txs"><span class="bad">Could not load the transactions.</span></div>';
+		const d = o.data;
+		return `<div class="txs">${d.peerMatched ? '' : '<div style="color:var(--dim)">Routed through a position, all transfers of the day:</div>'}${d.transfers.map((t) => {
+			const inbound = t.to.toLowerCase() === J.address;
+			return `<div class="txl"><a target="_blank" rel="noopener" href="${scan}/tx/${t.txHash}" title="${t.txHash}">↗ ${short(t.txHash)}</a><span class="${inbound ? 'good' : 'bad'}">${inbound ? '←' : '→'} ${fmt(t.amount)}</span><span style="color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.peer.label || short(t.peer.address))}</span><span style="color:var(--faint)">${dateTime(t.t).slice(11)}</span></div>`;
+		}).join('')}${d.more ? '<div style="color:var(--dim)">more than 100 transfers, showing the first 100</div>' : ''}</div>`;
+	};
 	const sym = jr.token.symbol;
 	$('detail').innerHTML = `
 		<div class="cards">
@@ -1346,7 +1364,7 @@ function jRenderPanels() {
 			<div class="btnrow"><a class="iconbtn hot" data-nav="${navHash({ view: 'timeline', address: sel.address, token: S.token })}" href="${navHash({ view: 'timeline', address: sel.address, token: S.token })}">◈ Open timeline</a><a class="iconbtn" target="_blank" rel="noopener" href="${scan}/address/${sel.address}">Explorer ↗</a></div>
 		</div>` : ''}
 		<div><h4>Activity up to ${dateStr(cur)} <span style="text-transform:none;letter-spacing:0;font-weight:400">${sel ? 'with this counterparty' : 'newest first'}</span></h4>
-			${rows.length ? rows.map((r) => `<div class="tx"><span>${r.in > 0 ? `<span class="good">← ${fmt(r.in)} </span>` : ''}${r.out > 0 ? `<span class="bad">→ ${fmt(r.out)} </span>` : ''}<span style="color:var(--dim)">${esc(r.who)}${!sel && r.extra > 0 ? ' +' + r.extra : ''} · ${r.txs}×</span></span><span style="text-align:right">${dateStr(r.t)}<br><span style="color:var(--faint)">bal ${fmt(r.balance)}</span></span></div>`).join('') : '<div class="addr">No activity before this date.</div>'}</div>`;
+			${rows.length ? rows.map((r) => `<div class="txrow ${J.txOpen.has(r.t + ':' + r.peer) ? 'open' : ''}" data-day="${r.t}" data-peer="${r.peer}"><div class="tx" title="Show the transactions"><span>${r.in > 0 ? `<span class="good">← ${fmt(r.in)} </span>` : ''}${r.out > 0 ? `<span class="bad">→ ${fmt(r.out)} </span>` : ''}<span style="color:var(--dim)">${esc(r.who)}${!sel && r.extra > 0 ? ' +' + r.extra : ''} · ${r.txs}×</span></span><span style="text-align:right">${dateStr(r.t)}<br><span style="color:var(--faint)">bal ${fmt(r.balance)}</span></span></div>${txBlock(r.t + ':' + r.peer)}</div>`).join('') : '<div class="addr">No activity before this date.</div>'}</div>`;
 	$('tlInfo').textContent = `${jr.days.length.toLocaleString()} active days · ${state.peers.length.toLocaleString()} of ${jr.peers.length.toLocaleString()} counterparties`;
 }
 $('left').addEventListener('click', (e) => {
@@ -1361,7 +1379,24 @@ $('left').addEventListener('click', (e) => {
 	const p = e.target.closest('[data-p]');
 	if (p) { const i = Number(p.dataset.p); jSelect(i === J.selected ? null : i); }
 });
-$('right').addEventListener('click', (e) => { if (J && e.target.closest('[data-desel]')) jSelect(null); });
+$('right').addEventListener('click', (e) => {
+	if (!J || !J.model) return;
+	if (e.target.closest('[data-desel]')) { jSelect(null); return; }
+	const row = e.target.closest('.txrow');
+	if (row && !e.target.closest('.txs')) jToggleTx(row.dataset.day, row.dataset.peer);
+});
+/** expand a feed row into the raw transactions of that day (and counterparty), each linking to the explorer */
+async function jToggleTx(day, peer) {
+	const key = day + ':' + peer;
+	if (J.txOpen.has(key)) { J.txOpen.delete(key); jRenderPanels(); return; }
+	const entry = { state: 'loading' };
+	J.txOpen.set(key, entry); jRenderPanels();
+	try {
+		entry.data = await api(`address/${J.address}/transfers`, { token: S.token, from: day, to: Number(day) + 86400, peer: peer || undefined });
+		entry.state = 'done';
+	} catch { entry.state = 'error'; }
+	if (J.txOpen.get(key) === entry) jRenderPanels();
+}
 
 // ---------- drawing
 function jFrame(now) {
@@ -1542,7 +1577,7 @@ function jBindCanvas() {
 function jBackHash() { return navHash({ token: S.token, focus: J.address, sel: J.address }); }
 async function jLoad(first) {
 	showToast('Loading the timeline…', true);
-	J.model = null; J.selected = null; J.hidden = new Set(); S.at = null; S.playing && togglePlay(false);
+	J.model = null; J.selected = null; J.hidden = new Set(); J.txOpen = new Map(); S.at = null; S.playing && togglePlay(false);
 	let j;
 	try { j = await api(`address/${J.address}/journey`, { token: S.token }); }
 	catch (e) {
@@ -1574,7 +1609,7 @@ function jHeader(j) {
 async function bootJourney(jp) {
 	J = { address: jp.get('address').toLowerCase(), model: null, selected: null, hidden: new Set(), top: 50, lay: null, byPeer: new Map(), peak: 1e-9, cur: 0, state: null, now: new Map(), facts: [], kinds: [],
 		view: { x: 0, y: 0, k: 1, tx: 0, ty: 0, tk: 1 }, particles: [], rings: [], s: { time: 0, last: performance.now(), lastCur: 0, bal: 0, hubPulse: 0, hover: null, first: true },
-		pending: { at: jp.get('at') ? Number(jp.get('at')) : null, sel: (jp.get('sel') || '').toLowerCase() } };
+		txOpen: new Map(), pending: { at: jp.get('at') ? Number(jp.get('at')) : null, sel: (jp.get('sel') || '').toLowerCase() } };
 	document.body.classList.add('journey');
 	jcv = $('jstage'); jg = jcv.getContext('2d'); jBindCanvas();
 	// reuse the map chrome: header bar, side panels and the bottom scrubber
