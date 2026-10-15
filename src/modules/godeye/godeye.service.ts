@@ -8,6 +8,9 @@ import {
 	GodEyeEdge,
 	GodEyeGraph,
 	GodEyeHolders,
+	GodEyeJourney,
+	GodEyeJourneyDay,
+	GodEyeJourneyPeer,
 	GodEyeKind,
 	GodEyeKindStats,
 	GodEyeNode,
@@ -537,6 +540,69 @@ export class GodEyeService {
 			origin,
 			recent: await this.recentTransfers(l, address),
 		};
+	}
+
+	/** day-by-day activity of one address, the data behind the timeline view */
+	getJourney(address: string, token?: string, chainId?: number): GodEyeJourney {
+		const l = this.ledger(token, chainId);
+		const id = this.ledgers.findId(address);
+		if (id === undefined) throw new NotFoundException(`Address ${address} has no ${l.symbol} activity`);
+
+		const PEERS_PER_DAY = 8;
+		type Acc = { day: GodEyeJourneyDay; by: Map<number, { in: number; out: number; count: number }> };
+		const accs: Acc[] = [];
+		let bal = 0;
+		let cur: Acc | undefined;
+
+		for (let i = 0; i < l.n; i++) {
+			const f = l.from[i];
+			const t = l.to[i];
+			if (f !== id && t !== id) continue;
+			const d = Math.floor(l.ts[i] / DAY) * DAY;
+			if (!cur || cur.day.t !== d) {
+				cur = { day: { t: d, in: 0, out: 0, txs: 0, balance: 0, peers: [] }, by: new Map() };
+				accs.push(cur);
+			}
+			const a = l.amt[i];
+			const peerId = f === id ? t : f;
+			let p = cur.by.get(peerId);
+			if (!p) cur.by.set(peerId, (p = { in: 0, out: 0, count: 0 }));
+			if (t === id) {
+				bal += a;
+				cur.day.in += a;
+				p.in += a;
+			}
+			if (f === id) {
+				bal -= a;
+				cur.day.out += a;
+				p.out += a;
+			}
+			p.count++;
+			cur.day.txs++;
+			cur.day.balance = bal;
+		}
+
+		const peers: GodEyeJourneyPeer[] = [];
+		const index = new Map<number, number>();
+		const days = accs.map(({ day, by }) => {
+			day.peers = [...by.entries()]
+				.sort((a, b) => b[1].in + b[1].out - (a[1].in + a[1].out))
+				.slice(0, PEERS_PER_DAY)
+				.map(([pid, p]) => {
+					let i = index.get(pid);
+					if (i === undefined) {
+						const addr = this.ledgers.addrs[pid];
+						const lab = this.labels.resolve(addr);
+						i = peers.push({ address: addr, label: lab.label, kind: lab.kind }) - 1;
+						index.set(pid, i);
+					}
+					return { i, ...p };
+				});
+			return day;
+		});
+
+		const self = this.labels.resolve(address);
+		return { address: address.toLowerCase(), label: self.label, kind: self.kind, token: this.info(l), peers, days };
 	}
 
 	private async recentTransfers(l: TokenLedger, address: string) {

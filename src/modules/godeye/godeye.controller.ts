@@ -118,4 +118,13 @@ export class GodEyeController {
 	address(@Param('address') address: string, @Query('token') token?: string, @Query('chainId') chainId?: string) {
 		return this.godeye.getAddress(address, token, num(chainId));
 	}
+
+	@Get('address/:address/journey')
+	@ApiOperation({
+		summary: 'GodEye: day-by-day activity of one address',
+		description: 'Daily inflow / outflow / balance with the biggest counterparties of each day. Powers the timeline view.',
+	})
+	journey(@Param('address') address: string, @Query('token') token?: string, @Query('chainId') chainId?: string) {
+		return this.godeye.getJourney(address, token, num(chainId));
+	}
 }

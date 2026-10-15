@@ -104,3 +104,24 @@ export type GodEyeAddress = {
 export type GodEyePeer = { address: string; label: string | null; kind: GodEyeKind; amount: number; count: number; last: number };
 
 export type GodEyeOrigin = GodEyePeer & { via: GodEyePeer[] };
+
+export type GodEyeJourneyPeer = { address: string; label: string | null; kind: GodEyeKind };
+
+/** one day of activity of an address; `peers` are the biggest counterparties of that day (index into `GodEyeJourney.peers`) */
+export type GodEyeJourneyDay = {
+	t: number;
+	in: number;
+	out: number;
+	txs: number;
+	balance: number;
+	peers: { i: number; in: number; out: number; count: number }[];
+};
+
+export type GodEyeJourney = {
+	address: string;
+	label: string | null;
+	kind: GodEyeKind;
+	token: GodEyeTokenInfo;
+	peers: GodEyeJourneyPeer[];
+	days: GodEyeJourneyDay[];
+};
