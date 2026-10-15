@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { gql } from '@apollo/client/core';
 import { PONDER_CLIENT } from 'app.config';
 import { GodEyeLedgerService, TokenLedger } from './godeye.ledger.service';
@@ -18,11 +18,12 @@ import {
 	GodEyePeer,
 	GodEyeTimelinePoint,
 	GodEyeTokenInfo,
+	GodEyeTransfers,
 } from './godeye.types';
 
 const DUST = 0.005; // below half a rappen an account does not count as holder
 const DAY = 86400;
-const KINDS: GodEyeKind[] = ['mint', 'wallet', 'position', 'minter', 'savings', 'equity', 'bridge', 'dex', 'contract', 'others'];
+const KINDS: GodEyeKind[] = ['mint', 'wallet', 'position', 'minter', 'savings', 'equity', 'bridge', 'dex', 'exchange', 'contract', 'others'];
 
 export type GraphQuery = {
 	token?: string;
@@ -608,6 +609,90 @@ export class GodEyeService {
 
 		const self = this.labels.resolve(address, l.chainId);
 		return { address: address.toLowerCase(), label: self.label, kind: self.kind, token: this.info(l), peers, days };
+	}
+
+	/** the raw transfers behind one day (or any window) of an address, optionally narrowed to one counterparty; the ledger keeps no tx hashes so they come from the indexer */
+	async getTransfers(address: string, token?: string, chainId?: number, from?: number, to?: number, peer?: string): Promise<GodEyeTransfers> {
+		const l = this.ledger(token, chainId);
+		const a = address.toLowerCase();
+		if (!/^0x[0-9a-f]{40}$/.test(a)) throw new BadRequestException('Invalid address');
+		const p = peer ? peer.toLowerCase() : undefined;
+		if (p && !/^0x[0-9a-f]{40}$/.test(p)) throw new BadRequestException('Invalid peer');
+		if (from === undefined || to === undefined || !(to > from) || to - from > 366 * DAY) throw new BadRequestException('from/to must be unix seconds spanning at most one year');
+
+		const LIMIT = 100;
+		const pair = async () => {
+			const r = await PONDER_CLIENT.query({
+				fetchPolicy: 'no-cache',
+				query: gql`
+					query ($chainId: Int!, $token: String!, $from: BigInt!, $to: BigInt!, $a: String!, $p: String!, $limit: Int!) {
+						eRC20Balances(
+							where: {
+								chainId: $chainId
+								token: $token
+								created_gte: $from
+								created_lt: $to
+								OR: [{ AND: [{ from: $a }, { to: $p }] }, { AND: [{ from: $p }, { to: $a }] }]
+							}
+							orderBy: "count"
+							orderDirection: "asc"
+							limit: $limit
+						) {
+							items { txHash created from to amount }
+						}
+					}
+				`,
+				variables: { chainId: l.chainId, token: l.token, from: String(Math.floor(from)), to: String(Math.floor(to)), a, p: p || '', limit: LIMIT + 1 },
+			});
+			return r.data.eRC20Balances.items;
+		};
+		const all = async () => {
+			const r = await PONDER_CLIENT.query({
+				fetchPolicy: 'no-cache',
+				query: gql`
+					query ($chainId: Int!, $token: String!, $from: BigInt!, $to: BigInt!, $a: String!, $limit: Int!) {
+						eRC20Balances(
+							where: { chainId: $chainId, token: $token, created_gte: $from, created_lt: $to, OR: [{ from: $a }, { to: $a }] }
+							orderBy: "count"
+							orderDirection: "asc"
+							limit: $limit
+						) {
+							items { txHash created from to amount }
+						}
+					}
+				`,
+				variables: { chainId: l.chainId, token: l.token, from: String(Math.floor(from)), to: String(Math.floor(to)), a, limit: LIMIT + 1 },
+			});
+			return r.data.eRC20Balances.items;
+		};
+
+		let items = p ? await pair() : await all();
+		let peerMatched = true;
+		if (p && !items.length) {
+			items = await all();
+			peerMatched = false;
+		}
+		const more = items.length > LIMIT;
+		return {
+			address: a,
+			token: this.info(l),
+			from,
+			to,
+			peerMatched,
+			more,
+			transfers: items.slice(0, LIMIT).map((i: any) => {
+				const other = i.from.toLowerCase() === a ? i.to.toLowerCase() : i.from.toLowerCase();
+				const lab = this.labels.resolve(other, l.chainId);
+				return {
+					txHash: i.txHash,
+					t: Number(i.created),
+					from: i.from,
+					to: i.to,
+					amount: Number(BigInt(i.amount)) / 1e18,
+					peer: { address: other, label: lab.label, kind: lab.kind },
+				};
+			}),
+		};
 	}
 
 	private async recentTransfers(l: TokenLedger, address: string) {

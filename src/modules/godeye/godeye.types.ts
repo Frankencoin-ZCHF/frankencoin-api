@@ -7,6 +7,7 @@ export type GodEyeKind =
 	| 'equity'
 	| 'bridge'
 	| 'dex'
+	| 'exchange'
 	| 'contract'
 	| 'others';
 
@@ -126,4 +127,25 @@ export type GodEyeJourney = {
 	token: GodEyeTokenInfo;
 	peers: GodEyeJourneyPeer[];
 	days: GodEyeJourneyDay[];
+};
+
+export type GodEyeTransfer = {
+	txHash: string;
+	t: number;
+	from: string;
+	to: string;
+	amount: number;
+	/** the other side of the transfer, seen from the requested address */
+	peer: { address: string; label: string | null; kind: GodEyeKind };
+};
+export type GodEyeTransfers = {
+	address: string;
+	token: GodEyeTokenInfo;
+	from: number;
+	to: number;
+	/** false when a peer filter was requested but nothing matched (e.g. mints routed through a position), the list then holds all transfers of the window */
+	peerMatched: boolean;
+	/** true when the list was cut at the limit */
+	more: boolean;
+	transfers: GodEyeTransfer[];
 };
