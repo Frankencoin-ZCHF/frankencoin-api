@@ -64,3 +64,12 @@ THE_GRAPH_KEY=...
 ```
 
 MIT licensed.
+
+## GodEye
+
+Interactive fund-flow map of the protocol at `/godeye` (served by the API itself).
+
+- Mirrors the complete ERC20 transfer history (`ERC20Balance` in the indexer) of every tracked token into a compact in-memory ledger, synced incrementally every minute. First start takes about a minute for ZCHF mainnet (~145k transfers).
+- Mints and burns that go through a position are routed `0x0 -> position -> owner` (joined on the MintingUpdate tx hash), so loans are traceable end to end.
+- Canvas UI: pan/zoom like a map, 3D orbit (`3`), time travel scrubber with playback (`space`), category view (wallets / positions / savings / equity / bridges / DEXes), focus mode (double-click), address history and 2-hop funding origin. State is kept in the URL hash.
+- JSON endpoints (see Swagger, "GodEye Controller"): `/godeye/tokens`, `/godeye/graph`, `/godeye/holders`, `/godeye/timeline`, `/godeye/address/:address`, `/godeye/search`.
