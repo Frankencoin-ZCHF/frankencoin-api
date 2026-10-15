@@ -36,12 +36,39 @@ const BOOK: Record<string, GodEyeLabel> = {
 	transferReference: { label: 'Transfer Reference', kind: 'contract' },
 	transferWithAuthorization: { label: 'Transfer With Authorization', kind: 'contract' },
 	mainnetVotes: { label: 'Mainnet Votes', kind: 'contract' },
+	bridgedVotes: { label: 'Votes (bridged)', kind: 'contract' },
+	governanceFactory: { label: 'Governance Factory', kind: 'contract' },
+	interestGovernance: { label: 'Interest Governance', kind: 'contract' },
+	minterGovernance: { label: 'Minter Governance', kind: 'contract' },
+	ccipGovernance: { label: 'CCIP Governance', kind: 'contract' },
+	ccipBridgedFrankencoin: { label: 'Frankencoin (bridged ZCHF)', kind: 'equity' },
+	ccipBridgedGovernance: { label: 'Governance token (bridged)', kind: 'equity' },
+	ccipBridgedSavings: { label: 'Savings Module (multichain)', kind: 'savings' },
+	ccipAdmin: { label: 'CCIP Admin', kind: 'bridge' },
+	ccipGovernanceSender: { label: 'CCIP Governance Sender', kind: 'bridge' },
+	ccipLeadrateSender: { label: 'CCIP Leadrate Sender', kind: 'bridge' },
+	ccipTokenAdminRegistry: { label: 'CCIP Token Admin Registry', kind: 'bridge' },
+	ccipRmnProxy: { label: 'CCIP RMN Proxy', kind: 'bridge' },
+	CCIPWrapper: { label: 'CCIP Wrapper', kind: 'bridge' },
+	bridgePolygonFrankencoin: { label: 'Bridge Polygon ZCHF', kind: 'bridge' },
+	bridgePolygonWfps: { label: 'Bridge Polygon WFPS', kind: 'bridge' },
+	bridgeArbitrumFrankencoin: { label: 'Bridge Arbitrum ZCHF', kind: 'bridge' },
+	bridgeOptimismFrankencoin: { label: 'Bridge Optimism ZCHF', kind: 'bridge' },
+	linkToken: { label: 'LINK token', kind: 'contract' },
+	chainlinkOCR2Aggregator: { label: 'Chainlink OCR2 Aggregator', kind: 'contract' },
 };
 
 /** well known external counterparties that show up in the transfer graph */
 const EXTERNAL: Record<string, GodEyeLabel> = {
 	'0x000000000004444c5dc75cb358380d2e3de08a90': { label: 'Uniswap V4 PoolManager', kind: 'dex' },
 };
+
+/** authorized minters carry a free-text application message, it tells what a module really is (savings, bridge, ...) */
+const MINTER_KINDS: [RegExp, GodEyeKind][] = [
+	[/saving/i, 'savings'],
+	[/bridge|token ?pool|accounting|multichain|ccip/i, 'bridge'],
+	[/transfer|authorization|utility/i, 'contract'],
+];
 
 /** kinds a curated entry may use ('mint' is the zero address, 'others' is the aggregated rest of the network) */
 const BOOK_KINDS: GodEyeKind[] = ['wallet', 'position', 'minter', 'savings', 'equity', 'bridge', 'dex', 'exchange', 'contract'];
@@ -108,8 +135,11 @@ export class GodEyeLabelsService {
 		const next = new Map<string, GodEyeLabel>();
 		try {
 			for (const m of this.minters.getMintersList().list) {
-				if (m.denyDate) continue;
-				next.set(m.minter.toLowerCase(), { label: `Minter ${m.minter.slice(0, 8)}`, kind: 'minter' });
+				const a = m.minter.toLowerCase();
+				if (next.has(a)) continue;
+				const msg = String(m.applyMessage || '').replace(/\s+/g, ' ').replace(/\*+$/, '').trim().slice(0, 60);
+				const kind = MINTER_KINDS.find(([re]) => re.test(msg))?.[1] ?? 'minter';
+				next.set(a, { label: `${msg || `Minter ${m.minter.slice(0, 8)}`}${m.denyDate ? ' (denied)' : ''}`, kind });
 			}
 			for (const p of this.positions.getPositionsList().list) {
 				const sym = (p as any).collateralSymbol || '?';

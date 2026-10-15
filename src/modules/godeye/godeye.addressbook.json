@@ -365,5 +365,7 @@
 	{ "chainId": 1, "address": "0x963eC454423CD543dB08bc38fC7B3036B425b301", "label": "Luzius", "kind": "wallet" },
 	{ "chainId": 100, "address": "0x963eC454423CD543dB08bc38fC7B3036B425b301", "label": "Luzius", "kind": "wallet" },
 	{ "chainId": 8453, "address": "0x963eC454423CD543dB08bc38fC7B3036B425b301", "label": "Luzius", "kind": "wallet" },
-	{ "chainId": 10, "address": "0x963eC454423CD543dB08bc38fC7B3036B425b301", "label": "Luzius", "kind": "wallet" }
+	{ "chainId": 10, "address": "0x963eC454423CD543dB08bc38fC7B3036B425b301", "label": "Luzius", "kind": "wallet" },
+	{ "chainId": 8453, "address": "0x543308f87694442e03e4C63b7A2F90e135d90998", "label": "Bridge VCHF", "kind": "bridge" },
+	{ "chainId": 8453, "address": "0x1fcA74D9ef54a6AC80ffE7D3b14e76c4330Fd5D8", "label": "VCHF", "kind": "contract" }
 ]
