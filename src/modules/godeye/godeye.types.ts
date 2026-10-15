@@ -24,6 +24,8 @@ export type GodEyeTokenInfo = {
 
 export type GodEyeLabel = { label: string; kind: GodEyeKind };
 
+export type GodEyeAddressBookEntry = { chainId: number; address: string; label: string; kind: GodEyeKind };
+
 export type GodEyeNode = {
 	id: string;
 	label: string | null;

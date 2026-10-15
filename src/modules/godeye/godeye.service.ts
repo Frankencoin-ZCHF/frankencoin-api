@@ -57,16 +57,16 @@ export class GodEyeService {
 		return this.ledgers.tokens().find((t) => t.key === l.key);
 	}
 
-	private kindIndex(): Uint8Array {
+	private kindIndex(chainId: number): Uint8Array {
 		const n = this.ledgers.addrs.length;
 		const out = new Uint8Array(n);
-		for (let i = 0; i < n; i++) out[i] = KINDS.indexOf(this.labels.resolve(this.ledgers.addrs[i]).kind);
+		for (let i = 0; i < n; i++) out[i] = KINDS.indexOf(this.labels.resolve(this.ledgers.addrs[i], chainId).kind);
 		return out;
 	}
 
-	private peer(id: number, amount: number, count: number, last: number): GodEyePeer {
+	private peer(chainId: number, id: number, amount: number, count: number, last: number): GodEyePeer {
 		const address = this.ledgers.addrs[id];
-		const l = this.labels.resolve(address);
+		const l = this.labels.resolve(address, chainId);
 		return { address, label: l.label, kind: l.kind, amount, count, last };
 	}
 
@@ -82,6 +82,11 @@ export class GodEyeService {
 	// ------------------------------------------------------------------ overview
 	getTokens() {
 		return { sync: this.ledgers.status(), tokens: this.ledgers.tokens() };
+	}
+
+	// ------------------------------------------------------------------ address book
+	getAddressBook(chainId?: number) {
+		return this.labels.getAddressBook(chainId);
 	}
 
 	// ------------------------------------------------------------------ timeline
@@ -173,7 +178,7 @@ export class GodEyeService {
 			buckets,
 			total: ids.length,
 			list: ids.slice(offset, offset + limit).map((i) => {
-				const lab = this.labels.resolve(this.ledgers.addrs[i]);
+				const lab = this.labels.resolve(this.ledgers.addrs[i], l.chainId);
 				return {
 					address: this.ledgers.addrs[i],
 					label: lab.label,
@@ -202,7 +207,7 @@ export class GodEyeService {
 		const minAmount = q.minAmount || 0;
 
 		const N = this.ledgers.addrs.length;
-		const kindOf = this.kindIndex();
+		const kindOf = this.kindIndex(l.chainId);
 
 		// pass 1: balances, windowed volume, first/last seen
 		const bal = new Float64Array(N);
@@ -247,7 +252,7 @@ export class GodEyeService {
 
 		const nodeOf = (id: number): GodEyeNode => {
 			const address = this.ledgers.addrs[id];
-			const lab = this.labels.resolve(address);
+			const lab = this.labels.resolve(address, l.chainId);
 			return {
 				id: address,
 				label: lab.label,
@@ -482,12 +487,12 @@ export class GodEyeService {
 			.filter(([, p]) => p.in > 0)
 			.sort((a, b) => b[1].in - a[1].in)
 			.slice(0, 12)
-			.map(([pid, p]) => this.peer(pid, p.in, p.cin, p.last));
+			.map(([pid, p]) => this.peer(l.chainId, pid, p.in, p.cin, p.last));
 		const destinations = arr
 			.filter(([, p]) => p.out > 0)
 			.sort((a, b) => b[1].out - a[1].out)
 			.slice(0, 12)
-			.map(([pid, p]) => this.peer(pid, p.out, p.cout, p.last));
+			.map(([pid, p]) => this.peer(l.chainId, pid, p.out, p.cout, p.last));
 
 		// second hop: who funded the biggest funders
 		const topSources = arr
@@ -512,13 +517,13 @@ export class GodEyeService {
 			const via = [...hop.get(s).entries()]
 				.sort((a, b) => b[1].in - a[1].in)
 				.slice(0, 5)
-				.map(([pid, hp]) => this.peer(pid, hp.in, hp.cin, hp.last));
-			return { ...this.peer(s, p.in, p.cin, p.last), via };
+				.map(([pid, hp]) => this.peer(l.chainId, pid, hp.in, hp.cin, hp.last));
+			return { ...this.peer(l.chainId, s, p.in, p.cin, p.last), via };
 		});
 
 		const ts = l.n ? l.ts[l.n - 1] : 0;
 		const supply = -this.replay(l, l.n)[0];
-		const lab = this.labels.resolve(address);
+		const lab = this.labels.resolve(address, l.chainId);
 
 		return {
 			address: address.toLowerCase(),
@@ -592,7 +597,7 @@ export class GodEyeService {
 					let i = index.get(pid);
 					if (i === undefined) {
 						const addr = this.ledgers.addrs[pid];
-						const lab = this.labels.resolve(addr);
+						const lab = this.labels.resolve(addr, l.chainId);
 						i = peers.push({ address: addr, label: lab.label, kind: lab.kind }) - 1;
 						index.set(pid, i);
 					}
@@ -601,7 +606,7 @@ export class GodEyeService {
 			return day;
 		});
 
-		const self = this.labels.resolve(address);
+		const self = this.labels.resolve(address, l.chainId);
 		return { address: address.toLowerCase(), label: self.label, kind: self.kind, token: this.info(l), peers, days };
 	}
 
@@ -653,7 +658,7 @@ export class GodEyeService {
 				if (seen.has(id)) continue;
 				seen.add(id);
 				const address = this.ledgers.addrs[id];
-				const lab = this.labels.resolve(address);
+				const lab = this.labels.resolve(address, l.chainId);
 				if (address.startsWith(t) || (lab.label && lab.label.toLowerCase().includes(t))) {
 					out.push({ address, label: lab.label, kind: lab.kind });
 					if (out.length >= 12) break;
