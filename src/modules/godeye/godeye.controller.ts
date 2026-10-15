@@ -42,6 +42,18 @@ export class GodEyeController {
 		return this.godeye.getTokens();
 	}
 
+	@Get('addressbook')
+	@ApiOperation({
+		summary: 'GodEye: curated address book',
+		description:
+			'Known addresses with a label and a category (wallet, position, minter, savings, equity, bridge, dex, contract). ' +
+			'GodEye uses these to label nodes and to move addresses out of the generic wallet category.',
+	})
+	@ApiQuery({ name: 'chainId', required: false })
+	addressbook(@Query('chainId') chainId?: string) {
+		return this.godeye.getAddressBook(num(chainId));
+	}
+
 	@Get('timeline')
 	@ApiOperation({ summary: 'GodEye: daily supply / holders / volume series' })
 	@ApiQuery({ name: 'token', required: false, description: 'Symbol (ZCHF, FPS), address or "chainId:address". Default ZCHF' })
