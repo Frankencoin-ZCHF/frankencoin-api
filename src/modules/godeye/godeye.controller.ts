@@ -1,7 +1,5 @@
-import { Controller, Get, Header, Param, Query } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { GodEyeService } from './godeye.service';
 
 const num = (v?: string) => (v === undefined || v === '' || isNaN(Number(v)) ? undefined : Number(v));
@@ -9,29 +7,7 @@ const num = (v?: string) => (v === undefined || v === '' || isNaN(Number(v)) ? u
 @ApiTags('GodEye Controller')
 @Controller('godeye')
 export class GodEyeController {
-	private html: string | null = null;
-
 	constructor(private readonly godeye: GodEyeService) {}
-
-	private page(): string {
-		if (this.html && process.env.NODE_ENV === 'production') return this.html;
-		const candidates = [
-			join(__dirname, 'ui', 'godeye.html'),
-			join(__dirname, '..', '..', '..', 'modules', 'godeye', 'ui', 'godeye.html'), // nest assets copy next to dist/src
-			join(process.cwd(), 'src', 'modules', 'godeye', 'ui', 'godeye.html'),
-			join(process.cwd(), 'dist', 'src', 'modules', 'godeye', 'ui', 'godeye.html'),
-		];
-		const file = candidates.find((f) => existsSync(f));
-		this.html = file ? readFileSync(file, 'utf8') : '<h1>GodEye UI not found</h1>';
-		return this.html;
-	}
-
-	@Get()
-	@Header('Content-Type', 'text/html; charset=utf-8')
-	@ApiExcludeEndpoint()
-	ui() {
-		return this.page();
-	}
 
 	@Get('tokens')
 	@ApiOperation({
