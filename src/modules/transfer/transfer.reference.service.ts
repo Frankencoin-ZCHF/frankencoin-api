@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PONDER_CLIENT } from 'app.config';
-import { gql } from '@apollo/client/core';
+import { DocumentNode, gql } from '@apollo/client/core';
 import { TransferReferenceObjectArray, TransferReferenceQuery } from './transfer.reference.types';
 import { Address } from 'viem';
 import { normalizeAddress } from 'utils/format';
@@ -106,6 +106,37 @@ export class TransferReferenceService {
 		}
 	}
 
+	private async fetchAllHistoryPages(query: DocumentNode): Promise<TransferReferenceQuery[]> {
+		const collected: TransferReferenceQuery[] = [];
+		let after: string | null = null;
+
+		// Ponder caps each page at 1000 rows, so follow cursors to honor the complete-history contract.
+		do {
+			const { data } = await PONDER_CLIENT.query<{
+				transferReferences: {
+					items: TransferReferenceQuery[];
+					pageInfo: { endCursor: string | null; hasNextPage: boolean };
+				};
+			}>({
+				fetchPolicy: 'no-cache',
+				query,
+				variables: { after },
+			});
+
+			const page = data?.transferReferences;
+			if (!page?.items || !page.pageInfo) throw new Error('Ponder returned an incomplete transfer history page.');
+
+			collected.push(...page.items);
+			if (!page.pageInfo.hasNextPage) break;
+
+			const nextCursor = page.pageInfo.endCursor;
+			if (!nextCursor || nextCursor === after) throw new Error('Ponder did not return a valid next transfer history cursor.');
+			after = nextCursor;
+		} while (true);
+
+		return collected;
+	}
+
 	async getHistoryByFromFilter(Props: {
 		from: Address;
 		to?: Address | undefined;
@@ -119,12 +150,8 @@ export class TransferReferenceService {
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
-			const { data } = await PONDER_CLIENT.query<{
-				transferReferences: { items: TransferReferenceQuery[] };
-			}>({
-				fetchPolicy: 'cache-first',
-				query: gql`
-				query {
+			return await this.fetchAllHistoryPages(gql`
+				query TransferHistoryByFrom($after: String) {
 					transferReferences(
 						where: {
 							from: "${normalizeAddress(from)}",
@@ -134,7 +161,9 @@ export class TransferReferenceService {
 							created_lt: "${Math.round(endTimestamp)}",
 						},
 						orderBy: "count",
-						limit: 100) {
+						orderDirection: "asc",
+						limit: 1000,
+						after: $after) {
 							items {
 								amount
 								chainId
@@ -147,10 +176,13 @@ export class TransferReferenceService {
 								to
 								txHash
 							}
+							pageInfo {
+								endCursor
+								hasNextPage
+							}
 						}
-					}`,
-			});
-			return data.transferReferences.items;
+					}`
+			);
 		} catch (error) {
 			console.error(error);
 			return { error };
@@ -170,12 +202,8 @@ export class TransferReferenceService {
 			const startTimestamp = new Date(start ?? 0).getTime() / 1000;
 			const endTimestamp = end ? new Date(end).getTime() / 1000 : Date.now() / 1000;
 
-			const { data } = await PONDER_CLIENT.query<{
-				transferReferences: { items: TransferReferenceQuery[] };
-			}>({
-				fetchPolicy: 'cache-first',
-				query: gql`
-				query {
+			return await this.fetchAllHistoryPages(gql`
+				query TransferHistoryByTo($after: String) {
 					transferReferences(
 						where: {
 							to: "${normalizeAddress(to)}",
@@ -185,7 +213,9 @@ export class TransferReferenceService {
 							created_lt: "${Math.round(endTimestamp)}",
 						},
 						orderBy: "count",
-						limit: 100) {
+						orderDirection: "asc",
+						limit: 1000,
+						after: $after) {
 							items {
 								amount
 								chainId
@@ -198,10 +228,13 @@ export class TransferReferenceService {
 								to
 								txHash
 							}
+							pageInfo {
+								endCursor
+								hasNextPage
+							}
 						}
-					}`,
-			});
-			return data.transferReferences.items;
+					}`
+			);
 		} catch (error) {
 			console.error(error);
 			return { error };
