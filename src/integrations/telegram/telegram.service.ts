@@ -29,7 +29,7 @@ import { mainnet } from 'viem/chains';
 import { EcosystemFrankencoinService } from 'modules/ecosystem/ecosystem.frankencoin.service';
 import { formatFloat, normalizeAddress } from 'utils/format';
 import { EquityInvestedMessage } from './messages/EquityInvested.message';
-import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
+// import { EquityRedeemedMessage } from './messages/EquityRedeemed.message';
 import { PositionDeniedMessage } from './messages/PositionDenied.message';
 import { BridgeService } from 'modules/bridge/bridge.service';
 import { CCIPProposalMessage } from './messages/CCIPProposal.message';
@@ -350,16 +350,17 @@ export class TelegramService {
 			}
 		}
 
-		const equityRedeemed = logs
-			.filter((i) => Number(i.timestamp) * 1000 > this.telegramState.equityRedeemed)
-			.filter((i) => i.kind == 'Equity:Redeemed')
-			.filter((i) => formatFloat(i.amount, 18) >= equityMinAmount);
-		if (equityRedeemed.length > 0) {
-			this.telegramState.equityRedeemed = Date.now();
-			for (const i of equityRedeemed) {
-				this.sendMessageGroup(governanceRecipients, EquityRedeemedMessage(i));
-			}
-		}
+		// Deactivated: equity redemption notifications disabled
+		// const equityRedeemed = logs
+		// 	.filter((i) => Number(i.timestamp) * 1000 > this.telegramState.equityRedeemed)
+		// 	.filter((i) => i.kind == 'Equity:Redeemed')
+		// 	.filter((i) => formatFloat(i.amount, 18) >= equityMinAmount);
+		// if (equityRedeemed.length > 0) {
+		// 	this.telegramState.equityRedeemed = Date.now();
+		// 	for (const i of equityRedeemed) {
+		// 		this.sendMessageGroup(governanceRecipients, EquityRedeemedMessage(i));
+		// 	}
+		// }
 
 		// POSITION-AWARE ALERTS — recipients = allPositions OR owner matches
 
