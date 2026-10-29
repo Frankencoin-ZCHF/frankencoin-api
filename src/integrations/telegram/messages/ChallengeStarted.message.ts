@@ -22,8 +22,7 @@ export function ChallengeStartedMessage(position: PositionQuery, challenge: Chal
 
 	return `⚔️ *Challenge Started*
 
-#${challenge.number} on \`${shortenString(position.position)}\` (v${position.version})
-⚡ Quick Auction: *${isQuickAuction ? 'Yes' : 'No'}*
+#${challenge.number} on \`${shortenString(position.position)}\` (v${position.version})${isQuickAuction ? '\n⚡ *Quick Auction*' : ''}
 
 ⚔️ Challenger: \`${shortenString(challenge.challenger)}\`
 👤 Owner: \`${shortenString(position.owner)}\`
