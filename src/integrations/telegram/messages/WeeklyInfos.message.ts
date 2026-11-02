@@ -3,62 +3,97 @@ import { FrankencoinSupplyQueryObject } from 'modules/ecosystem/ecosystem.franke
 import { formatCurrency } from 'utils/format';
 import { formatUnits } from 'viem';
 
-function pct(now: bigint, before: bigint): number {
-	if (before === 0n) return 0;
-	return Number(((now - before) * 10000n) / before) / 100;
-}
+const WINDOW_SECONDS = 30 * 24 * 3600;
 
-function arrow(change: number): string {
+function arrow(change: number | null): string {
+	if (change === null) return '→';
 	return change > 0 ? '▲' : change < 0 ? '▼' : '→';
 }
 
-function fmtZCHF(val: bigint): string {
-	return formatCurrency(formatUnits(val, 18), 0, 0);
+const COMPACT = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
+const PCT = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+
+// compact amount with symbol, e.g. 35'000'707 -> 35M
+function compact(val: number): string {
+	return COMPACT.format(val);
 }
 
-export function WeeklyInfosMessage(before: AnalyticsDailyLog, now: AnalyticsDailyLog, supply: FrankencoinSupplyQueryObject): string {
-	const tsAfter = new Date(now.date).getTime();
-	const tsBefore = new Date(before.date).getTime();
+// percentage with max. 1 decimal
+function fmtPct(val: number): string {
+	return PCT.format(val);
+}
 
-	const keys = Object.keys(supply).map((i) => parseInt(i) * 1000);
+function fmtZCHF(val: bigint): string {
+	return compact(parseFloat(formatUnits(val, 18)));
+}
 
-	const keyBefore = keys.filter((i) => i <= tsBefore).at(-1);
-	const supplyBefore = supply[keyBefore / 1000].supply;
+function avg(values: number[]): number | null {
+	if (values.length === 0) return null;
+	return values.reduce((a, b) => a + b, 0) / values.length;
+}
 
-	const keyAfter = keys.filter((i) => i <= tsAfter).at(-1);
-	const supplyAfter = supply[keyAfter / 1000].supply;
+// change of the 30d rolling average vs. the 30d rolling average one window earlier
+function avgChangePct(current: number[], previous: number[]): number | null {
+	const c = avg(current);
+	const p = avg(previous);
+	if (c === null || p === null || p === 0) return null;
+	return (c / p - 1) * 100;
+}
 
-	const supplyChangePct = (supplyAfter / supplyBefore - 1) * 100;
-	const fpsPriceChangePct = pct(BigInt(now.fpsPrice), BigInt(before.fpsPrice));
+function fmtChange(change: number | null): string {
+	if (change === null) return 'n/a';
+	return `${arrow(change)} *${fmtPct(change)}%*`;
+}
+
+function supplyAt(supply: FrankencoinSupplyQueryObject, keys: number[], ts: number): number | null {
+	const key = keys.filter((k) => k <= ts).at(-1);
+	return key === undefined ? null : supply[key].supply;
+}
+
+/**
+ * Weekly snapshot. Headline figures are the latest values; every "30d" line compares the
+ * 30 day rolling average ending now against the 30 day rolling average ending 30 days ago,
+ * which smooths out single day spikes (e.g. bridge or refinancing timing).
+ */
+export function WeeklyInfosMessage(logs: AnalyticsDailyLog[], supply: FrankencoinSupplyQueryObject): string {
+	const now = logs.at(-1);
+	const nowTs = Number(now.timestamp);
+
+	const current = logs.filter((l) => Number(l.timestamp) > nowTs - WINDOW_SECONDS);
+	const previous = logs.filter((l) => Number(l.timestamp) > nowTs - 2 * WINDOW_SECONDS && Number(l.timestamp) <= nowTs - WINDOW_SECONDS);
+
+	const toNum = (v: bigint | string) => parseFloat(formatUnits(BigInt(v), 18));
+	const series = (list: AnalyticsDailyLog[], key: 'totalEquity' | 'totalSavings' | 'fpsPrice') => list.map((l) => toNum(l[key]));
+
+	const keys = Object.keys(supply).map((i) => parseInt(i));
+	const supplySeries = (list: AnalyticsDailyLog[]) => list.map((l) => supplyAt(supply, keys, Number(l.timestamp))).filter((v) => v !== null);
+
+	const supplyNow = supplyAt(supply, keys, nowTs) ?? 0;
+
+	const supplyChangePct = avgChangePct(supplySeries(current), supplySeries(previous));
+	const savingsChangePct = avgChangePct(series(current, 'totalSavings'), series(previous, 'totalSavings'));
+	const equityChangePct = avgChangePct(series(current, 'totalEquity'), series(previous, 'totalEquity'));
+	const fpsPriceChangePct = avgChangePct(series(current, 'fpsPrice'), series(previous, 'fpsPrice'));
 
 	const equityNow = BigInt(now.totalEquity);
-	const equityBefore = BigInt(before.totalEquity);
-	const equityChangePct = pct(equityNow, equityBefore);
-
 	const savingsNow = BigInt(now.totalSavings);
-	const savingsBefore = BigInt(before.totalSavings);
-	const savingsChangePct = pct(savingsNow, savingsBefore);
 
-	// totalSupply was removed from AnalyticDailyLog; shares of supply are computed against
-	// the authoritative cross-chain supply figure (`supplyAfter`, already derived above from
-	// FrankencoinService.getTotalSupply()) instead of the log's own field.
-	const equityNowDecimal = parseFloat(formatUnits(equityNow, 18));
-	const inEquityPct = supplyAfter > 0 ? (equityNowDecimal / supplyAfter) * 100 : 0;
-
-	const savingsNowDecimal = parseFloat(formatUnits(savingsNow, 18));
-	const inSavingsPct = supplyAfter > 0 ? (savingsNowDecimal / supplyAfter) * 100 : 0;
+	// shares of supply are computed against the authoritative cross-chain supply figure
+	const inEquityPct = supplyNow > 0 ? (toNum(equityNow) / supplyNow) * 100 : 0;
+	const inSavingsPct = supplyNow > 0 ? (toNum(savingsNow) / supplyNow) * 100 : 0;
 
 	return `📊 *Frankencoin Weekly Snapshot*
+_30d changes use the 30 day rolling average._
 
-💵 Total Supply: *${formatCurrency(supplyAfter, 0, 0)} ZCHF*
-   30d: ${arrow(supplyChangePct)} *${formatCurrency(supplyChangePct)}%*
+💵 Total Supply: *${compact(supplyNow)} ZCHF*
+   30d: ${fmtChange(supplyChangePct)}
 
-💰 Savings: *${fmtZCHF(savingsNow)} ZCHF* (${formatCurrency(inSavingsPct)}% of supply)
-   30d: ${arrow(savingsChangePct)} *${formatCurrency(savingsChangePct)}%*
+💰 Savings: *${fmtZCHF(savingsNow)} ZCHF* (${fmtPct(inSavingsPct)}% of supply)
+   30d: ${fmtChange(savingsChangePct)}
 
-🔒 Equity: *${fmtZCHF(equityNow)} ZCHF* (${formatCurrency(inEquityPct)}% of supply)
-   30d: ${arrow(equityChangePct)} *${formatCurrency(equityChangePct)}%*
+🔒 Equity: *${fmtZCHF(equityNow)} ZCHF* (${fmtPct(inEquityPct)}% of supply)
+   30d: ${fmtChange(equityChangePct)}
 
 📈 FPS Price: *${formatCurrency(formatUnits(BigInt(now.fpsPrice), 18), 0, 0)} ZCHF*
-   30d: ${arrow(fpsPriceChangePct)} *${formatCurrency(fpsPriceChangePct)}%*`;
+   30d: ${fmtChange(fpsPriceChangePct)}`;
 }
