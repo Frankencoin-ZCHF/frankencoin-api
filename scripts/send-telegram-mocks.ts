@@ -377,7 +377,7 @@ const messages: Array<{ label: string; text: string }> = [
 	{ label: 'MintingUpdate', text: MintingUpdateMessage(mockMinting, mockPrices) },
 	{ label: 'EquityInvested', text: EquityInvestedMessage(mockEquityLog) },
 	{ label: 'EquityRedeemed', text: EquityRedeemedMessage({ ...mockEquityLog, kind: 'Equity:Redeemed' }) },
-	{ label: 'WeeklyInfos', text: WeeklyInfosMessage(mockDailyBefore, mockDailyNow, mockSupply) },
+	{ label: 'WeeklyInfos', text: WeeklyInfosMessage([mockDailyBefore, mockDailyNow], mockSupply) },
 	{ label: 'CCIPProposal (AddChain)', text: CCIPProposalMessage(mockCCIPProposal) },
 	{ label: 'CCIPProposalDenied', text: CCIPProposalDeniedMessage({ ...mockCCIPProposal, deniedAt: now - 600, deniedTxHash: TX_HASH }) },
 	{

@@ -619,19 +619,17 @@ export class TelegramService {
 
 	@Cron(CronExpression.EVERY_WEEK)
 	async scheduleWeeklyInfos() {
-		const days = 3600 * 24 * 30;
+		// two full 30d windows are needed for the rolling average comparison
+		const days = 3600 * 24 * 60;
 		const infos = this.analytics.getDailyLog().logs.filter((i) => Number(i.timestamp) >= Date.now() / 1000 - days);
 		const groups = await this.getGovernanceRecipients();
 
-		const before = infos.at(0);
-		const now = infos.at(-1);
-
-		if (!before || !now) {
+		if (infos.length === 0) {
 			this.logger.warn('scheduleWeeklyInfos: no analytics data available, skipping');
 			return;
 		}
 
 		const supply = this.frankencoin.getTotalSupply();
-		this.sendMessageGroup(groups, WeeklyInfosMessage(before, now, supply));
+		this.sendMessageGroup(groups, WeeklyInfosMessage(infos, supply));
 	}
 }
