@@ -101,6 +101,10 @@
 		"transform": {
 			"^.+\\.(t|j)s$": "ts-jest"
 		},
+		"moduleNameMapper": {
+			"^app\\.config$": "<rootDir>/app.config.ts",
+			"^utils/(.*)$": "<rootDir>/utils/$1"
+		},
 		"collectCoverageFrom": [
 			"**/*.(t|j)s"
 		],
