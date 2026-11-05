@@ -293,6 +293,14 @@ export class PricesService {
 			const sggPrice = await this.fetchPriceSwissgrams();
 			if (sggPrice) return { price: sggPrice, source: 'custom' };
 			return null;
+		} else if (normalizeAddress(erc.address) === normalizeAddress('0xC174B12B3195D9887e8dA7aA886EC11c13101060')) {
+			// Priority 1: Custom overwrite for wXAUH (Wrapped Herculis Gold Coin), 1 wXAUH = 1 XAUH
+			return this.fetchPriceSources({
+				...erc,
+				address: '0xa9b17f572341219703Bc951725Bdb3CA756B1A65',
+				name: 'Herculis Gold Coin',
+				symbol: 'XAUH',
+			});
 		}
 
 		// Priority: DeFiLlama
