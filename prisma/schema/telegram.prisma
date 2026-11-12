@@ -1,6 +1,8 @@
 // Telegram group subscriptions and state
 model TelegramGroup {
   chatId        String   @id
+  /// @deprecated Unused. Legacy flags (PriceAlerts, WeeklyInfos, MintingUpdates) from before the
+  /// telegram_user_alerts migration; nothing reads or writes it. Subscriptions live in TelegramUserAlert.
   subscriptions Json?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
