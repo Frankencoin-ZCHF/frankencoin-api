@@ -31,18 +31,39 @@ export class FcsService {
 
 		const chainId = mainnet.id;
 		const addr = ADDRESS[chainId].fcs;
-		const contract = { address: addr, abi: FCSABI, chainId } as const;
+		const client = VIEM_CONFIG[chainId];
+		const block = await client.getBlock({ blockTag: 'latest' });
+		if (block.number == null || block.hash == null) throw new Error('FCS source block unavailable');
+		const contract = { address: addr, abi: FCSABI, chainId, blockNumber: block.number } as const;
+		let bidStatus: 'available' | 'fallback' = 'available';
 
 		const [ask, bid, totalAssets, totalSupply, isBinding] = await Promise.all([
 			VIEM_CONFIG[chainId].readContract({ ...contract, functionName: 'ask' }),
 			// bid() divides by (totalSupply + recentRedemptions) and can revert while FCS supply is 0
-			VIEM_CONFIG[chainId].readContract({ ...contract, functionName: 'bid' }).catch(() => 0n),
+			VIEM_CONFIG[chainId].readContract({ ...contract, functionName: 'bid' }).catch(() => {
+				bidStatus = 'fallback';
+				return 0n;
+			}),
 			VIEM_CONFIG[chainId].readContract({ ...contract, functionName: 'totalAssets' }),
 			VIEM_CONFIG[chainId].readContract({ ...contract, functionName: 'totalSupply' }),
 			VIEM_CONFIG[chainId].readContract({ ...contract, functionName: 'isBinding' }),
 		]);
 
+		// Number-pinned calls can straddle a reorg. Publish only if the selected
+		// block still has the same hash; a failed refresh keeps the previous data
+		// and its original metadata, so clients can detect increasing staleness.
+		const confirmed = await client.getBlock({ blockNumber: block.number });
+		if (confirmed.hash !== block.hash) throw new Error('FCS source block changed during refresh');
+
 		this.fcsInfo = {
+			metadata: {
+				blockNumber: block.number.toString(),
+				blockHash: block.hash,
+				blockTimestamp: Number(block.timestamp),
+				fetchedAt: new Date().toISOString(),
+				sameBlock: true,
+				readStatus: { bid: bidStatus },
+			},
 			erc20: {
 				name: 'Frankencoin Share',
 				symbol: 'FCS',

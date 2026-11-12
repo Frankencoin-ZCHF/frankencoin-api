@@ -5,6 +5,14 @@ import { Address } from 'viem';
 // Api
 
 export type ApiFcsInfo = {
+	metadata: {
+		blockNumber: string;
+		blockHash: string;
+		blockTimestamp: number;
+		fetchedAt: string;
+		sameBlock: true;
+		readStatus: { bid: 'available' | 'fallback' };
+	};
 	erc20: {
 		name: string;
 		symbol: string;

@@ -13,7 +13,8 @@ export class FcsController {
 		summary: 'Get FCS token information',
 		description:
 			'Returns: ApiFcsInfo, mainnet-only price (ask/bid), totalAssets, totalSupply, and binding status for the Frankencoin Share (FCS) token. ' +
-			'FCS wraps FPS1 1:1, so its ask price tracks FPS1.price() directly; bid reflects the current redemption discount.',
+			'FCS wraps FPS1 1:1, so its ask price tracks FPS1.price() directly; bid reflects the current redemption discount. ' +
+			'All five reads are pinned to metadata.blockNumber; blockHash is checked after reading. blockTimestamp (Unix seconds) is measurement time; fetchedAt (ISO) is refresh completion. Cached responses retain both. readStatus.bid distinguishes a failed bid fallback (0) from a successful zero quote.',
 	})
 	@ApiResponse({
 		status: 200,
@@ -23,6 +24,14 @@ export class FcsController {
 			example: {
 				erc20: { name: 'Frankencoin Share', symbol: 'FCS', decimals: 18 },
 				chain: { chainId: 1, address: '0x0000000000000000000000000000000000000000' },
+				metadata: {
+					blockNumber: '26000000',
+					blockHash: '0x' + 'ab'.repeat(32),
+					blockTimestamp: 1794441600,
+					fetchedAt: '2026-11-12T00:00:05.000Z',
+					sameBlock: true,
+					readStatus: { bid: 'available' },
+				},
 				token: { ask: 1234.49, bid: 1200.0, totalAssets: 500000, totalSupply: 405, isBinding: false },
 			},
 		},
