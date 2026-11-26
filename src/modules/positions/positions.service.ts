@@ -232,16 +232,8 @@ export class PositionsService {
 			const mintedDataPromises: Promise<bigint>[] = [];
 			const availableForClonesDataPromises: Promise<bigint>[] = [];
 
-			// Ponder same-batch factory child event miss: when a position is opened and then acted on
-			// (e.g. denied) within the same ethGetLogsBlockRange window, Ponder silently drops the child
-			// contract events during a full re-index. Position 0xf35378277191c1f0d90869426f7177aa0393f77d
-			// was opened at block 25287288 and denied at block 25287602 — both inside window [25286536–25291535]
-			// — so after re-indexing it incorrectly shows denied: false. Filter it out until ponder is fixed
-			// or the indexer is backfilled. See: ponder/docs/ponder-factory-same-batch-miss.md
-			const PONDER_SAME_BATCH_MISS = new Set(['0xf35378277191c1f0d90869426f7177aa0393f77d']);
-			const filteredItems = items.filter((p) => !PONDER_SAME_BATCH_MISS.has(normalizeAddress(p.position)));
-			const openItems = filteredItems.filter((p) => !p.closed && !p.denied) as PositionQueryV1[];
-			const closedItems = filteredItems.filter((p) => p.closed || p.denied) as PositionQueryV1[];
+			const openItems = items.filter((p) => !p.closed && !p.denied) as PositionQueryV1[];
+			const closedItems = items.filter((p) => p.closed || p.denied) as PositionQueryV1[];
 
 			for (const p of openItems) {
 				// Forces the collateral balance to be overwritten with the latest blockchain state, instead of the ponder state.
@@ -1246,6 +1238,12 @@ export class PositionsService {
 				}
 
 				const position = this.getPositionsList().list.find((p) => normalizeAddress(p.position) == normalizeAddress(tr.position));
+				if (!position) {
+					this.logger.warn(
+						`Position ${tr.position} referenced by an owner transfer is unavailable; skipping its expiration check`
+					);
+					continue;
+				}
 
 				if (!isCurrentYear && position.expiration * 1000 < new Date(String(y + 1)).getTime()) {
 					yearlyPositions[y] = yearlyPositions[y].filter((p) => p != tr.position);
